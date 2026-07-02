@@ -1,4 +1,4 @@
-import type { AppConfig, EventData, ScheduleRow } from "./types";
+import type { AppConfig, EventData, ScheduleRow, ScreenMode } from "./types";
 
 export interface EventListEntry {
   id: string;
@@ -15,6 +15,9 @@ export interface AppsPatch {
   /** appId -> new activeEventId (null clears it), staged by "Set active" /
    * "Close event" for whichever app(s) were touched this session. */
   activeEventIdByApp?: Record<string, string | null>;
+  /** appId -> new screenMode, staged by the "Screen" dropdown for
+   * whichever app(s) were touched this session. */
+  screenModeByApp?: Record<string, ScreenMode>;
 }
 
 export interface AppState {
@@ -92,7 +95,8 @@ export function hasPendingChanges(): boolean {
     patch.selectedAppId !== undefined ||
     patch.displayModeId !== undefined ||
     patch.aspectRatioId !== undefined ||
-    Object.keys(patch.activeEventIdByApp ?? {}).length > 0
+    Object.keys(patch.activeEventIdByApp ?? {}).length > 0 ||
+    Object.keys(patch.screenModeByApp ?? {}).length > 0
   );
 }
 

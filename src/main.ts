@@ -3,7 +3,7 @@ import { loadApps, resolveActiveApp, createEventDataSource, watchDisplaySettings
 import { applyTheme, applyAspectRatio } from "./theme";
 import { initCountdown } from "./countdown";
 import { initSchedule } from "./schedule";
-import type { App, EventData } from "./types";
+import type { App, EventData, ScreenMode } from "./types";
 
 interface FullscreenDocumentElement extends HTMLElement {
   webkitRequestFullscreen?: () => void;
@@ -41,33 +41,32 @@ function enterFullscreen(): void {
   }
 }
 
-function setupToggle(): void {
-  const toggleBtn = document.getElementById("toggle-btn");
+/**
+ * Which screen this app shows -- set once per app.screenMode, not toggled
+ * at runtime. Each app is dedicated to one screen (e.g. one app for the
+ * countdown, another for the full schedule); switching which app shows on
+ * a given display is done from the admin, not a button on the TV itself.
+ */
+function applyScreenMode(mode: ScreenMode): void {
   const cdMain = document.getElementById("main") as HTMLElement;
   const cdAnnouncement = document.getElementById("announcement") as HTMLElement;
   const cdList = document.getElementById("schedule-list") as HTMLElement;
   const scheduleScreen = document.getElementById("schedule-screen") as HTMLElement;
   const timeContainer = document.getElementById("time-container") as HTMLElement;
 
-  let isScheduleMode = false;
-
-  toggleBtn?.addEventListener("click", () => {
-    isScheduleMode = !isScheduleMode;
-
-    if (isScheduleMode) {
-      cdMain.style.display = "none";
-      cdAnnouncement.style.display = "none";
-      cdList.style.display = "none";
-      scheduleScreen.style.display = "block";
-      timeContainer.style.left = "82%";
-    } else {
-      cdMain.style.display = "block";
-      cdAnnouncement.style.display = "flex";
-      cdList.style.display = "block";
-      scheduleScreen.style.display = "none";
-      timeContainer.style.left = "58%";
-    }
-  });
+  if (mode === "schedule") {
+    cdMain.style.display = "none";
+    cdAnnouncement.style.display = "none";
+    cdList.style.display = "none";
+    scheduleScreen.style.display = "block";
+    timeContainer.style.left = "82%";
+  } else {
+    cdMain.style.display = "block";
+    cdAnnouncement.style.display = "flex";
+    cdList.style.display = "block";
+    scheduleScreen.style.display = "none";
+    timeContainer.style.left = "58%";
+  }
 }
 
 async function main(): Promise<void> {
@@ -89,6 +88,7 @@ async function main(): Promise<void> {
     currentApp = app;
     currentModeId = displayModeId;
     applyTheme(app, displayModeId);
+    applyScreenMode(app.screenMode ?? "countdown");
 
     const dataSource = createEventDataSource(app);
     activeDataSource = dataSource;
@@ -131,8 +131,6 @@ async function main(): Promise<void> {
   );
 
   await fetchAccurateTime();
-
-  setupToggle();
 
   const fullscreenBtn = document.getElementById("fullscreen-btn");
   fullscreenBtn?.addEventListener("click", enterFullscreen);

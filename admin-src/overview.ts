@@ -2,6 +2,7 @@ import { el, clear } from "./dom";
 import { listDir, getJsonFile } from "./githubApi";
 import { state } from "./state";
 import type { EventData } from "./types";
+import { t } from "./i18n";
 
 export interface OverviewRow {
   id: string;
@@ -81,7 +82,7 @@ export async function renderOverview(
   onSelectEvent: (appId: string, eventId: string) => void,
 ): Promise<void> {
   clear(container);
-  container.append(el("p", { class: "muted" }, ["Loading all events…"]));
+  container.append(el("p", { class: "muted" }, [t("overview.loading")]));
 
   let rows: OverviewRow[];
   try {
@@ -89,7 +90,7 @@ export async function renderOverview(
   } catch (err) {
     clear(container);
     container.append(
-      el("p", { class: "muted status-error" }, [`Failed to load events: ${(err as Error).message}`]),
+      el("p", { class: "muted status-error" }, [t("overview.loadFailed", { message: (err as Error).message })]),
     );
     return;
   }
@@ -97,18 +98,18 @@ export async function renderOverview(
   clear(container);
 
   if (rows.length === 0) {
-    container.append(el("p", { class: "muted" }, ["No events yet."]));
+    container.append(el("p", { class: "muted" }, [t("overview.empty")]));
     return;
   }
 
   const table = el("div", { class: "overview-table" });
 
   const header = el("div", { class: "overview-row overview-header" }, [
-    el("span", {}, ["App"]),
-    el("span", {}, ["Event"]),
-    el("span", {}, ["Status"]),
-    el("span", {}, ["Dates"]),
-    el("span", {}, ["Days / Countdown rows"]),
+    el("span", {}, [t("overview.app")]),
+    el("span", {}, [t("overview.event")]),
+    el("span", {}, [t("overview.status")]),
+    el("span", {}, [t("overview.dates")]),
+    el("span", {}, [t("overview.daysRows")]),
   ]);
   table.append(header);
 
@@ -118,7 +119,7 @@ export async function renderOverview(
         ? row.earliestDate === row.latestDate
           ? row.earliestDate
           : `${row.earliestDate} – ${row.latestDate}`
-        : "(no dates set)";
+        : t("overview.noDates");
 
     const rowEl = el(
       "button",
