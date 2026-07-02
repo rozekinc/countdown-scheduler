@@ -52,6 +52,11 @@ html, body {
   gap: 8px;
 }
 
+.save-bar {
+  display: flex;
+  align-items: center;
+}
+
 .auth-status {
   font-size: 13px;
   opacity: 0.85;
