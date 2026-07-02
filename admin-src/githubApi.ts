@@ -1,5 +1,5 @@
-// Thin wrapper around the GitHub REST Contents API, scoped to the data/
-// directory only. Every read/write/delete helper in this file must call
+// Thin wrapper around the GitHub REST Contents + Git Data APIs, scoped to
+// the data/ directory only. Every read/write helper in this file must call
 // assertDataPath() first, with no bypass, so this app can never touch
 // anything outside data/.
 
@@ -36,7 +36,7 @@ function authHeaders(): Record<string, string> {
   };
 }
 
-function contentsUrl(path: string): string {
+function repoUrl(path: string): string {
   const identity = getRepoIdentity();
   if (!identity) {
     throw new GithubApiError(
@@ -44,11 +44,15 @@ function contentsUrl(path: string): string {
         "(not on a github.io URL), set them once in Settings.",
     );
   }
-  return `${API_ROOT}/repos/${identity.owner}/${identity.repo}/contents/${path}`;
+  return `${API_ROOT}/repos/${identity.owner}/${identity.repo}/${path}`;
 }
 
-// UTF-8 safe base64 encode/decode, since GitHub's Contents API transports
-// file bodies as base64.
+function contentsUrl(path: string): string {
+  return repoUrl(`contents/${path}`);
+}
+
+// UTF-8 safe base64 encode/decode, since GitHub's APIs transport file
+// bodies as base64.
 function utf8ToBase64(text: string): string {
   const bytes = new TextEncoder().encode(text);
   let binary = "";
@@ -129,61 +133,6 @@ export async function listDir(path: string): Promise<DirEntry[]> {
   }));
 }
 
-/**
- * PUT (create or update) a JSON file. Pass the current `sha` when updating
- * an existing file (fetch it via getFile() first); omit it when creating.
- */
-export async function putFile(
-  path: string,
-  content: string,
-  message: string,
-  sha?: string,
-): Promise<string> {
-  assertDataPath(path);
-  const res = await fetch(contentsUrl(path), {
-    method: "PUT",
-    headers: {
-      ...authHeaders(),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      message,
-      content: utf8ToBase64(content),
-      branch: TARGET_BRANCH,
-      ...(sha ? { sha } : {}),
-    }),
-  });
-  if (!res.ok) {
-    throw new GithubApiError(`PUT ${path} failed (HTTP ${res.status}).`, res.status);
-  }
-  const body = await res.json();
-  return body.content.sha as string;
-}
-
-/** DELETE a file. Requires its current sha (fetch via getFile() first). */
-export async function deleteFile(
-  path: string,
-  message: string,
-  sha: string,
-): Promise<void> {
-  assertDataPath(path);
-  const res = await fetch(contentsUrl(path), {
-    method: "DELETE",
-    headers: {
-      ...authHeaders(),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      message,
-      sha,
-      branch: TARGET_BRANCH,
-    }),
-  });
-  if (!res.ok) {
-    throw new GithubApiError(`DELETE ${path} failed (HTTP ${res.status}).`, res.status);
-  }
-}
-
 /** Convenience: GET + JSON.parse. Returns null if the file does not exist. */
 export async function getJsonFile<T>(path: string): Promise<{ data: T; sha: string } | null> {
   const file = await getFile(path);
@@ -191,12 +140,92 @@ export async function getJsonFile<T>(path: string): Promise<{ data: T; sha: stri
   return { data: JSON.parse(file.content) as T, sha: file.sha };
 }
 
-/** Convenience: JSON.stringify + putFile with a short, descriptive message. */
-export async function putJsonFile(
-  path: string,
-  data: unknown,
-  message: string,
-  sha?: string,
-): Promise<string> {
-  return putFile(path, JSON.stringify(data, null, 2) + "\n", message, sha);
+export interface FileChange {
+  path: string;
+  /** File body, or null to delete the path. */
+  content: string | null;
+}
+
+/**
+ * Writes any number of file changes as a SINGLE commit on TARGET_BRANCH,
+ * via the Git Data API (blob(s) -> tree -> commit -> ref update) rather
+ * than one Contents-API PUT per file. This is what lets the admin app do
+ * "one Save = one commit" for however many files a session's edits touch
+ * (an event file, data/apps.json, an archive move + delete -- all of it),
+ * instead of a commit per action.
+ *
+ * Fast-forward only: if the branch moved since the caller last read it,
+ * the ref update is rejected rather than silently overwriting someone
+ * else's concurrent change.
+ */
+export async function commitFiles(changes: FileChange[], message: string): Promise<void> {
+  changes.forEach((change) => assertDataPath(change.path));
+  if (changes.length === 0) return;
+
+  const headers = { ...authHeaders(), "Content-Type": "application/json" };
+
+  const refRes = await fetch(repoUrl(`git/ref/heads/${encodeURIComponent(TARGET_BRANCH)}`), {
+    headers: authHeaders(),
+  });
+  if (!refRes.ok) {
+    throw new GithubApiError(`GET branch ref failed (HTTP ${refRes.status}).`, refRes.status);
+  }
+  const headSha = (await refRes.json()).object.sha as string;
+
+  const commitRes = await fetch(repoUrl(`git/commits/${headSha}`), { headers: authHeaders() });
+  if (!commitRes.ok) {
+    throw new GithubApiError(`GET base commit failed (HTTP ${commitRes.status}).`, commitRes.status);
+  }
+  const baseTreeSha = (await commitRes.json()).tree.sha as string;
+
+  const treeEntries = [];
+  for (const change of changes) {
+    if (change.content === null) {
+      treeEntries.push({ path: change.path, mode: "100644", type: "blob", sha: null });
+      continue;
+    }
+    const blobRes = await fetch(repoUrl("git/blobs"), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ content: utf8ToBase64(change.content), encoding: "base64" }),
+    });
+    if (!blobRes.ok) {
+      throw new GithubApiError(`Create blob for ${change.path} failed (HTTP ${blobRes.status}).`, blobRes.status);
+    }
+    const blobSha = (await blobRes.json()).sha as string;
+    treeEntries.push({ path: change.path, mode: "100644", type: "blob", sha: blobSha });
+  }
+
+  const treeRes = await fetch(repoUrl("git/trees"), {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ base_tree: baseTreeSha, tree: treeEntries }),
+  });
+  if (!treeRes.ok) {
+    throw new GithubApiError(`Create tree failed (HTTP ${treeRes.status}).`, treeRes.status);
+  }
+  const newTreeSha = (await treeRes.json()).sha as string;
+
+  const newCommitRes = await fetch(repoUrl("git/commits"), {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ message, tree: newTreeSha, parents: [headSha] }),
+  });
+  if (!newCommitRes.ok) {
+    throw new GithubApiError(`Create commit failed (HTTP ${newCommitRes.status}).`, newCommitRes.status);
+  }
+  const newCommitSha = (await newCommitRes.json()).sha as string;
+
+  const updateRefRes = await fetch(repoUrl(`git/refs/heads/${encodeURIComponent(TARGET_BRANCH)}`), {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({ sha: newCommitSha }),
+  });
+  if (!updateRefRes.ok) {
+    throw new GithubApiError(
+      `Publishing the commit failed (HTTP ${updateRefRes.status}) -- someone else may have saved in the ` +
+        "meantime. Reload and re-apply your changes.",
+      updateRefRes.status,
+    );
+  }
 }
