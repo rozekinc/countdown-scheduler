@@ -1,5 +1,6 @@
 import { el } from "./dom";
 import { getRepoIdentity, setRepoIdentityOverride } from "./config";
+import { t } from "./i18n";
 
 /**
  * "Settings" is only ever needed for local testing: an owner/repo
@@ -12,7 +13,7 @@ import { getRepoIdentity, setRepoIdentityOverride } from "./config";
 export function renderSettingsControls(container: HTMLElement, onSaved: () => void): void {
   container.innerHTML = "";
 
-  const btn = el("button", { class: "btn btn-secondary" }, ["Settings"]);
+  const btn = el("button", { class: "btn btn-secondary" }, [t("settings.button")]);
   btn.addEventListener("click", () => openSettingsModal(onSaved));
   container.append(btn);
 }
@@ -20,14 +21,14 @@ export function renderSettingsControls(container: HTMLElement, onSaved: () => vo
 function openSettingsModal(onSaved: () => void): void {
   const backdrop = el("div", { class: "modal-backdrop" });
   const detected = getRepoIdentity();
-  const closeBtn = el("button", { class: "btn btn-secondary" }, ["Close"]);
+  const closeBtn = el("button", { class: "btn btn-secondary" }, [t("settings.close")]);
   closeBtn.addEventListener("click", () => backdrop.remove());
 
   if (detected) {
     const body = el("div", { class: "modal-body" }, [
-      el("h3", {}, ["Settings"]),
+      el("h3", {}, [t("settings.title")]),
       el("p", { class: "muted" }, [
-        `Repo detected from URL: ${detected.owner}/${detected.repo}. Nothing to configure here.`,
+        t("settings.detected", { owner: detected.owner, repo: detected.repo }),
       ]),
       el("div", { class: "actions-row" }, [closeBtn]),
     ]);
@@ -41,16 +42,16 @@ function openSettingsModal(onSaved: () => void): void {
     type: "text",
     class: "row-input",
     value: getRepoIdentity()?.owner ?? "",
-    placeholder: "owner (e.g. your-username)",
+    placeholder: t("settings.ownerPlaceholder"),
   }) as HTMLInputElement;
   const repoInput = el("input", {
     type: "text",
     class: "row-input",
     value: getRepoIdentity()?.repo ?? "",
-    placeholder: "repo (e.g. countdown-scheduler)",
+    placeholder: t("settings.repoPlaceholder"),
   }) as HTMLInputElement;
 
-  const saveBtn = el("button", { class: "btn btn-primary" }, ["Save"]);
+  const saveBtn = el("button", { class: "btn btn-primary" }, [t("settings.save")]);
   saveBtn.addEventListener("click", () => {
     if (ownerInput.value.trim() && repoInput.value.trim()) {
       setRepoIdentityOverride({
@@ -63,12 +64,10 @@ function openSettingsModal(onSaved: () => void): void {
   });
 
   const body = el("div", { class: "modal-body" }, [
-    el("h3", {}, ["Settings"]),
-    el("p", { class: "muted" }, [
-      "Not running on a github.io URL -- set owner/repo for local testing only.",
-    ]),
-    el("label", { class: "field" }, ["Owner:", ownerInput]),
-    el("label", { class: "field" }, ["Repo:", repoInput]),
+    el("h3", {}, [t("settings.title")]),
+    el("p", { class: "muted" }, [t("settings.notOnGithubIo")]),
+    el("label", { class: "field" }, [t("settings.owner"), ownerInput]),
+    el("label", { class: "field" }, [t("settings.repo"), repoInput]),
     el("div", { class: "actions-row" }, [saveBtn, closeBtn]),
   ]);
   const modal = el("div", { class: "modal" }, [body]);

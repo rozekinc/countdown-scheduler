@@ -298,25 +298,20 @@ html, body {
 
 /* Two copies of the day's rows sit stacked in .schedule-rows-inner;
    sliding by exactly one copy's height (50% of the doubled total) loops
-   seamlessly -- rows are always visible, never scroll to a blank gap.
-   A brief "settle" hold sits at the start of each loop and again at its
-   midpoint, so a glance across the display always has a still moment to
-   land on -- ease-in-out on the moving segments avoids the linear-scroll
-   snap-into-motion feel. */
+   seamlessly -- rows are always visible, never scroll to a blank gap. A
+   constant linear speed the whole way round -- no settle-and-hold points
+   -- reads as one continuous flow instead of pausing/jumping. */
 .schedule-rows-active .schedule-rows-inner {
   animation-name: schedule-scroll;
-  animation-timing-function: ease-in-out;
+  animation-timing-function: linear;
   animation-iteration-count: infinite;
 }
 
 @keyframes schedule-scroll {
-  0%, 8% {
+  from {
     transform: translateY(0%);
   }
-  46%, 54% {
-    transform: translateY(-25%);
-  }
-  92%, 100% {
+  to {
     transform: translateY(-50%);
   }
 }
@@ -489,24 +484,19 @@ html, body {
 /* Two copies of the content sit back to back in .marquee-inner; sliding by
    exactly one copy's width (50% of the doubled total) loops seamlessly --
    the viewport always has text in it, never goes empty between rotations.
-   A brief "settle" hold sits at the start of each loop and again at its
-   midpoint, so a glance across the display always has a still moment to
-   land on -- ease-in-out on the moving segments avoids the linear-scroll
-   snap-into-motion feel. */
+   A constant linear speed the whole way round -- no settle-and-hold
+   points -- reads as one continuous flow instead of pausing/jumping. */
 .marquee-active .marquee-inner {
   animation-name: marquee-scroll;
-  animation-timing-function: ease-in-out;
+  animation-timing-function: linear;
   animation-iteration-count: infinite;
 }
 
 @keyframes marquee-scroll {
-  0%, 8% {
+  from {
     transform: translateX(0%);
   }
-  46%, 54% {
-    transform: translateX(-25%);
-  }
-  92%, 100% {
+  to {
     transform: translateX(-50%);
   }
 }
@@ -522,21 +512,6 @@ html, body {
   z-index: 99999;
   opacity: 0.8;
   user-select: none;
-}
-
-#toggle-btn {
-  position: fixed;
-  left: 20px;
-  bottom: 20px;
-  z-index: 9999;
-  background: #000;
-  color: #fff;
-  border: none;
-  padding: 22px 44px;
-  font-size: 26px;
-  font-weight: bold;
-  border-radius: 8px;
-  cursor: pointer;
 }
 
 /* scrollbar tuning */

@@ -4,11 +4,18 @@ export interface Theme {
   background: string;
 }
 
+export type ScreenMode = "countdown" | "schedule";
+
 export interface App {
   id: string;
   name: string;
   theme: Theme;
   activeEventId: string;
+  /** Which screen this app always shows -- "countdown" (title + countdown
+   * + upcoming-schedule sidebar) or "schedule" (the full day-by-day
+   * schedule). Set per app in the admin; no more runtime toggle button on
+   * the display itself. Omitted = "countdown". */
+  screenMode?: ScreenMode;
 }
 
 export interface AppsData {

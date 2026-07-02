@@ -1,5 +1,6 @@
 import { el } from "./dom";
 import { signInWithToken, isSignedIn, signOut, AuthError } from "./auth";
+import { t } from "./i18n";
 
 export function renderAuthControls(
   container: HTMLElement,
@@ -9,21 +10,21 @@ export function renderAuthControls(
 
   if (isSignedIn()) {
     const signOutBtn = el("button", { class: "btn btn-secondary" }, [
-      "Sign out",
+      t("auth.signOut"),
     ]);
     signOutBtn.addEventListener("click", () => {
       signOut();
       renderAuthControls(container, onSignedIn);
     });
     container.append(
-      el("span", { class: "auth-status" }, ["Signed in"]),
+      el("span", { class: "auth-status" }, [t("auth.signedIn")]),
       signOutBtn,
     );
     return;
   }
 
   const signInBtn = el("button", { class: "btn btn-primary" }, [
-    "Sign in with token",
+    t("auth.signInWithToken"),
   ]);
   signInBtn.addEventListener("click", () => {
     openTokenModal(() => {
@@ -40,19 +41,19 @@ function openTokenModal(onSuccess: () => void): void {
   const tokenInput = el("input", {
     type: "password",
     class: "row-input",
-    placeholder: "github_pat_...",
+    placeholder: t("auth.tokenPlaceholder"),
     autocomplete: "off",
   }) as HTMLInputElement;
 
   const errorEl = el("p", { class: "error" }, []);
   errorEl.style.display = "none";
 
-  const submitBtn = el("button", { class: "btn btn-primary" }, ["Sign in"]);
-  const cancelBtn = el("button", { class: "btn btn-secondary" }, ["Cancel"]);
+  const submitBtn = el("button", { class: "btn btn-primary" }, [t("auth.signIn")]);
+  const cancelBtn = el("button", { class: "btn btn-secondary" }, [t("auth.cancel")]);
 
   function submit(): void {
     submitBtn.setAttribute("disabled", "true");
-    submitBtn.textContent = "Checking…";
+    submitBtn.textContent = t("auth.checking");
     errorEl.style.display = "none";
     signInWithToken(tokenInput.value)
       .then(() => {
@@ -61,8 +62,8 @@ function openTokenModal(onSuccess: () => void): void {
       })
       .catch((err: unknown) => {
         submitBtn.removeAttribute("disabled");
-        submitBtn.textContent = "Sign in";
-        errorEl.textContent = err instanceof AuthError ? err.message : "Sign-in failed.";
+        submitBtn.textContent = t("auth.signIn");
+        errorEl.textContent = err instanceof AuthError ? err.message : t("auth.signInFailed");
         errorEl.style.display = "";
       });
   }
@@ -74,13 +75,9 @@ function openTokenModal(onSuccess: () => void): void {
   cancelBtn.addEventListener("click", () => backdrop.remove());
 
   const body = el("div", { class: "modal-body" }, [
-    el("h3", {}, ["Sign in"]),
-    el("p", { class: "muted" }, [
-      "Paste a fine-grained Personal Access Token scoped to just this repo " +
-        "(Contents: read and write, nothing else). See SETUP.md for exactly how " +
-        "to generate one. It's kept in this browser tab only, never saved to disk.",
-    ]),
-    el("label", { class: "field" }, ["Token:", tokenInput]),
+    el("h3", {}, [t("auth.signInTitle")]),
+    el("p", { class: "muted" }, [t("auth.tokenHelp")]),
+    el("label", { class: "field" }, [t("auth.tokenLabel"), tokenInput]),
     errorEl,
     el("div", { class: "actions-row" }, [submitBtn, cancelBtn]),
   ]);
