@@ -13,6 +13,8 @@ import { isSignedIn } from "./auth";
 import { parseXlsxToRows } from "./excelImport";
 import { state, currentApp, currentDay, type EventListEntry } from "./state";
 import type { AppsFile, EventData, ScheduleRow } from "./types";
+import { DISPLAY_MODES, DEFAULT_DISPLAY_MODE_ID, getDisplayMode } from "./displayModes";
+import { applyPreviewTheme } from "./previewTheme";
 
 // Public data/apps.json is fetched with a plain (unauthenticated) fetch,
 // relative to admin/index.html.
@@ -21,12 +23,14 @@ const APPS_JSON_PATH = "data/apps.json";
 
 let rootEl: HTMLElement;
 let appSwitcherEl: HTMLElement;
+let displayModeSwitcherEl: HTMLElement;
 let authControlsEl: HTMLElement;
 let settingsControlsEl: HTMLElement;
 let viewToggleEl: HTMLElement;
 let leftPanelEl: HTMLElement;
 let mainPanelEl: HTMLElement;
 let overviewPanelEl: HTMLElement;
+let previewPanelEl: HTMLElement;
 let statusBarEl: HTMLElement;
 
 export function init(root: HTMLElement): void {
@@ -36,15 +40,20 @@ export function init(root: HTMLElement): void {
   const header = el("header", { class: "app-header" });
   viewToggleEl = el("div", { class: "view-toggle" });
   appSwitcherEl = el("div", { class: "app-switcher" });
+  displayModeSwitcherEl = el("div", { class: "display-mode-switcher" });
   settingsControlsEl = el("div", { class: "settings-controls" });
   authControlsEl = el("div", { class: "auth-controls" });
-  header.append(viewToggleEl, appSwitcherEl, settingsControlsEl, authControlsEl);
+  header.append(viewToggleEl, appSwitcherEl, displayModeSwitcherEl, settingsControlsEl, authControlsEl);
 
   const body = el("div", { class: "app-body" });
   leftPanelEl = el("aside", { class: "left-panel" });
   mainPanelEl = el("main", { class: "main-panel" });
   overviewPanelEl = el("div", { class: "overview-panel" });
-  body.append(leftPanelEl, mainPanelEl, overviewPanelEl);
+  // Always visible regardless of editor/overview view mode -- an operator
+  // comparing display-mode presets shouldn't have to leave whatever they're
+  // doing to see the effect.
+  previewPanelEl = el("aside", { class: "preview-panel" });
+  body.append(leftPanelEl, mainPanelEl, overviewPanelEl, previewPanelEl);
 
   statusBarEl = el("div", { class: "status-bar" });
 
@@ -104,6 +113,7 @@ function jumpToEvent(appId: string, eventId: string): void {
   state.currentEventSha = null;
   applyTheme();
   renderAppSwitcher();
+  renderPreviewPanel();
   switchViewMode("editor");
   void loadEventsForCurrentApp().then(() => selectEvent(eventId));
 }
@@ -127,11 +137,14 @@ async function loadApps(): Promise<void> {
     const data = (await res.json()) as AppsFile;
     state.apps = data.apps ?? [];
     state.selectedAppId = data.selectedAppId ?? (state.apps[0]?.id ?? null);
+    state.displayModeId = data.displayModeId ?? null;
     if (state.apps.length > 0) {
       state.currentAppId = state.apps[0].id;
     }
     renderAppSwitcher();
+    renderDisplayModeSwitcher();
     applyTheme();
+    renderPreviewPanel();
     if (isSignedIn()) {
       await loadEventsForCurrentApp();
     } else {
@@ -167,6 +180,7 @@ function renderAppSwitcher(): void {
     state.currentEventSha = null;
     applyTheme();
     renderAppSwitcher();
+    renderPreviewPanel();
     if (isSignedIn()) {
       loadEventsForCurrentApp();
     } else {
@@ -220,6 +234,84 @@ function applyTheme(): void {
   root.style.setProperty("--accent", app.theme.accent);
   root.style.setProperty("--primary", app.theme.primary);
   root.style.setProperty("--background", app.theme.background);
+}
+
+function renderDisplayModeSwitcher(): void {
+  clear(displayModeSwitcherEl);
+  const select = el("select", { class: "display-mode-select" });
+  const activeId = state.displayModeId ?? DEFAULT_DISPLAY_MODE_ID;
+  for (const mode of DISPLAY_MODES) {
+    const option = el("option", { value: mode.id }, [mode.label]);
+    if (mode.id === activeId) option.setAttribute("selected", "selected");
+    select.append(option);
+  }
+  select.addEventListener("change", () => {
+    void setDisplayMode((select as HTMLSelectElement).value);
+  });
+  displayModeSwitcherEl.append(el("label", {}, ["Display mode: "]), select);
+}
+
+/**
+ * Sets the display-mode preset (see displayModes.ts) applied on every
+ * screen, pinned or not. Same shape as setSelectedAppOnDisplay: re-fetch
+ * for a current sha, write, then update local state and feedback.
+ */
+async function setDisplayMode(modeId: string): Promise<void> {
+  try {
+    const fresh = await getJsonFile<AppsFile>(APPS_JSON_PATH);
+    if (!fresh) {
+      setStatus("Failed to load data/apps.json.", true);
+      return;
+    }
+    fresh.data.displayModeId = modeId;
+    await putJsonFile(APPS_JSON_PATH, fresh.data, `Set display mode: ${modeId}`, fresh.sha);
+    state.displayModeId = modeId;
+    setStatus(`Display mode set to "${getDisplayMode(modeId).label}".`);
+    renderDisplayModeSwitcher();
+    renderPreviewPanel();
+  } catch (err) {
+    setStatus(`Failed to switch display mode: ${(err as Error).message}`, true);
+  }
+}
+
+/**
+ * A miniature, representative mockup of the real display site (title, a
+ * countdown-style number, an announcement bar, a couple of schedule rows),
+ * styled with the same --theme-* CSS custom properties the real site uses,
+ * so switching the app or the display-mode dropdown updates it instantly.
+ * This is not a live embed of the site -- just enough to compare presets
+ * without walking over to the actual TV.
+ */
+function renderPreviewPanel(): void {
+  clear(previewPanelEl);
+  const app = currentApp();
+  applyPreviewTheme(previewPanelEl, app, state.displayModeId);
+
+  const modeLabel = getDisplayMode(state.displayModeId).label;
+  previewPanelEl.append(el("h3", { class: "preview-panel-title" }, ["Display preview"]));
+  previewPanelEl.append(el("p", { class: "preview-mode-label" }, [modeLabel]));
+
+  const mock = el("div", { class: "preview-mock" }, [
+    el("div", { class: "preview-mock-title" }, [app ? app.name : "No app selected"]),
+    el("div", { class: "preview-mock-countdown" }, ["12:34:56"]),
+    el("div", { class: "preview-mock-announcement" }, [
+      "Next up: ",
+      el("span", { class: "keyword keyword-a" }, ["JSB1000"]),
+      " then ",
+      el("span", { class: "keyword keyword-b" }, ["ST1000"]),
+    ]),
+    el("div", { class: "preview-mock-rows" }, [
+      el("div", { class: "preview-mock-row" }, [
+        el("span", {}, ["Practice"]),
+        el("span", {}, ["09:00"]),
+      ]),
+      el("div", { class: "preview-mock-row" }, [
+        el("span", {}, ["Qualifying"]),
+        el("span", {}, ["13:30"]),
+      ]),
+    ]),
+  ]);
+  previewPanelEl.append(mock);
 }
 
 async function loadEventsForCurrentApp(): Promise<void> {

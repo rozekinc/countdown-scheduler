@@ -10,13 +10,6 @@ html, body {
   transition: background 0.3s ease-in-out;
 }
 
-/* Schedule-screen tint, derived from the active app's own theme instead of
-   a fixed color -- see main.ts's setupToggle(), which only ever toggles
-   this class, never sets an inline background directly. */
-body.schedule-mode {
-  background: color-mix(in srgb, var(--theme-background, #fff) 80%, var(--theme-primary, #e60000) 20%);
-}
-
 .aspect-container {
   width: 100vw;
   height: 100vh;
@@ -114,18 +107,26 @@ body.schedule-mode {
   z-index: 10;
 }
 
-/* title */
+/* title -- de-emphasized slightly (size ceiling + opacity) relative to the
+   countdown below it, so the countdown reads as the dominant, first-glance
+   value rather than competing with it. */
 #title {
-  font-size: clamp(25px, 5.5vw, 80px);
+  font-size: clamp(25px, 5vw, 70px);
+  font-weight: 600;
+  opacity: 0.85;
   margin: 0 0 1.33vh 0;
   word-break: break-word;
   white-space: pre-line;
 }
 
-/* countdown */
+/* countdown -- the single most important glanceable value on the whole
+   display; its floor is raised well past the old 36px so it never renders
+   too small to read at a glance from across a room under glare, and its
+   weight is pushed past a plain bold to hold up against the surrounding
+   chrome. */
 #countdown {
-  font-size: clamp(36px, 8vw, 120px);
-  font-weight: bold;
+  font-size: clamp(56px, 8.5vw, 130px);
+  font-weight: 800;
   color: var(--theme-primary, #e60000);
   font-feature-settings: "tnum";
   white-space: nowrap;
@@ -136,22 +137,10 @@ body.schedule-mode {
   vertical-align: -0.1em;
 }
 
-#announcement {
-  position: absolute;
-  top: 62vh;
-  left: 0;
-  width: 100%; /* up to just left of the 25%-wide schedule panel */
-  box-sizing: border-box;
-  padding: 10px 0px; /* small margin in front of the divider */
-  background: transparent;
-  z-index: 100;
-  justify-content: center;
-  font-size: clamp(24px, 2.4vw, 38px);
-  color: black;
-  font-weight: bold;
-  white-space: nowrap;       /* never wrap */
-  overflow: hidden;          /* guard against overflow */
-}
+/* See .announcement-bar further down for #announcement's actual layout --
+   it's a sibling of #main now, not nested inside it (nesting it compounded
+   its own top offset with #main's, a bug in the original app that pushed
+   it much lower than intended). */
 
 /* schedule list design */
 #schedule-list {
@@ -160,7 +149,7 @@ body.schedule-mode {
   height: 100vh;
   right: 0;
   width: 25%;
-  background: #ffe4c4;
+  background: var(--theme-surface, #ffe4c4);
   border-left: 6px solid #696969;
   margin: 0;
   padding: 0;
@@ -176,6 +165,7 @@ body.schedule-mode {
   margin-top: 20px;
   font-weight: bold;
   text-align: center;
+  color: var(--theme-surface-text, #000);
 }
 
 #schedule-list ul {
@@ -183,10 +173,14 @@ body.schedule-mode {
   padding-left: 1em;
 }
 
+/* font-weight (not opacity) is the dial-back here: .row-past/.row-next
+   (applied to these same <li> elements -- see their rules below) already
+   use opacity for the past/next distinction, and this ID-scoped selector
+   would out-specificity a plain class, silently breaking that dimming. */
 #schedule-list ul li {
   font-size: clamp(16px, 3vw, 32px);
   padding: 6px 10px;
-  font-weight: bold;
+  font-weight: 600;
   border-bottom: 1px solid #ddd;
 }
 
@@ -222,7 +216,11 @@ body.schedule-mode {
   left: 0;
   width: 100%;
   height: 100%;
-  background: #fff;
+  /* Tinted relative to the current theme/mode -- a visible cue for which
+     screen you're on. This is on the actually-visible layer; setting this
+     on <body> instead (an earlier attempt) rendered invisible because this
+     element's own background sits on top of it. */
+  background: color-mix(in srgb, var(--theme-background, #fff) 80%, var(--theme-primary, #e60000) 20%);
   overflow: hidden;
   display: none; /* toggled from JS */
   z-index: 5;
@@ -279,18 +277,25 @@ body.schedule-mode {
 
 /* Two copies of the day's rows sit stacked in .schedule-rows-inner;
    sliding by exactly one copy's height (50% of the doubled total) loops
-   seamlessly -- rows are always visible, never scroll to a blank gap. */
+   seamlessly -- rows are always visible, never scroll to a blank gap.
+   A brief "settle" hold sits at the start of each loop and again at its
+   midpoint, so a glance across the display always has a still moment to
+   land on -- ease-in-out on the moving segments avoids the linear-scroll
+   snap-into-motion feel. */
 .schedule-rows-active .schedule-rows-inner {
   animation-name: schedule-scroll;
-  animation-timing-function: linear;
+  animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
 }
 
 @keyframes schedule-scroll {
-  from {
-    transform: translateY(0);
+  0%, 8% {
+    transform: translateY(0%);
   }
-  to {
+  46%, 54% {
+    transform: translateY(-25%);
+  }
+  92%, 100% {
     transform: translateY(-50%);
   }
 }
@@ -308,7 +313,7 @@ body.schedule-mode {
 .schedule-row-title {
   font-size: clamp(25px, 2.8vw, 38px);
   font-weight: bold;
-  color: #333;
+  color: var(--theme-surface-text, #333);
   margin-top: 0.5vh;
 }
 
@@ -316,7 +321,7 @@ body.schedule-mode {
 .schedule-row-content {
   font-size: clamp(25px, 2.8vw, 38px);
   font-weight: bold;
-  color: #333;
+  color: var(--theme-surface-text, #333);
   margin-bottom: 0.5vh;
 }
 
@@ -326,6 +331,26 @@ body.schedule-mode {
 .row-past {
   opacity: 0.4;
   filter: grayscale(60%);
+}
+
+/* Keyword highlights: color comes from a per-display-mode CSS var (see
+   theme.ts), and an underline is added so the distinction isn't color
+   alone -- matters under glare/distance, or for colorblind viewers. */
+.keyword {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.keyword-a {
+  color: var(--keyword-a, #CD5C5C);
+}
+
+.keyword-b {
+  color: var(--keyword-b, #4682B4);
+}
+
+.announcement-label {
+  color: var(--theme-primary, blue);
 }
 
 .row-next {
@@ -345,7 +370,7 @@ body.schedule-mode {
   content: "▶";
   position: absolute;
   left: 0;
-  color: #000;
+  color: var(--theme-surface-text, #000);
 }
 /* indent to match the 1.2em width of the title's ▶ marker exactly */
 .no-bullet-cell {
@@ -356,7 +381,7 @@ body.schedule-mode {
 .schedule-row-date {
   font-size: clamp(25px, 3.5vw, 40px);
   font-weight: bold;
-  color: #333;
+  color: var(--theme-surface-text, #333);
   margin-bottom: 0.5vh;
 }
 
@@ -366,43 +391,48 @@ body.schedule-mode {
 }
 
 .sub-info {
-  color: #333;
+  color: var(--theme-surface-text, #333);
   font-weight: bold;
 }
 
-/* bottom announcement area (same style as the countdown screen).
-   NOTE: the original app had this as two separate #schedule-announcement
-   rules -- one setting width:100%, a later one setting left/right (5vw
-   each) with no width. Browsers resolve that "over-constrained" combo by
-   ignoring `right` and rendering at width:100% anyway, which pushed the
-   element well past the right edge of its container. Merged into one rule
-   below (bottom:2vh, left/right:5vw, no explicit width) so it just
-   computes its width from the left/right offsets, as originally intended. */
-#schedule-announcement {
+/* Shared announcement bar -- ONE rule, used identically by #announcement
+   (countdown screen) and #schedule-announcement (schedule screen), so they
+   sit at the same bottom position with the same look everywhere. Each
+   screen only overrides `right`, since the countdown screen still has the
+   25%-wide sidebar visible next to it and the schedule screen doesn't.
+   Layout: a fixed label ("お知らせ：") followed by a content viewport --
+   only the content ever scrolls (marquee-active), never the label; see
+   src/marquee.ts, which measures overflow and toggles that class. When
+   the content fits, everything just sits centered, static.
+   NOTE: the original app had #schedule-announcement as two separate rules
+   -- one setting width:100%, a later one setting left/right (5vw each)
+   with no width, which is CSS-over-constrained and made it render well
+   past its container's right edge. Fixed by using left+right with no
+   explicit width, so it's computed from the offsets as intended. */
+.announcement-bar {
   position: absolute;
   bottom: 2vh;
   left: 5vw;
-  right: 5vw;
   box-sizing: border-box;
   padding: 10px 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
   justify-content: center;
   font-size: clamp(24px, 2.4vw, 38px);
-  color: black;
+  color: var(--theme-accent, black);
   font-weight: bold;
   white-space: nowrap;
   overflow: hidden;
   z-index: 100;
 }
 
-/* Announcement layout: a fixed label ("お知らせ：") followed by a content
-   viewport. Only the content ever scrolls (marquee-active), never the
-   label -- see src/marquee.ts, which measures overflow and toggles the
-   class. When the content fits, everything just sits centered, static. */
-#announcement,
+#announcement {
+  right: calc(25% + 5vw); /* clears the sidebar, which stays visible on this screen */
+}
+
 #schedule-announcement {
-  display: flex;
-  align-items: baseline;
-  gap: 0.4em;
+  right: 5vw; /* no sidebar on this screen */
 }
 
 .marquee-label {
@@ -437,18 +467,25 @@ body.schedule-mode {
 
 /* Two copies of the content sit back to back in .marquee-inner; sliding by
    exactly one copy's width (50% of the doubled total) loops seamlessly --
-   the viewport always has text in it, never goes empty between rotations. */
+   the viewport always has text in it, never goes empty between rotations.
+   A brief "settle" hold sits at the start of each loop and again at its
+   midpoint, so a glance across the display always has a still moment to
+   land on -- ease-in-out on the moving segments avoids the linear-scroll
+   snap-into-motion feel. */
 .marquee-active .marquee-inner {
   animation-name: marquee-scroll;
-  animation-timing-function: linear;
+  animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
 }
 
 @keyframes marquee-scroll {
-  from {
-    transform: translateX(0);
+  0%, 8% {
+    transform: translateX(0%);
   }
-  to {
+  46%, 54% {
+    transform: translateX(-25%);
+  }
+  92%, 100% {
     transform: translateX(-50%);
   }
 }

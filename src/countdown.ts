@@ -1,5 +1,6 @@
 import type { EventData } from "./types";
 import { setAnnouncementText } from "./marquee";
+import { colorizeKeywords } from "./keywords";
 
 export interface CountdownController {
   setEventData(data: EventData): void;
@@ -8,12 +9,6 @@ export interface CountdownController {
 interface ParsedRow {
   title: string;
   time: Date;
-}
-
-function colorizeKeywords(text: string): string {
-  return text
-    .replace(/JSB1000/g, '<span style="color:#CD5C5C;">JSB1000</span>')
-    .replace(/ST1000/g, '<span style="color:#4682B4;">ST1000</span>');
 }
 
 function playSequentialSounds(sounds: HTMLAudioElement[]): void {
@@ -134,7 +129,7 @@ export function initCountdown(getNow: () => Date): CountdownController {
     setEventData(data: EventData): void {
       setAnnouncementText(
         announcementElem,
-        `<span style="color: blue;">お知らせ：</span>`,
+        `<span class="announcement-label">お知らせ：</span>`,
         data.announcement ?? "",
       );
 

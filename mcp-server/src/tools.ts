@@ -63,11 +63,22 @@ export interface AppSummary {
   isSelected: boolean;
 }
 
-export async function listApps(
-  repoRoot: string,
-): Promise<{ apps: AppSummary[]; selectedAppId: string | null }> {
+export interface ListAppsResult {
+  apps: AppSummary[];
+  selectedAppId: string | null;
+  /** The display-mode preset id (see src/displayModes.ts) currently applied
+   * on every display screen. Null means "standard". */
+  displayModeId: string | null;
+}
+
+/** The exact set of display-mode ids defined in src/displayModes.ts. Keep in sync. */
+export const DISPLAY_MODE_IDS = ["standard", "daylight-contrast", "dark-glare"] as const;
+export type DisplayModeId = (typeof DISPLAY_MODE_IDS)[number];
+
+export async function listApps(repoRoot: string): Promise<ListAppsResult> {
   const appsFile = await readAppsFile(repoRoot);
   const selectedAppId = appsFile.selectedAppId ?? appsFile.apps[0]?.id ?? null;
+  const displayModeId = appsFile.displayModeId ?? null;
   const apps: AppSummary[] = [];
   for (const app of appsFile.apps) {
     let activeEventStatus: EventStatus | null = null;
@@ -84,7 +95,7 @@ export async function listApps(
       isSelected: app.id === selectedAppId,
     });
   }
-  return { apps, selectedAppId };
+  return { apps, selectedAppId, displayModeId };
 }
 
 /**
@@ -94,10 +105,7 @@ export async function listApps(
  * TV" control; it does not touch which event is active within an app --
  * see setActiveEvent for that.
  */
-export async function setSelectedApp(
-  repoRoot: string,
-  appId: string,
-): Promise<{ apps: AppSummary[]; selectedAppId: string | null }> {
+export async function setSelectedApp(repoRoot: string, appId: string): Promise<ListAppsResult> {
   assertSafeId("appId", appId);
   const appsFile = await readAppsFile(repoRoot);
   if (!appsFile.apps.some((a) => a.id === appId)) {
@@ -106,6 +114,31 @@ export async function setSelectedApp(
   appsFile.selectedAppId = appId;
   await writeAppsFile(repoRoot, appsFile);
   return listApps(repoRoot);
+}
+
+/**
+ * Sets data/apps.json's displayModeId, a readability preset (see
+ * src/displayModes.ts) applied on EVERY display screen -- unlike
+ * setSelectedApp, this is not ignored by a screen pinned via ?app=, since
+ * it's a physical-TV lighting/contrast setting, not an app-identity choice.
+ * Rejects anything outside the exact three known preset ids rather than
+ * writing an arbitrary string into apps.json, since this value drives real
+ * CSS on the display.
+ */
+export async function setSelectedDisplayMode(
+  repoRoot: string,
+  displayModeId: string,
+): Promise<{ displayModeId: DisplayModeId }> {
+  if (!(DISPLAY_MODE_IDS as readonly string[]).includes(displayModeId)) {
+    throw new Error(
+      `displayModeId must be one of ${DISPLAY_MODE_IDS.map((id) => JSON.stringify(id)).join(", ")} ` +
+        `(got ${JSON.stringify(displayModeId)})`,
+    );
+  }
+  const appsFile = await readAppsFile(repoRoot);
+  appsFile.displayModeId = displayModeId;
+  await writeAppsFile(repoRoot, appsFile);
+  return { displayModeId: displayModeId as DisplayModeId };
 }
 
 export interface EventSummary {

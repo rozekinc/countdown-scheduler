@@ -26,8 +26,14 @@
       <div id="main">
         <h1 id="title">タイトル読み込み中...</h1>
         <div id="countdown">00:00:00.<span class="ms">000</span></div>
-        <div id="announcement"></div>
       </div>
+      <!-- Sibling of #main, not nested inside it: an announcement bar
+           positioned inside #main compounds #main's own top offset with
+           its own (a real bug in the original app), pushing it much lower
+           than intended. Both announcement bars share one CSS rule
+           (.announcement-bar) so they sit at the same place on either
+           screen. -->
+      <div id="announcement" class="announcement-bar"></div>
 
       <aside id="schedule-list">
         <h2>次のスケジュール</h2>
@@ -39,7 +45,7 @@
           <div id="schedule-date-row"></div>
           <div id="schedule-rows-viewport"></div>
         </div>
-        <div id="schedule-announcement"></div>
+        <div id="schedule-announcement" class="announcement-bar"></div>
       </div>
 
       <img src="全画面.png" id="fullscreen-btn" alt="全画面" />

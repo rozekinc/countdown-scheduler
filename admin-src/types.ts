@@ -20,6 +20,9 @@ export interface AppsFile {
   /** Which app the primary display (no ?app= override) should currently
    * show. Set by "Show on display" in the admin app. */
   selectedAppId?: string | null;
+  /** Which display-mode preset (see displayModes.ts) is active on every
+   * screen. Null/absent = "standard" (each app's own theme). */
+  displayModeId?: string | null;
 }
 
 export type EventStatus = "draft" | "active" | "ended";

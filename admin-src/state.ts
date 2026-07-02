@@ -15,6 +15,9 @@ export interface AppState {
   /** Which app is currently live on the primary display (data/apps.json's
    * selectedAppId). Null means "whatever apps[0] is" (no override set). */
   selectedAppId: string | null;
+  /** Which display-mode preset (data/apps.json's displayModeId) is active
+   * on every screen. Null means "standard" (per-app colors). */
+  displayModeId: string | null;
 
   eventsForApp: EventListEntry[];
   currentEventId: string | null;
@@ -34,6 +37,7 @@ export const state: AppState = {
   apps: [],
   currentAppId: null,
   selectedAppId: null,
+  displayModeId: null,
   eventsForApp: [],
   currentEventId: null,
   currentEvent: null,
