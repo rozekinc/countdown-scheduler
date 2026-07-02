@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Static admin editor for countdown-scheduler event data (GitHub Device Flow auth + Contents API).",
   "scripts": {
-    "build": "esbuild main.ts --bundle --outdir=../admin/assets --minify --format=iife",
+    "build": "esbuild main.ts --bundle --outdir=../admin/assets --minify --format=iife && node ../scripts/cachebust.mjs ../admin/index.html ../admin/assets/main.js ../admin/assets/main.css",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

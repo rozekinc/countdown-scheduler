@@ -18,10 +18,11 @@ const PAUSE_PADDING_FACTOR = 1.25;
  * not a single pass that leaves the viewport empty between rotations.
  */
 export function setAnnouncementText(
-  container: HTMLElement,
+  container: HTMLElement | null,
   labelHtml: string,
   contentHtml: string,
 ): void {
+  if (!container) return;
   container.classList.remove("marquee-active");
   container.innerHTML =
     `<span class="marquee-label">${labelHtml}</span>` +
