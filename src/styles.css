@@ -19,23 +19,39 @@ html, body {
   background: #000;
 }
 
+/* Letterboxed/pillarboxed to whatever aspect ratio is selected (see
+   src/aspectRatio.ts, --stage-w/--stage-h), regardless of the physical
+   screen's own ratio -- the same idea as broadcast-TV letterboxing, just
+   parameterized instead of hardcoded to 16:9. container-type: size makes
+   every cqw/cqh unit inside it (used throughout this file below) scale to
+   THIS box, not the raw physical viewport -- so content is never
+   mis-sized or clipped when the stage ends up smaller than the screen on
+   one axis (e.g. a 16:9 stage pillarboxed on a 4:3 physical screen). */
 .aspect-inner {
   position: relative;
-  width: 100vw;
-  height: calc(100vw * 9 / 16);
-  max-height: 100vh;
-  max-width: calc(100vh * 16 / 9);
+  /* min() ties width and height together so they shrink as a pair,
+     preserving the target ratio exactly, whichever axis is the limiting
+     one. The old formula (a fixed width + an independent max-height cap,
+     and vice versa) only happened to look right when the target ratio was
+     close to the physical screen's -- once they diverge (e.g. a 4:3
+     target on a 16:9 screen) the capped axis stopped shrinking its
+     partner, and the box silently stretched to fill the screen instead of
+     pillarboxing. */
+  width: min(100vw, 100vh * var(--stage-w, 16) / var(--stage-h, 9));
+  height: min(100vh, 100vw * var(--stage-h, 9) / var(--stage-w, 16));
   background-color: var(--theme-background, #fff);
   overflow: hidden;
   padding: 0;
+  container-type: size;
+  container-name: stage;
 }
 
 /* --- logo and top-banner placement --- */
 .logo-area {
   position: absolute;
-  top: 1vh;
-  left: 1vw;
-  width: clamp(200px, 40vw, 350px);
+  top: 1cqh;
+  left: 1cqw;
+  width: clamp(200px, 40cqw, 350px);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -55,7 +71,7 @@ html, body {
 }
 
 #logo {
-  height: clamp(200px, 40vh, 350px);
+  height: clamp(200px, 40cqh, 350px);
   width: auto;
   max-width: 90%;
   object-fit: contain;
@@ -65,7 +81,7 @@ html, body {
 /* ---------------------------- */
 
 .label {
-  font-size: clamp(20px, 3.5vw, 45px);
+  font-size: clamp(20px, 3.5cqw, 45px);
   margin-right: 2px;
   white-space: nowrap;
   color: var(--theme-accent, #484848);
@@ -75,7 +91,7 @@ html, body {
 }
 
 .time-label {
-  font-size: clamp(18px, 3vw, 40px);
+  font-size: clamp(18px, 3cqw, 40px);
   text-align: center;
   color: var(--theme-accent, #484848);
 }
@@ -83,10 +99,10 @@ html, body {
 /* current time */
 #time-container {
   position: absolute;
-  top: 2.5vh;
+  top: 2.5cqh;
   left: 58%;
   transform: translateX(-50%);
-  font-size: clamp(25px, 5.5vw, 80px);
+  font-size: clamp(25px, 5.5cqw, 80px);
   color: var(--theme-accent, #484848);
   user-select: none;
   white-space: nowrap;
@@ -98,7 +114,7 @@ html, body {
 /* title and countdown block */
 #main {
   position: absolute;
-  top: 28vh;
+  top: 28cqh;
   left: 40%;
   transform: translateX(-50%);
   width: 55%;
@@ -111,12 +127,17 @@ html, body {
    countdown below it, so the countdown reads as the dominant, first-glance
    value rather than competing with it. */
 #title {
-  font-size: clamp(25px, 5vw, 70px);
+  font-size: clamp(25px, 5cqw, 70px);
   font-weight: 600;
   opacity: 0.85;
-  margin: 0 0 1.33vh 0;
+  margin: 0 0 1.33cqh 0;
   word-break: break-word;
   white-space: pre-line;
+  /* Was unset (browser-default black) -- fine on the light per-app themes
+     this was originally tuned against, but invisible against dark-glare's
+     near-black background. Every other text element on this screen
+     already follows --theme-accent; this one just got missed. */
+  color: var(--theme-accent, #222);
 }
 
 /* countdown -- the single most important glanceable value on the whole
@@ -125,7 +146,7 @@ html, body {
    weight is pushed past a plain bold to hold up against the surrounding
    chrome. */
 #countdown {
-  font-size: clamp(56px, 8.5vw, 130px);
+  font-size: clamp(56px, 8.5cqw, 130px);
   font-weight: 800;
   color: var(--theme-primary, #e60000);
   font-feature-settings: "tnum";
@@ -146,7 +167,7 @@ html, body {
 #schedule-list {
   position: absolute;
   top: 0;
-  height: 100vh;
+  height: 100cqh;
   right: 0;
   width: 25%;
   background: var(--theme-surface, #ffe4c4);
@@ -155,12 +176,12 @@ html, body {
   padding: 0;
   list-style: none;
   overflow-y: auto;
-  font-size: clamp(14px, 1.5vw, 24px);
+  font-size: clamp(14px, 1.5cqw, 24px);
   z-index: 10;
 }
 
 #schedule-list h2 {
-  font-size: clamp(20px, 2.3vw, 36px);
+  font-size: clamp(20px, 2.3cqw, 36px);
   margin: 0;
   margin-top: 20px;
   font-weight: bold;
@@ -178,7 +199,7 @@ html, body {
    use opacity for the past/next distinction, and this ID-scoped selector
    would out-specificity a plain class, silently breaking that dimming. */
 #schedule-list ul li {
-  font-size: clamp(16px, 3vw, 32px);
+  font-size: clamp(16px, 3cqw, 32px);
   padding: 6px 10px;
   font-weight: 600;
   border-bottom: 1px solid #ddd;
@@ -234,10 +255,10 @@ html, body {
    scrolling-active class. */
 #schedule-body {
   position: absolute;
-  top: 28vh;
+  top: 28cqh;
   left: 0;
   right: 0;
-  bottom: 12vh;
+  bottom: 12cqh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -311,18 +332,18 @@ html, body {
 
 /* title row */
 .schedule-row-title {
-  font-size: clamp(25px, 2.8vw, 38px);
+  font-size: clamp(25px, 2.8cqw, 38px);
   font-weight: bold;
   color: var(--theme-surface-text, #333);
-  margin-top: 0.5vh;
+  margin-top: 0.5cqh;
 }
 
 /* content row (e.g. time) */
 .schedule-row-content {
-  font-size: clamp(25px, 2.8vw, 38px);
+  font-size: clamp(25px, 2.8cqw, 38px);
   font-weight: bold;
   color: var(--theme-surface-text, #333);
-  margin-bottom: 0.5vh;
+  margin-bottom: 0.5cqh;
 }
 
 /* Past vs. next-up styling, shared by the schedule screen's rows and the
@@ -379,10 +400,10 @@ html, body {
 
 /* indent the date row too so it lines up with the other rows */
 .schedule-row-date {
-  font-size: clamp(25px, 3.5vw, 40px);
+  font-size: clamp(25px, 3.5cqw, 40px);
   font-weight: bold;
   color: var(--theme-surface-text, #333);
-  margin-bottom: 0.5vh;
+  margin-bottom: 0.5cqh;
 }
 
 .cell {
@@ -411,15 +432,15 @@ html, body {
    explicit width, so it's computed from the offsets as intended. */
 .announcement-bar {
   position: absolute;
-  bottom: 2vh;
-  left: 5vw;
+  bottom: 2cqh;
+  left: 5cqw;
   box-sizing: border-box;
   padding: 10px 0;
   display: flex;
   align-items: baseline;
   gap: 0.4em;
   justify-content: center;
-  font-size: clamp(24px, 2.4vw, 38px);
+  font-size: clamp(24px, 2.4cqw, 38px);
   color: var(--theme-accent, black);
   font-weight: bold;
   white-space: nowrap;
@@ -428,11 +449,11 @@ html, body {
 }
 
 #announcement {
-  right: calc(25% + 5vw); /* clears the sidebar, which stays visible on this screen */
+  right: calc(25% + 5cqw); /* clears the sidebar, which stays visible on this screen */
 }
 
 #schedule-announcement {
-  right: 5vw; /* no sidebar on this screen */
+  right: 5cqw; /* no sidebar on this screen */
 }
 
 .marquee-label {
@@ -492,10 +513,10 @@ html, body {
 
 #fullscreen-btn {
   position: absolute;
-  right: 2vw;
-  bottom: 2vh;
-  width: clamp(24px, 2.5vw, 48px);
-  height: clamp(24px, 2.5vw, 48px);
+  right: 2cqw;
+  bottom: 2cqh;
+  width: clamp(24px, 2.5cqw, 48px);
+  height: clamp(24px, 2.5cqw, 48px);
   cursor: pointer;
   /* keep this above every other screen */
   z-index: 99999;

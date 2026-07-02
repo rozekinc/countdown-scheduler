@@ -1,5 +1,16 @@
 import type { App } from "./types";
 import { getDisplayMode } from "./displayModes";
+import { getAspectRatio } from "./aspectRatios";
+
+/** Sets --stage-w/--stage-h (see styles.css's .aspect-inner), which
+ * letterboxes/pillarboxes the stage to this ratio regardless of the
+ * physical screen's own. */
+export function applyAspectRatio(aspectRatioId?: string | null): void {
+  const preset = getAspectRatio(aspectRatioId);
+  const root = document.documentElement;
+  root.style.setProperty("--stage-w", String(preset.w));
+  root.style.setProperty("--stage-h", String(preset.h));
+}
 
 export function applyTheme(app: App, displayModeId?: string | null): void {
   const root = document.documentElement;

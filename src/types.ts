@@ -22,6 +22,10 @@ export interface AppsData {
    * readability under bright ambient light. Null/omitted = "standard"
    * (each app's own theme colors, unmodified). Applies to every screen. */
   displayModeId?: string | null;
+  /** Which aspect-ratio preset (see aspectRatios.ts) the stage is
+   * letterboxed/pillarboxed to, independent of the physical screen's own
+   * ratio. Null/omitted = 16:9. Applies to every screen. */
+  aspectRatioId?: string | null;
 }
 
 export interface CountdownRow {

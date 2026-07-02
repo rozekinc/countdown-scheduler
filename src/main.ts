@@ -1,6 +1,6 @@
 import "./styles.css";
 import { loadApps, resolveActiveApp, createEventDataSource, watchDisplaySettings } from "./dataClient";
-import { applyTheme } from "./theme";
+import { applyTheme, applyAspectRatio } from "./theme";
 import { initCountdown } from "./countdown";
 import { initSchedule } from "./schedule";
 import type { App, EventData } from "./types";
@@ -108,6 +108,7 @@ async function main(): Promise<void> {
   }
 
   const initialApp = resolveActiveApp(appsData);
+  applyAspectRatio(appsData.aspectRatioId ?? null);
   runApp(initialApp, appsData.displayModeId ?? null);
 
   watchDisplaySettings(
@@ -123,6 +124,10 @@ async function main(): Promise<void> {
       currentModeId = displayModeId;
       if (currentApp) applyTheme(currentApp, displayModeId);
     },
+    // Aspect-ratio changes apply on every screen (pinned or not), same
+    // reasoning as display mode -- it's a physical-TV setting, not an
+    // app-identity choice.
+    (aspectRatioId) => applyAspectRatio(aspectRatioId),
   );
 
   await fetchAccurateTime();

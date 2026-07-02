@@ -31,22 +31,33 @@ export function isPast(isoLike: string): boolean {
 }
 
 /**
- * Converts a stored ISO datetime (e.g. "2026-07-10T13:00:00+09:00") to the
- * "YYYY-MM-DDTHH:mm" shape a native <input type="datetime-local"> expects.
- * Done with a string slice, not `new Date()` -- datetime-local is
+ * Splits a stored ISO datetime (e.g. "2026-07-10T13:00:00+09:00") into the
+ * "YYYY-MM-DD" / "HH:mm" shapes native <input type="date"> / type="time">
+ * expect. Done with a string slice, not `new Date()` -- these are
  * deliberately timezone-less, and this data's offset is meaningful (events
  * are always authored in a specific zone), so we must never let the
  * browser's own local timezone silently shift the displayed wall-clock
- * time. Returns "" for an empty/unparseable value.
+ * value. Returns "" for an empty/unparseable value.
+ *
+ * Rendered as two separate native inputs rather than one
+ * <input type="datetime-local"> -- Safari's support for the combined
+ * datetime-local widget has long been unreliable (missing/partial time
+ * UI), whereas plain date and time inputs are solid everywhere. See
+ * datePartsToIso for recombining them back into one ISO string.
  */
-export function isoToDatetimeLocal(iso: string): string {
-  const match = iso.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
+export function isoToDatePart(iso: string): string {
+  const match = iso.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : "";
+}
+
+export function isoToTimePart(iso: string): string {
+  const match = iso.match(/^\d{4}-\d{2}-\d{2}T(\d{2}:\d{2})/);
   return match ? match[1] : "";
 }
 
 /** The UTC offset suffix (e.g. "+09:00") from a stored ISO datetime, or the
  * project's default of "+09:00" if the string has none yet (new/blank
- * rows) -- see isoToDatetimeLocal for why this can't be re-derived from a
+ * rows) -- see isoToDatePart for why this can't be re-derived from a
  * `Date` object. */
 export function isoOffset(iso: string): string {
   const match = iso.match(/(Z|[+-]\d{2}:\d{2})$/);
@@ -54,10 +65,10 @@ export function isoOffset(iso: string): string {
   return match[1] === "Z" ? "+00:00" : match[1];
 }
 
-/** Rebuilds a full ISO datetime from a <input type="datetime-local">'s
- * "YYYY-MM-DDTHH:mm" value, preserving whatever offset `previousIso` had
- * (or the project default). Returns "" if `value` is empty. */
-export function datetimeLocalToIso(value: string, previousIso: string): string {
-  if (!value) return "";
-  return `${value}:00${isoOffset(previousIso)}`;
+/** Rebuilds a full ISO datetime from a date-input value + time-input
+ * value, preserving whatever offset `previousIso` had (or the project
+ * default). Returns "" unless both parts are filled in. */
+export function datePartsToIso(datePart: string, timePart: string, previousIso: string): string {
+  if (!datePart || !timePart) return "";
+  return `${datePart}T${timePart}:00${isoOffset(previousIso)}`;
 }
