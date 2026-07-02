@@ -52,11 +52,15 @@ starts working there unmodified: whoever owns that repo just repeats steps
 ## c. Turn on GitHub Pages
 
 1. In this repository's own **Settings → Pages**.
-2. Set **Source** to **"GitHub Actions"**.
+2. Set **Source** to **"Deploy from a branch"**, branch **main**, folder **/(root)**.
 
-This is a one-time toggle. Once it's set, the included workflow
-(`.github/workflows/deploy.yml`) publishes both the display site and the
-admin app automatically on every push to `main`.
+That's it — no build step runs on GitHub's side. The site and admin app are
+published exactly as committed, because the built `assets/` and `admin/`
+folders are already checked into the repo (whoever edits `src/`/`admin-src/`
+runs `npm run build` locally and commits the result, same as any other
+change). Editing `data/*.json` directly — which is all the admin app and the
+MCP server ever do — needs no build at all; it's published the moment it's
+committed.
 
 ## d. Install the GitHub App
 
