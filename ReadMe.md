@@ -79,3 +79,5 @@ it. This only serves files on your own machine — nobody else can see it.
 - Wondering what is and isn't kept secret? See [SECURITY.md](SECURITY.md).
 - Asking an AI coding assistant to make a data change for you? See
   [AGENTS.md](AGENTS.md) and the [skills/](skills/) folder.
+
+<!-- Pages deploy diagnostic: fresh-SHA test, see PAGES-DEPLOY-ISSUE.md -->
