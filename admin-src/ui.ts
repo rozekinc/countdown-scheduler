@@ -13,10 +13,11 @@ import {
   clearPendingChanges,
   type EventListEntry,
 } from "./state";
-import type { AppsFile, EventData, ScheduleRow } from "./types";
+import type { AppsFile, EventData, ScheduleRow, ScreenMode } from "./types";
 import { DISPLAY_MODES, DEFAULT_DISPLAY_MODE_ID, getDisplayMode } from "./displayModes";
 import { ASPECT_RATIOS, DEFAULT_ASPECT_RATIO_ID, getAspectRatio } from "./aspectRatios";
 import { applyPreviewTheme } from "./previewTheme";
+import { t, getLang, setLang, onLangChange, type Lang } from "./i18n";
 
 // Public data/apps.json is fetched with a plain (unauthenticated) fetch,
 // relative to admin/index.html.
@@ -25,8 +26,10 @@ const APPS_JSON_PATH = "data/apps.json";
 
 let rootEl: HTMLElement;
 let appSwitcherEl: HTMLElement;
+let screenModeSwitcherEl: HTMLElement;
 let displayModeSwitcherEl: HTMLElement;
 let aspectRatioSwitcherEl: HTMLElement;
+let langSwitcherEl: HTMLElement;
 let authControlsEl: HTMLElement;
 let settingsControlsEl: HTMLElement;
 let viewToggleEl: HTMLElement;
@@ -45,17 +48,21 @@ export function init(root: HTMLElement): void {
   const header = el("header", { class: "app-header" });
   viewToggleEl = el("div", { class: "view-toggle" });
   appSwitcherEl = el("div", { class: "app-switcher" });
+  screenModeSwitcherEl = el("div", { class: "screen-mode-switcher" });
   displayModeSwitcherEl = el("div", { class: "display-mode-switcher" });
   aspectRatioSwitcherEl = el("div", { class: "aspect-ratio-switcher" });
+  langSwitcherEl = el("div", { class: "lang-switcher" });
   settingsControlsEl = el("div", { class: "settings-controls" });
   authControlsEl = el("div", { class: "auth-controls" });
   saveBarEl = el("div", { class: "save-bar" });
   header.append(
     viewToggleEl,
     appSwitcherEl,
+    screenModeSwitcherEl,
     displayModeSwitcherEl,
     aspectRatioSwitcherEl,
     saveBarEl,
+    langSwitcherEl,
     settingsControlsEl,
     authControlsEl,
   );
@@ -75,6 +82,7 @@ export function init(root: HTMLElement): void {
   rootEl.append(header, body, statusBarEl);
 
   renderSaveBar();
+  renderLangSwitcher();
   renderAuthControls(authControlsEl, onSignedIn);
   renderSettingsControls(settingsControlsEl, onSettingsSaved);
   renderViewToggle();
@@ -90,6 +98,41 @@ export function init(root: HTMLElement): void {
       event.returnValue = "";
     }
   });
+
+  // Re-render every visible piece of chrome on a language switch, so it
+  // takes effect immediately without a page reload.
+  onLangChange(() => {
+    renderViewToggle();
+    renderSaveBar();
+    renderLangSwitcher();
+    renderAuthControls(authControlsEl, onSignedIn);
+    renderSettingsControls(settingsControlsEl, onSettingsSaved);
+    renderAppSwitcher();
+    renderScreenModeSwitcher();
+    renderDisplayModeSwitcher();
+    renderAspectRatioSwitcher();
+    renderPreviewPanel();
+    renderLeftPanel();
+    renderMainPanel();
+    if (state.viewMode === "overview" && isSignedIn()) {
+      void renderOverview(overviewPanelEl, jumpToEvent);
+    }
+  });
+}
+
+function renderLangSwitcher(): void {
+  clear(langSwitcherEl);
+  const select = el("select", { class: "lang-select" });
+  const langs: Lang[] = ["en", "ja"];
+  for (const lang of langs) {
+    const option = el("option", { value: lang }, [lang === "en" ? "English" : "日本語"]);
+    if (lang === getLang()) option.setAttribute("selected", "selected");
+    select.append(option);
+  }
+  select.addEventListener("change", () => {
+    setLang((select as HTMLSelectElement).value as Lang);
+  });
+  langSwitcherEl.append(el("label", {}, [t("lang.label")]), select);
 }
 
 /**
@@ -100,7 +143,7 @@ export function init(root: HTMLElement): void {
  */
 function renderSaveBar(): void {
   clear(saveBarEl);
-  saveBtnEl = el("button", { class: "btn btn-primary" }, ["Save changes"]) as HTMLButtonElement;
+  saveBtnEl = el("button", { class: "btn btn-primary" }, [t("save.button")]) as HTMLButtonElement;
   saveBtnEl.addEventListener("click", () => void saveAll());
   saveBarEl.append(saveBtnEl);
   updateSaveButtonState();
@@ -108,7 +151,7 @@ function renderSaveBar(): void {
 
 function updateSaveButtonState(): void {
   const dirty = hasPendingChanges();
-  saveBtnEl.textContent = dirty ? "Save changes" : "No unsaved changes";
+  saveBtnEl.textContent = dirty ? t("save.button") : t("save.none");
   saveBtnEl.className = `btn ${dirty ? "btn-primary" : "btn-secondary"}`;
   if (dirty) {
     saveBtnEl.removeAttribute("disabled");
@@ -128,7 +171,7 @@ function markEventDirty(): void {
 function confirmDiscardEventIfDirty(action: string): boolean {
   if (!state.eventDirty) return true;
   const ok = window.confirm(
-    `You have unsaved changes to ${state.currentEvent?.id ?? "this event"}. ${action} without saving?`,
+    t("events.switchConfirm", { id: state.currentEvent?.id ?? "", action }),
   );
   if (ok) {
     state.eventDirty = false;
@@ -142,12 +185,12 @@ function renderViewToggle(): void {
   const editorBtn = el(
     "button",
     { class: `btn ${state.viewMode === "editor" ? "btn-primary" : "btn-secondary"}` },
-    ["Editor"],
+    [t("nav.editor")],
   );
   const overviewBtn = el(
     "button",
     { class: `btn ${state.viewMode === "overview" ? "btn-primary" : "btn-secondary"}` },
-    ["All events"],
+    [t("nav.allEvents")],
   );
   editorBtn.addEventListener("click", () => switchViewMode("editor"));
   overviewBtn.addEventListener("click", () => switchViewMode("overview"));
@@ -168,7 +211,7 @@ function switchViewMode(mode: "editor" | "overview"): void {
   if (mode === "overview") {
     if (!isSignedIn()) {
       clear(overviewPanelEl);
-      overviewPanelEl.append(el("p", { class: "muted" }, ["Sign in to see all events."]));
+      overviewPanelEl.append(el("p", { class: "muted" }, [t("overview.signInToSee")]));
       return;
     }
     void renderOverview(overviewPanelEl, jumpToEvent);
@@ -178,19 +221,20 @@ function switchViewMode(mode: "editor" | "overview"): void {
 /** Overview row clicked -> switch to that app's editor with that event
  * loaded, so "seeing all events" and "editing one" are one click apart. */
 function jumpToEvent(appId: string, eventId: string): void {
-  if (!confirmDiscardEventIfDirty("Switch events")) return;
+  if (!confirmDiscardEventIfDirty(t("events.switchAction"))) return;
   state.currentAppId = appId;
   state.currentEventId = null;
   state.currentEvent = null;
   applyTheme();
   renderAppSwitcher();
+  renderScreenModeSwitcher();
   renderPreviewPanel();
   switchViewMode("editor");
   void loadEventsForCurrentApp().then(() => selectEvent(eventId));
 }
 
 function onSettingsSaved(): void {
-  setStatus("Settings saved.");
+  setStatus(t("settings.saved"));
   if (isSignedIn()) {
     void loadEventsForCurrentApp();
   }
@@ -214,6 +258,7 @@ async function loadApps(): Promise<void> {
       state.currentAppId = state.apps[0].id;
     }
     renderAppSwitcher();
+    renderScreenModeSwitcher();
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
     applyTheme();
@@ -226,7 +271,7 @@ async function loadApps(): Promise<void> {
     }
   } catch (err) {
     const message = (err as Error).message;
-    setStatus(`Failed to load data/apps.json: ${message}`, true);
+    setStatus(t("load.failed", { message }), true);
     // A failed initial load otherwise leaves every panel silently empty,
     // with only the small status-bar line above as a clue -- easy to miss
     // and easy to mistake for "the whole page is blank." Make it loud.
@@ -239,14 +284,9 @@ function renderLoadFailure(message: string): void {
   clear(mainPanelEl);
   mainPanelEl.append(
     el("div", { class: "load-failure" }, [
-      el("h2", {}, ["Couldn't load data/apps.json"]),
+      el("h2", {}, [t("load.failedTitle")]),
       el("p", {}, [message]),
-      el("p", { class: "muted" }, [
-        "Most likely cause: this page needs to be served from the repository's ",
-        "root directory (not from inside admin/), so the relative path ../data/apps.json ",
-        "actually resolves. If you're using \"npx serve\", run it from the repo root and ",
-        "open the /admin/ path, rather than running it from inside the admin folder.",
-      ]),
+      el("p", { class: "muted" }, [t("load.failedHint")]),
     ]),
   );
 }
@@ -263,7 +303,7 @@ function renderAppSwitcher(): void {
   clear(appSwitcherEl);
   const select = el("select", { class: "app-select" });
   for (const app of state.apps) {
-    const label = app.id === state.selectedAppId ? `${app.name} (live on display)` : app.name;
+    const label = app.id === state.selectedAppId ? t("app.nameLiveSuffix", { name: app.name }) : app.name;
     const option = el("option", { value: app.id }, [label]);
     if (app.id === state.currentAppId) option.setAttribute("selected", "selected");
     select.append(option);
@@ -271,7 +311,7 @@ function renderAppSwitcher(): void {
   select.addEventListener("change", () => {
     const newAppId = (select as HTMLSelectElement).value;
     if (newAppId === state.currentAppId) return;
-    if (!confirmDiscardEventIfDirty("Switch apps")) {
+    if (!confirmDiscardEventIfDirty(t("events.switchAppsAction"))) {
       select.value = state.currentAppId ?? "";
       return;
     }
@@ -280,6 +320,7 @@ function renderAppSwitcher(): void {
     state.currentEvent = null;
     applyTheme();
     renderAppSwitcher();
+    renderScreenModeSwitcher();
     renderPreviewPanel();
     if (isSignedIn()) {
       loadEventsForCurrentApp();
@@ -294,13 +335,13 @@ function renderAppSwitcher(): void {
   const showBtn = el(
     "button",
     { class: `btn ${isLive ? "btn-secondary" : "btn-primary"}`, ...(isLive ? { disabled: "true" } : {}) },
-    [isLive ? (staged ? "Live on display ✓ (unsaved)" : "Live on display ✓") : "Show this app on display"],
+    [isLive ? (staged ? t("app.liveOnDisplayUnsaved") : t("app.liveOnDisplay")) : t("app.showOnDisplay")],
   );
   if (!isLive) {
     showBtn.addEventListener("click", () => stageSelectedAppOnDisplay());
   }
 
-  appSwitcherEl.append(el("label", {}, ["App: "]), select, showBtn);
+  appSwitcherEl.append(el("label", {}, [t("app.label")]), select, showBtn);
 }
 
 /**
@@ -314,8 +355,57 @@ function stageSelectedAppOnDisplay(): void {
   if (!appId) return;
   state.selectedAppId = appId;
   state.appsPatch.selectedAppId = appId;
-  setStatus(`${appId} staged to show on display -- click Save to publish.`);
+  setStatus(t("app.stagedOnDisplay", { appId }));
   renderAppSwitcher();
+  updateSaveButtonState();
+}
+
+/** Effective screenMode for the current app: a staged-this-session change
+ * if there is one, else whatever's already on the loaded AppConfig. */
+function currentScreenMode(): ScreenMode {
+  const appId = state.currentAppId;
+  if (!appId) return "countdown";
+  const staged = state.appsPatch.screenModeByApp?.[appId];
+  if (staged) return staged;
+  return currentApp()?.screenMode ?? "countdown";
+}
+
+function screenModeLabel(mode: ScreenMode): string {
+  return mode === "schedule" ? t("screenMode.schedule") : t("screenMode.countdown");
+}
+
+/**
+ * Each app is a dedicated style/screen (e.g. one app for the countdown,
+ * another for the full schedule) -- not a runtime toggle on the display
+ * itself anymore. This picks which screen THIS app shows.
+ */
+function renderScreenModeSwitcher(): void {
+  clear(screenModeSwitcherEl);
+  if (!state.currentAppId) return;
+  const select = el("select", { class: "screen-mode-select" });
+  const modes: ScreenMode[] = ["countdown", "schedule"];
+  const active = currentScreenMode();
+  for (const mode of modes) {
+    const option = el("option", { value: mode }, [screenModeLabel(mode)]);
+    if (mode === active) option.setAttribute("selected", "selected");
+    select.append(option);
+  }
+  select.addEventListener("change", () => {
+    stageScreenMode((select as HTMLSelectElement).value as ScreenMode);
+  });
+  screenModeSwitcherEl.append(el("label", {}, [t("screenMode.label")]), select);
+}
+
+/** Stages this app's screenMode. Not written until Save. */
+function stageScreenMode(mode: ScreenMode): void {
+  const appId = state.currentAppId;
+  if (!appId) return;
+  state.appsPatch.screenModeByApp = {
+    ...(state.appsPatch.screenModeByApp ?? {}),
+    [appId]: mode,
+  };
+  setStatus(t("screenMode.staged", { appId, label: screenModeLabel(mode) }));
+  renderScreenModeSwitcher();
   updateSaveButtonState();
 }
 
@@ -340,7 +430,7 @@ function renderDisplayModeSwitcher(): void {
   select.addEventListener("change", () => {
     stageDisplayMode((select as HTMLSelectElement).value);
   });
-  displayModeSwitcherEl.append(el("label", {}, ["Display mode: "]), select);
+  displayModeSwitcherEl.append(el("label", {}, [t("displayMode.label")]), select);
 }
 
 /** Stages the display-mode preset applied on every screen, pinned or not.
@@ -348,7 +438,7 @@ function renderDisplayModeSwitcher(): void {
 function stageDisplayMode(modeId: string): void {
   state.displayModeId = modeId;
   state.appsPatch.displayModeId = modeId;
-  setStatus(`Display mode staged: "${getDisplayMode(modeId).label}" -- click Save to publish.`);
+  setStatus(t("displayMode.staged", { label: getDisplayMode(modeId).label }));
   renderDisplayModeSwitcher();
   renderPreviewPanel();
   updateSaveButtonState();
@@ -366,7 +456,7 @@ function renderAspectRatioSwitcher(): void {
   select.addEventListener("change", () => {
     stageAspectRatio((select as HTMLSelectElement).value);
   });
-  aspectRatioSwitcherEl.append(el("label", {}, ["TV shape: "]), select);
+  aspectRatioSwitcherEl.append(el("label", {}, [t("aspectRatio.label")]), select);
 }
 
 /** Stages the aspect ratio the stage is letterboxed to on every screen,
@@ -375,7 +465,7 @@ function renderAspectRatioSwitcher(): void {
 function stageAspectRatio(aspectRatioId: string): void {
   state.aspectRatioId = aspectRatioId;
   state.appsPatch.aspectRatioId = aspectRatioId;
-  setStatus(`TV shape staged: "${getAspectRatio(aspectRatioId).label}" -- click Save to publish.`);
+  setStatus(t("aspectRatio.staged", { label: getAspectRatio(aspectRatioId).label }));
   renderAspectRatioSwitcher();
   renderPreviewPanel();
   updateSaveButtonState();
@@ -396,16 +486,16 @@ function renderPreviewPanel(): void {
 
   const modeLabel = getDisplayMode(state.displayModeId).label;
   const ratio = getAspectRatio(state.aspectRatioId);
-  previewPanelEl.append(el("h3", { class: "preview-panel-title" }, ["Display preview"]));
-  previewPanelEl.append(el("p", { class: "preview-mode-label" }, [`${modeLabel} · ${ratio.label}`]));
+  previewPanelEl.append(el("h3", { class: "preview-panel-title" }, [t("preview.title")]));
+  previewPanelEl.append(el("p", { class: "preview-mode-label" }, [t("preview.summary", { mode: modeLabel, ratio: ratio.label })]));
 
   const mock = el("div", { class: "preview-mock", style: `aspect-ratio: ${ratio.w} / ${ratio.h};` }, [
-    el("div", { class: "preview-mock-title" }, [app ? app.name : "No app selected"]),
+    el("div", { class: "preview-mock-title" }, [app ? app.name : t("preview.noApp")]),
     el("div", { class: "preview-mock-countdown" }, ["12:34:56"]),
     el("div", { class: "preview-mock-announcement" }, [
-      "Next up: ",
+      t("preview.nextUp"),
       el("span", { class: "keyword keyword-a" }, ["JSB1000"]),
-      " then ",
+      t("preview.then"),
       el("span", { class: "keyword keyword-b" }, ["ST1000"]),
     ]),
     el("div", { class: "preview-mock-rows" }, [
@@ -425,7 +515,7 @@ function renderPreviewPanel(): void {
 async function loadEventsForCurrentApp(): Promise<void> {
   const appId = state.currentAppId;
   if (!appId) return;
-  setStatus("Loading events…");
+  setStatus(t("events.loading"));
   try {
     const entries = await listDir("data/events");
     const jsonEntries = entries.filter((e) => e.type === "file" && e.name.endsWith(".json"));
@@ -439,7 +529,7 @@ async function loadEventsForCurrentApp(): Promise<void> {
     state.eventsForApp = results;
     setStatus("");
   } catch (err) {
-    setStatus(`Failed to list data/events: ${(err as Error).message}`, true);
+    setStatus(t("events.listFailed", { message: (err as Error).message }), true);
     state.eventsForApp = [];
   }
   renderLeftPanel();
@@ -450,10 +540,10 @@ function renderLeftPanel(): void {
   clear(leftPanelEl);
 
   const pickerSection = el("div", { class: "event-picker" });
-  pickerSection.append(el("h3", {}, ["Events"]));
+  pickerSection.append(el("h3", {}, [t("events.title")]));
 
   if (!isSignedIn()) {
-    pickerSection.append(el("p", { class: "muted" }, ["Sign in to load events."]));
+    pickerSection.append(el("p", { class: "muted" }, [t("events.signInToLoad")]));
     leftPanelEl.append(pickerSection);
     return;
   }
@@ -469,16 +559,16 @@ function renderLeftPanel(): void {
     ]);
     item.addEventListener("click", () => {
       if (entry.id === state.currentEventId) return;
-      if (!confirmDiscardEventIfDirty("Switch events")) return;
+      if (!confirmDiscardEventIfDirty(t("events.switchAction"))) return;
       void selectEvent(entry.id);
     });
     list.append(item);
   }
   pickerSection.append(list);
 
-  const newDraftBtn = el("button", { class: "btn btn-secondary" }, ["New draft event"]);
+  const newDraftBtn = el("button", { class: "btn btn-secondary" }, [t("events.newDraft")]);
   newDraftBtn.addEventListener("click", () => {
-    if (!confirmDiscardEventIfDirty("Create a new draft")) return;
+    if (!confirmDiscardEventIfDirty(t("events.newDraftAction"))) return;
     newDraftEvent();
   });
   pickerSection.append(newDraftBtn);
@@ -486,17 +576,17 @@ function renderLeftPanel(): void {
   leftPanelEl.append(pickerSection);
 
   const dayNavSection = el("div", { class: "day-nav" });
-  dayNavSection.append(el("h3", {}, ["Days"]));
+  dayNavSection.append(el("h3", {}, [t("days.title")]));
 
   if (!state.currentEvent) {
-    dayNavSection.append(el("p", { class: "muted" }, ["Select an event."]));
+    dayNavSection.append(el("p", { class: "muted" }, [t("days.selectEvent")]));
   } else {
     const dayList = el("ul", { class: "day-list" });
     state.currentEvent.scheduleDays.forEach((day, index) => {
       const past = isPast(`${day.date}T23:59:59`);
       const item = el("li", {
         class: `day-list-item${index === state.selectedDayIndex ? " selected" : ""}${past ? " past" : ""}`,
-      }, [day.date || "(no date)"]);
+      }, [day.date || t("days.noDate")]);
       item.addEventListener("click", () => {
         state.selectedDayIndex = index;
         renderLeftPanel();
@@ -506,11 +596,12 @@ function renderLeftPanel(): void {
     });
     dayNavSection.append(dayList);
 
-    const addDayBtn = el("button", { class: "btn btn-secondary" }, ["+ Add day"]);
+    const addDayBtn = el("button", { class: "btn btn-secondary" }, [t("days.addDay")]);
     addDayBtn.addEventListener("click", () => {
       if (!state.currentEvent) return;
       // No prompt() for the date -- push a blank day and let the date
-      // picker rendered for it (see renderDayEditor) be how it's set.
+      // picker (+ today/tomorrow/day-after shortcuts) rendered for it
+      // (see renderDayEditor) be how it's set.
       state.currentEvent.scheduleDays.push({ date: "", announcement: "", rows: [] });
       state.selectedDayIndex = state.currentEvent.scheduleDays.length - 1;
       markEventDirty();
@@ -526,11 +617,11 @@ function renderLeftPanel(): void {
 /** Loads an event fresh from GitHub. Callers must confirm discarding any
  * unsaved edits first (see confirmDiscardEventIfDirty). */
 async function selectEvent(id: string): Promise<void> {
-  setStatus(`Loading ${id}…`);
+  setStatus(t("events.loadingOne", { id }));
   try {
     const file = await getJsonFile<EventData>(`data/events/${id}.json`);
     if (!file) {
-      setStatus(`Event ${id} not found.`, true);
+      setStatus(t("events.notFound", { id }), true);
       return;
     }
     state.currentEventId = id;
@@ -541,7 +632,7 @@ async function selectEvent(id: string): Promise<void> {
     state.pendingClose = false;
     setStatus("");
   } catch (err) {
-    setStatus(`Failed to load ${id}: ${(err as Error).message}`, true);
+    setStatus(t("events.loadFailed", { id, message: (err as Error).message }), true);
   }
   updateSaveButtonState();
   renderLeftPanel();
@@ -554,14 +645,14 @@ async function selectEvent(id: string): Promise<void> {
 function newDraftEvent(): void {
   const appId = state.currentAppId;
   if (!appId) return;
-  const id = window.prompt("New event id (lowercase letters, digits, dashes):", "");
+  const id = window.prompt(t("events.newIdPrompt"), "");
   if (!id) return;
   if (!/^[a-z0-9-]+$/.test(id)) {
-    setStatus("Invalid event id: use only lowercase letters, digits, and dashes.", true);
+    setStatus(t("events.invalidId"), true);
     return;
   }
   if (state.eventsForApp.some((e) => e.id === id)) {
-    setStatus(`Event ${id} already exists.`, true);
+    setStatus(t("events.alreadyExists", { id }), true);
     return;
   }
   const newEvent: EventData = {
@@ -579,7 +670,7 @@ function newDraftEvent(): void {
   state.pendingClose = false;
   state.eventsForApp = [...state.eventsForApp, { id, status: "draft" }];
   markEventDirty();
-  setStatus(`New draft ${id} staged -- click Save to publish.`);
+  setStatus(t("events.newDraftStaged", { id }));
   renderLeftPanel();
   renderMainPanel();
 }
@@ -596,7 +687,7 @@ function stageSetActive(): void {
     [appId]: event.id,
   };
   markEventDirty();
-  setStatus(`${event.id} staged as active -- click Save to publish.`);
+  setStatus(t("editor.activeStaged", { id: event.id }));
   renderLeftPanel();
   renderMainPanel();
 }
@@ -604,12 +695,12 @@ function stageSetActive(): void {
 function earliestYear(event: EventData): number {
   const times: number[] = [];
   for (const row of event.countdownRows) {
-    const t = new Date(row.time).getTime();
-    if (!Number.isNaN(t)) times.push(t);
+    const time = new Date(row.time).getTime();
+    if (!Number.isNaN(time)) times.push(time);
   }
   for (const day of event.scheduleDays) {
-    const t = new Date(day.date).getTime();
-    if (!Number.isNaN(t)) times.push(t);
+    const time = new Date(day.date).getTime();
+    if (!Number.isNaN(time)) times.push(time);
   }
   if (times.length === 0) return new Date().getFullYear();
   return new Date(Math.min(...times)).getFullYear();
@@ -621,7 +712,7 @@ function stageCloseEvent(): void {
   const event = state.currentEvent;
   const appId = state.currentAppId;
   if (!event || !appId) return;
-  if (!window.confirm(`Close ${event.id}? This moves it to the archive once you Save.`)) return;
+  if (!window.confirm(t("editor.closeConfirm", { id: event.id }))) return;
   event.status = "ended";
   state.pendingClose = true;
   const app = currentApp();
@@ -632,7 +723,7 @@ function stageCloseEvent(): void {
     };
   }
   markEventDirty();
-  setStatus(`${event.id} staged to close -- click Save to publish.`);
+  setStatus(t("editor.closeStaged", { id: event.id }));
   renderLeftPanel();
   renderMainPanel();
 }
@@ -645,7 +736,7 @@ function stageCloseEvent(): void {
  */
 async function saveAll(): Promise<void> {
   if (!hasPendingChanges()) return;
-  setStatus("Saving…");
+  setStatus(t("save.saving"));
   try {
     const changes: FileChange[] = [];
     const messageParts: string[] = [];
@@ -670,11 +761,13 @@ async function saveAll(): Promise<void> {
 
     const patch = state.appsPatch;
     const activeEdits = Object.entries(patch.activeEventIdByApp ?? {});
+    const screenModeEdits = Object.entries(patch.screenModeByApp ?? {});
     const hasAppsPatch =
       patch.selectedAppId !== undefined ||
       patch.displayModeId !== undefined ||
       patch.aspectRatioId !== undefined ||
-      activeEdits.length > 0;
+      activeEdits.length > 0 ||
+      screenModeEdits.length > 0;
 
     if (hasAppsPatch) {
       // Re-read right before committing (this is a read, not a write) so
@@ -689,6 +782,10 @@ async function saveAll(): Promise<void> {
       for (const [appId, eventId] of activeEdits) {
         const app = appsData.apps.find((a) => a.id === appId);
         if (app) app.activeEventId = eventId;
+      }
+      for (const [appId, mode] of screenModeEdits) {
+        const app = appsData.apps.find((a) => a.id === appId);
+        if (app) app.screenMode = mode;
       }
       changes.push({ path: APPS_JSON_PATH, content: JSON.stringify(appsData, null, 2) + "\n" });
       messageParts.push("update display settings");
@@ -711,12 +808,14 @@ async function saveAll(): Promise<void> {
       state.currentEventId = null;
       state.currentEvent = null;
     }
-    setStatus(wasClose ? `Closed ${savedEventId}.` : "Saved.");
+    setStatus(wasClose ? t("save.closed", { id: savedEventId ?? "" }) : t("save.saved"));
     await loadEventsForCurrentApp();
     renderAppSwitcher();
+    renderScreenModeSwitcher();
     renderDisplayModeSwitcher();
+    renderAspectRatioSwitcher();
   } catch (err) {
-    setStatus(`Failed to save: ${(err as Error).message}`, true);
+    setStatus(t("save.failed", { message: (err as Error).message }), true);
   }
   updateSaveButtonState();
   renderLeftPanel();
@@ -727,20 +826,20 @@ function renderMainPanel(): void {
   clear(mainPanelEl);
 
   if (!isSignedIn()) {
-    mainPanelEl.append(el("p", { class: "muted" }, ["Sign in with GitHub to edit event data."]));
+    mainPanelEl.append(el("p", { class: "muted" }, [t("signIn.toEdit")]));
     return;
   }
 
   const event = state.currentEvent;
   if (!event) {
-    mainPanelEl.append(el("p", { class: "muted" }, ["Select or create an event to begin editing."]));
+    mainPanelEl.append(el("p", { class: "muted" }, [t("editor.selectOrCreate")]));
     return;
   }
 
   const actions = el("div", { class: "actions-row" });
-  const setActiveBtn = el("button", { class: "btn btn-primary" }, ["Set as active"]);
+  const setActiveBtn = el("button", { class: "btn btn-primary" }, [t("editor.setActive")]);
   setActiveBtn.addEventListener("click", () => stageSetActive());
-  const closeBtn = el("button", { class: "btn btn-danger" }, ["Close event"]);
+  const closeBtn = el("button", { class: "btn btn-danger" }, [t("editor.closeEvent")]);
   closeBtn.addEventListener("click", () => stageCloseEvent());
   actions.append(setActiveBtn, closeBtn);
 
@@ -749,7 +848,7 @@ function renderMainPanel(): void {
   ]);
 
   const announcementField = el("label", { class: "field" }, [
-    "Countdown-screen announcement:",
+    t("editor.announcement"),
     (() => {
       const input = el("textarea", { class: "announcement-input", rows: "2" }, [event.announcement]);
       input.addEventListener("input", () => {
@@ -765,6 +864,49 @@ function renderMainPanel(): void {
   const importSection = renderImportSection();
 
   mainPanelEl.append(eventHeader, actions, announcementField, countdownSection, daySection, importSection);
+}
+
+function renderCountdownRows(event: EventData): HTMLElement {
+  const section = el("div", { class: "countdown-rows-section" });
+  section.append(el("h3", {}, [t("countdown.title")]));
+
+  const table = el("div", { class: "rows-table" });
+  event.countdownRows.forEach((row, index) => {
+    const past = isPast(row.time);
+    const rowEl = el("div", { class: `row-editor${past ? " past" : ""}` });
+
+    const titleInput = el("textarea", { class: "row-input", rows: "2" }, [row.title]);
+    titleInput.addEventListener("input", () => {
+      row.title = (titleInput as HTMLTextAreaElement).value;
+      markEventDirty();
+    });
+
+    const dateTimeInputs = createDateTimeInputs(row.time, (iso) => {
+      row.time = iso;
+      markEventDirty();
+    });
+
+    const removeBtn = el("button", { class: "btn btn-secondary btn-small" }, [t("countdown.remove")]);
+    removeBtn.addEventListener("click", () => {
+      event.countdownRows.splice(index, 1);
+      markEventDirty();
+      renderMainPanel();
+    });
+
+    rowEl.append(titleInput, dateTimeInputs, removeBtn);
+    table.append(rowEl);
+  });
+  section.append(table);
+
+  const addBtn = el("button", { class: "btn btn-secondary" }, [t("countdown.addRow")]);
+  addBtn.addEventListener("click", () => {
+    event.countdownRows.push({ title: "", time: "" });
+    markEventDirty();
+    renderMainPanel();
+  });
+  section.append(addBtn);
+
+  return section;
 }
 
 /**
@@ -795,47 +937,13 @@ function createDateTimeInputs(
   return el("div", { class: "datetime-pair" }, [dateInput, timeInput]);
 }
 
-function renderCountdownRows(event: EventData): HTMLElement {
-  const section = el("div", { class: "countdown-rows-section" });
-  section.append(el("h3", {}, ["Countdown rows"]));
-
-  const table = el("div", { class: "rows-table" });
-  event.countdownRows.forEach((row, index) => {
-    const past = isPast(row.time);
-    const rowEl = el("div", { class: `row-editor${past ? " past" : ""}` });
-
-    const titleInput = el("textarea", { class: "row-input", rows: "2" }, [row.title]);
-    titleInput.addEventListener("input", () => {
-      row.title = (titleInput as HTMLTextAreaElement).value;
-      markEventDirty();
-    });
-
-    const dateTimeInputs = createDateTimeInputs(row.time, (iso) => {
-      row.time = iso;
-      markEventDirty();
-    });
-
-    const removeBtn = el("button", { class: "btn btn-secondary btn-small" }, ["Remove"]);
-    removeBtn.addEventListener("click", () => {
-      event.countdownRows.splice(index, 1);
-      markEventDirty();
-      renderMainPanel();
-    });
-
-    rowEl.append(titleInput, dateTimeInputs, removeBtn);
-    table.append(rowEl);
-  });
-  section.append(table);
-
-  const addBtn = el("button", { class: "btn btn-secondary" }, ["+ Add countdown row"]);
-  addBtn.addEventListener("click", () => {
-    event.countdownRows.push({ title: "", time: "" });
-    markEventDirty();
-    renderMainPanel();
-  });
-  section.append(addBtn);
-
-  return section;
+function dateOffsetFromToday(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function renderDayEditor(): HTMLElement {
@@ -843,26 +951,63 @@ function renderDayEditor(): HTMLElement {
   const day = currentDay();
 
   if (!day) {
-    section.append(el("p", { class: "muted" }, ["No day selected. Use \"+ Add day\" on the left."]));
+    section.append(el("p", { class: "muted" }, [t("day.noDaySelected")]));
     return section;
   }
 
-  section.append(el("h3", {}, [`Schedule for ${day.date || "(no date)"}`]));
+  section.append(el("h3", {}, [t("day.scheduleFor", { date: day.date || t("days.noDate") })]));
 
-  const dateInput = el("input", { class: "row-input", type: "date", value: day.date });
+  const dateInput = el("input", { class: "row-input", type: "date", value: day.date }) as HTMLInputElement;
   dateInput.addEventListener("input", () => {
-    day.date = (dateInput as HTMLInputElement).value;
+    day.date = dateInput.value;
     markEventDirty();
     renderLeftPanel();
   });
-  section.append(el("label", { class: "field" }, ["Date: ", dateInput]));
+
+  const shortcuts = el("div", { class: "date-shortcuts" }, [
+    (() => {
+      const btn = el("button", { class: "btn btn-secondary btn-small" }, [t("days.today")]);
+      btn.addEventListener("click", () => {
+        day.date = dateOffsetFromToday(0);
+        dateInput.value = day.date;
+        markEventDirty();
+        renderLeftPanel();
+        renderMainPanel();
+      });
+      return btn;
+    })(),
+    (() => {
+      const btn = el("button", { class: "btn btn-secondary btn-small" }, [t("days.tomorrow")]);
+      btn.addEventListener("click", () => {
+        day.date = dateOffsetFromToday(1);
+        dateInput.value = day.date;
+        markEventDirty();
+        renderLeftPanel();
+        renderMainPanel();
+      });
+      return btn;
+    })(),
+    (() => {
+      const btn = el("button", { class: "btn btn-secondary btn-small" }, [t("days.dayAfter")]);
+      btn.addEventListener("click", () => {
+        day.date = dateOffsetFromToday(2);
+        dateInput.value = day.date;
+        markEventDirty();
+        renderLeftPanel();
+        renderMainPanel();
+      });
+      return btn;
+    })(),
+  ]);
+
+  section.append(el("label", { class: "field" }, [t("day.date"), dateInput]), shortcuts);
 
   const dayAnnouncementInput = el("textarea", { class: "announcement-input", rows: "2" }, [day.announcement]);
   dayAnnouncementInput.addEventListener("input", () => {
     day.announcement = (dayAnnouncementInput as HTMLTextAreaElement).value;
     markEventDirty();
   });
-  section.append(el("label", { class: "field" }, ["Day announcement: ", dayAnnouncementInput]));
+  section.append(el("label", { class: "field" }, [t("day.announcement"), dayAnnouncementInput]));
 
   const table = el("div", { class: "rows-table scrollable" });
   day.rows.forEach((row, index) => {
@@ -890,12 +1035,10 @@ function renderDayEditor(): HTMLElement {
         }
         markEventDirty();
       },
-      {
-        title: "Optional: set this so the display can gray this row out once it's passed and highlight it while it's next up.",
-      },
+      { title: t("day.timeOptional") },
     );
 
-    const removeBtn = el("button", { class: "btn btn-secondary btn-small" }, ["Remove"]);
+    const removeBtn = el("button", { class: "btn btn-secondary btn-small" }, [t("day.remove")]);
     removeBtn.addEventListener("click", () => {
       day.rows.splice(index, 1);
       markEventDirty();
@@ -907,7 +1050,7 @@ function renderDayEditor(): HTMLElement {
   });
   section.append(table);
 
-  const addRowBtn = el("button", { class: "btn btn-secondary" }, ["+ Add row"]);
+  const addRowBtn = el("button", { class: "btn btn-secondary" }, [t("day.addRow")]);
   addRowBtn.addEventListener("click", () => {
     day.rows.push({ A: "", B: "" });
     markEventDirty();
@@ -920,7 +1063,7 @@ function renderDayEditor(): HTMLElement {
 
 function renderImportSection(): HTMLElement {
   const section = el("div", { class: "import-section" });
-  section.append(el("h3", {}, ["Import from Excel (.xlsx)"]));
+  section.append(el("h3", {}, [t("import.title")]));
 
   const fileInput = el("input", { type: "file", accept: ".xlsx" });
   fileInput.addEventListener("change", async () => {
@@ -931,13 +1074,13 @@ function renderImportSection(): HTMLElement {
       state.pendingImportRows = await parseXlsxToRows(file);
       renderMainPanel();
     } catch (err) {
-      setStatus(`Failed to parse ${file.name}: ${(err as Error).message}`, true);
+      setStatus(t("import.parseFailed", { name: file.name, message: (err as Error).message }), true);
     }
   });
   section.append(fileInput);
 
   if (state.pendingImportRows) {
-    section.append(el("p", {}, [`Parsed ${state.pendingImportRows.length} row(s). Review before applying:`]));
+    section.append(el("p", {}, [t("import.parsed", { count: state.pendingImportRows.length })]));
     const preview = el("div", { class: "rows-table scrollable" });
     for (const row of state.pendingImportRows) {
       preview.append(
@@ -949,22 +1092,22 @@ function renderImportSection(): HTMLElement {
     }
     section.append(preview);
 
-    const applyBtn = el("button", { class: "btn btn-primary" }, ["Apply to current day"]);
+    const applyBtn = el("button", { class: "btn btn-primary" }, [t("import.apply")]);
     applyBtn.addEventListener("click", () => {
       const day = currentDay();
       const rows: ScheduleRow[] = state.pendingImportRows ?? [];
       if (!day) {
-        setStatus("Select or add a day before applying the import.", true);
+        setStatus(t("import.noDay"), true);
         return;
       }
       day.rows = rows;
       state.pendingImportRows = null;
       markEventDirty();
-      setStatus("Import applied. Review the table, then click Save to publish.");
+      setStatus(t("import.applied"));
       renderMainPanel();
     });
 
-    const cancelBtn = el("button", { class: "btn btn-secondary" }, ["Cancel import"]);
+    const cancelBtn = el("button", { class: "btn btn-secondary" }, [t("import.cancel")]);
     cancelBtn.addEventListener("click", () => {
       state.pendingImportRows = null;
       renderMainPanel();

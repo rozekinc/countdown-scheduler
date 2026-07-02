@@ -1,12 +1,5 @@
 const MARQUEE_SPEED_PX_PER_SEC = 90;
 
-// The marquee-scroll keyframes (styles.css) now spend ~24% of each cycle
-// holding still (a settle pause at the start and again at the midpoint)
-// rather than sliding, so the duration is padded by this factor -- keeps
-// the moving segments at roughly their original glide speed instead of
-// quietly speeding up to make room for the holds.
-const PAUSE_PADDING_FACTOR = 1.25;
-
 /**
  * Renders an announcement as a fixed label ("お知らせ：") followed by its
  * content, scrolling ONLY the content -- never the label -- and only when
@@ -48,8 +41,7 @@ export function setAnnouncementText(
     }
 
     container.classList.add("marquee-active");
-    const duration =
-      Math.max(6, periodWidth / MARQUEE_SPEED_PX_PER_SEC) * PAUSE_PADDING_FACTOR;
+    const duration = Math.max(6, periodWidth / MARQUEE_SPEED_PX_PER_SEC);
     inner.style.animationDuration = `${duration}s`;
   });
 }

@@ -8,11 +8,18 @@ export interface AppTheme {
   background: string;
 }
 
+export type ScreenMode = "countdown" | "schedule";
+
 export interface AppConfig {
   id: string;
   name: string;
   theme: AppTheme;
   activeEventId: string | null;
+  /** Which screen this app always shows on the display -- "countdown" or
+   * "schedule". Each app is a distinct style/deployment (not a generic
+   * template), so this is a fixed per-app setting, not a runtime toggle.
+   * Omitted = "countdown". */
+  screenMode?: ScreenMode;
 }
 
 export interface AppsFile {
