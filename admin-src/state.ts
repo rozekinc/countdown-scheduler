@@ -11,6 +11,7 @@ export interface EventListEntry {
 export interface AppsPatch {
   selectedAppId?: string;
   displayModeId?: string | null;
+  aspectRatioId?: string | null;
   /** appId -> new activeEventId (null clears it), staged by "Set active" /
    * "Close event" for whichever app(s) were touched this session. */
   activeEventIdByApp?: Record<string, string | null>;
@@ -29,6 +30,9 @@ export interface AppState {
   /** Which display-mode preset (data/apps.json's displayModeId) is active
    * on every screen. Null means "standard" (per-app colors). */
   displayModeId: string | null;
+  /** Which aspect-ratio preset (data/apps.json's aspectRatioId) the stage
+   * is letterboxed to on every screen. Null means 16:9. */
+  aspectRatioId: string | null;
 
   eventsForApp: EventListEntry[];
   currentEventId: string | null;
@@ -59,6 +63,7 @@ export const state: AppState = {
   currentAppId: null,
   selectedAppId: null,
   displayModeId: null,
+  aspectRatioId: null,
   eventsForApp: [],
   currentEventId: null,
   currentEvent: null,
@@ -86,6 +91,7 @@ export function hasPendingChanges(): boolean {
     state.eventDirty ||
     patch.selectedAppId !== undefined ||
     patch.displayModeId !== undefined ||
+    patch.aspectRatioId !== undefined ||
     Object.keys(patch.activeEventIdByApp ?? {}).length > 0
   );
 }

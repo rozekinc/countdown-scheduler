@@ -1,4 +1,4 @@
-import { el, clear, isPast, isoToDatetimeLocal, datetimeLocalToIso } from "./dom";
+import { el, clear, isPast, isoToDatePart, isoToTimePart, datePartsToIso } from "./dom";
 import { renderAuthControls } from "./authPanel";
 import { renderSettingsControls } from "./settingsPanel";
 import { renderOverview } from "./overview";
@@ -15,6 +15,7 @@ import {
 } from "./state";
 import type { AppsFile, EventData, ScheduleRow } from "./types";
 import { DISPLAY_MODES, DEFAULT_DISPLAY_MODE_ID, getDisplayMode } from "./displayModes";
+import { ASPECT_RATIOS, DEFAULT_ASPECT_RATIO_ID, getAspectRatio } from "./aspectRatios";
 import { applyPreviewTheme } from "./previewTheme";
 
 // Public data/apps.json is fetched with a plain (unauthenticated) fetch,
@@ -25,6 +26,7 @@ const APPS_JSON_PATH = "data/apps.json";
 let rootEl: HTMLElement;
 let appSwitcherEl: HTMLElement;
 let displayModeSwitcherEl: HTMLElement;
+let aspectRatioSwitcherEl: HTMLElement;
 let authControlsEl: HTMLElement;
 let settingsControlsEl: HTMLElement;
 let viewToggleEl: HTMLElement;
@@ -44,6 +46,7 @@ export function init(root: HTMLElement): void {
   viewToggleEl = el("div", { class: "view-toggle" });
   appSwitcherEl = el("div", { class: "app-switcher" });
   displayModeSwitcherEl = el("div", { class: "display-mode-switcher" });
+  aspectRatioSwitcherEl = el("div", { class: "aspect-ratio-switcher" });
   settingsControlsEl = el("div", { class: "settings-controls" });
   authControlsEl = el("div", { class: "auth-controls" });
   saveBarEl = el("div", { class: "save-bar" });
@@ -51,6 +54,7 @@ export function init(root: HTMLElement): void {
     viewToggleEl,
     appSwitcherEl,
     displayModeSwitcherEl,
+    aspectRatioSwitcherEl,
     saveBarEl,
     settingsControlsEl,
     authControlsEl,
@@ -205,11 +209,13 @@ async function loadApps(): Promise<void> {
     state.apps = data.apps ?? [];
     state.selectedAppId = data.selectedAppId ?? (state.apps[0]?.id ?? null);
     state.displayModeId = data.displayModeId ?? null;
+    state.aspectRatioId = data.aspectRatioId ?? null;
     if (state.apps.length > 0) {
       state.currentAppId = state.apps[0].id;
     }
     renderAppSwitcher();
     renderDisplayModeSwitcher();
+    renderAspectRatioSwitcher();
     applyTheme();
     renderPreviewPanel();
     if (isSignedIn()) {
@@ -348,6 +354,33 @@ function stageDisplayMode(modeId: string): void {
   updateSaveButtonState();
 }
 
+function renderAspectRatioSwitcher(): void {
+  clear(aspectRatioSwitcherEl);
+  const select = el("select", { class: "aspect-ratio-select" });
+  const activeId = state.aspectRatioId ?? DEFAULT_ASPECT_RATIO_ID;
+  for (const ratio of ASPECT_RATIOS) {
+    const option = el("option", { value: ratio.id }, [ratio.label]);
+    if (ratio.id === activeId) option.setAttribute("selected", "selected");
+    select.append(option);
+  }
+  select.addEventListener("change", () => {
+    stageAspectRatio((select as HTMLSelectElement).value);
+  });
+  aspectRatioSwitcherEl.append(el("label", {}, ["TV shape: "]), select);
+}
+
+/** Stages the aspect ratio the stage is letterboxed to on every screen,
+ * pinned or not -- e.g. for a 4:3 or ultrawide TV instead of the 16:9
+ * default. Not written until Save -- see stageSelectedAppOnDisplay(). */
+function stageAspectRatio(aspectRatioId: string): void {
+  state.aspectRatioId = aspectRatioId;
+  state.appsPatch.aspectRatioId = aspectRatioId;
+  setStatus(`TV shape staged: "${getAspectRatio(aspectRatioId).label}" -- click Save to publish.`);
+  renderAspectRatioSwitcher();
+  renderPreviewPanel();
+  updateSaveButtonState();
+}
+
 /**
  * A miniature, representative mockup of the real display site (title, a
  * countdown-style number, an announcement bar, a couple of schedule rows),
@@ -362,10 +395,11 @@ function renderPreviewPanel(): void {
   applyPreviewTheme(previewPanelEl, app, state.displayModeId);
 
   const modeLabel = getDisplayMode(state.displayModeId).label;
+  const ratio = getAspectRatio(state.aspectRatioId);
   previewPanelEl.append(el("h3", { class: "preview-panel-title" }, ["Display preview"]));
-  previewPanelEl.append(el("p", { class: "preview-mode-label" }, [modeLabel]));
+  previewPanelEl.append(el("p", { class: "preview-mode-label" }, [`${modeLabel} · ${ratio.label}`]));
 
-  const mock = el("div", { class: "preview-mock" }, [
+  const mock = el("div", { class: "preview-mock", style: `aspect-ratio: ${ratio.w} / ${ratio.h};` }, [
     el("div", { class: "preview-mock-title" }, [app ? app.name : "No app selected"]),
     el("div", { class: "preview-mock-countdown" }, ["12:34:56"]),
     el("div", { class: "preview-mock-announcement" }, [
@@ -637,7 +671,10 @@ async function saveAll(): Promise<void> {
     const patch = state.appsPatch;
     const activeEdits = Object.entries(patch.activeEventIdByApp ?? {});
     const hasAppsPatch =
-      patch.selectedAppId !== undefined || patch.displayModeId !== undefined || activeEdits.length > 0;
+      patch.selectedAppId !== undefined ||
+      patch.displayModeId !== undefined ||
+      patch.aspectRatioId !== undefined ||
+      activeEdits.length > 0;
 
     if (hasAppsPatch) {
       // Re-read right before committing (this is a read, not a write) so
@@ -648,6 +685,7 @@ async function saveAll(): Promise<void> {
       const appsData: AppsFile = fresh ? fresh.data : { apps: state.apps };
       if (patch.selectedAppId !== undefined) appsData.selectedAppId = patch.selectedAppId;
       if (patch.displayModeId !== undefined) appsData.displayModeId = patch.displayModeId;
+      if (patch.aspectRatioId !== undefined) appsData.aspectRatioId = patch.aspectRatioId;
       for (const [appId, eventId] of activeEdits) {
         const app = appsData.apps.find((a) => a.id === appId);
         if (app) app.activeEventId = eventId;
@@ -729,6 +767,34 @@ function renderMainPanel(): void {
   mainPanelEl.append(eventHeader, actions, announcementField, countdownSection, daySection, importSection);
 }
 
+/**
+ * A date input + a time input side by side in one wrapper (counts as a
+ * single grid cell in .row-editor's layout), recombined into one ISO
+ * datetime string on every change. See datePartsToIso in dom.ts for why
+ * this is two plain inputs instead of one <input type="datetime-local">.
+ */
+function createDateTimeInputs(
+  initialIso: string,
+  onChange: (iso: string) => void,
+  timeAttrs: Record<string, string> = {},
+): HTMLElement {
+  const dateInput = el("input", {
+    class: "row-input datetime-pair-date",
+    type: "date",
+    value: isoToDatePart(initialIso),
+  }) as HTMLInputElement;
+  const timeInput = el("input", {
+    class: "row-input datetime-pair-time",
+    type: "time",
+    value: isoToTimePart(initialIso),
+    ...timeAttrs,
+  }) as HTMLInputElement;
+  const update = () => onChange(datePartsToIso(dateInput.value, timeInput.value, initialIso));
+  dateInput.addEventListener("input", update);
+  timeInput.addEventListener("input", update);
+  return el("div", { class: "datetime-pair" }, [dateInput, timeInput]);
+}
+
 function renderCountdownRows(event: EventData): HTMLElement {
   const section = el("div", { class: "countdown-rows-section" });
   section.append(el("h3", {}, ["Countdown rows"]));
@@ -744,13 +810,8 @@ function renderCountdownRows(event: EventData): HTMLElement {
       markEventDirty();
     });
 
-    const timeInput = el("input", {
-      class: "row-input",
-      type: "datetime-local",
-      value: isoToDatetimeLocal(row.time),
-    });
-    timeInput.addEventListener("input", () => {
-      row.time = datetimeLocalToIso((timeInput as HTMLInputElement).value, row.time);
+    const dateTimeInputs = createDateTimeInputs(row.time, (iso) => {
+      row.time = iso;
       markEventDirty();
     });
 
@@ -761,7 +822,7 @@ function renderCountdownRows(event: EventData): HTMLElement {
       renderMainPanel();
     });
 
-    rowEl.append(titleInput, timeInput, removeBtn);
+    rowEl.append(titleInput, dateTimeInputs, removeBtn);
     table.append(rowEl);
   });
   section.append(table);
@@ -819,21 +880,20 @@ function renderDayEditor(): HTMLElement {
       markEventDirty();
     });
 
-    const timeInput = el("input", {
-      class: "row-input row-input-time",
-      type: "datetime-local",
-      value: row.time ? isoToDatetimeLocal(row.time) : "",
-      title: "Optional: set this so the display can gray this row out once it's passed and highlight it while it's next up.",
-    });
-    timeInput.addEventListener("input", () => {
-      const value = (timeInput as HTMLInputElement).value;
-      if (value) {
-        row.time = datetimeLocalToIso(value, row.time ?? "");
-      } else {
-        delete row.time;
-      }
-      markEventDirty();
-    });
+    const dateTimeInputs = createDateTimeInputs(
+      row.time ?? "",
+      (iso) => {
+        if (iso) {
+          row.time = iso;
+        } else {
+          delete row.time;
+        }
+        markEventDirty();
+      },
+      {
+        title: "Optional: set this so the display can gray this row out once it's passed and highlight it while it's next up.",
+      },
+    );
 
     const removeBtn = el("button", { class: "btn btn-secondary btn-small" }, ["Remove"]);
     removeBtn.addEventListener("click", () => {
@@ -842,7 +902,7 @@ function renderDayEditor(): HTMLElement {
       renderMainPanel();
     });
 
-    rowEl.append(aInput, bInput, timeInput, removeBtn);
+    rowEl.append(aInput, bInput, dateTimeInputs, removeBtn);
     table.append(rowEl);
   });
   section.append(table);
