@@ -71,22 +71,27 @@ export function resolveActiveApp(data: AppsData): App {
 }
 
 /**
- * Polls data/apps.json and reports two things the admin can change live,
+ * Polls data/apps.json and reports three things the admin can change live,
  * with no reload needed on the display end:
  *  - onAppSwitch: which app is showing (selectedAppId) -- no-op on a
  *    screen pinned via ?app=, which is meant to stay put regardless.
  *  - onModeChange: which display-mode preset is active (displayModeId) --
  *    applies on every screen, pinned or not, since it's a readability
  *    setting for the physical TV, not an app-identity choice.
+ *  - onAspectRatioChange: which aspect-ratio preset the stage is
+ *    letterboxed to (aspectRatioId) -- same reasoning as onModeChange,
+ *    applies everywhere regardless of pinning.
  */
 export function watchDisplaySettings(
   initialApps: AppsData,
   onAppSwitch: (app: App) => void,
   onModeChange: (displayModeId: string | null) => void,
+  onAspectRatioChange: (aspectRatioId: string | null) => void,
 ): void {
   const pinned = isPinnedByUrl(initialApps.apps);
   let currentAppId = resolveActiveApp(initialApps).id;
   let currentModeId = initialApps.displayModeId ?? null;
+  let currentAspectRatioId = initialApps.aspectRatioId ?? null;
 
   window.setInterval(() => {
     void (async () => {
@@ -97,6 +102,12 @@ export function watchDisplaySettings(
       if (freshModeId !== currentModeId) {
         currentModeId = freshModeId;
         onModeChange(currentModeId);
+      }
+
+      const freshAspectRatioId = fresh.aspectRatioId ?? null;
+      if (freshAspectRatioId !== currentAspectRatioId) {
+        currentAspectRatioId = freshAspectRatioId;
+        onAspectRatioChange(currentAspectRatioId);
       }
 
       if (pinned) return;

@@ -23,6 +23,9 @@ export interface AppsFile {
   /** Which display-mode preset (see displayModes.ts) is active on every
    * screen. Null/absent = "standard" (each app's own theme). */
   displayModeId?: string | null;
+  /** Which aspect-ratio preset (see aspectRatios.ts) the stage is
+   * letterboxed/pillarboxed to on every screen. Null/absent = 16:9. */
+  aspectRatioId?: string | null;
 }
 
 export type EventStatus = "draft" | "active" | "ended";
