@@ -57,7 +57,9 @@ admin app, or anything else in the repository.
 
 ## Publishing needs no secrets either
 
-GitHub Pages is configured to deploy straight from the `main` branch (no
-GitHub Actions workflow, no build step on GitHub's side) — whatever is
-committed is what's published, using GitHub's own built-in Pages hosting.
-There is no token, credential, or secret involved in publishing at all.
+`.github/workflows/deploy.yml` publishes the site to GitHub Pages using
+GitHub's own built-in `GITHUB_TOKEN` and OpenID Connect (OIDC) for the Pages
+deployment step. This token is issued automatically by GitHub Actions for
+the duration of the workflow run and scoped to this repository — it is not
+something anyone types in, stores, or can leak, and no user-provided secret
+is configured or required anywhere in the workflow.

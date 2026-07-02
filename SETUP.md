@@ -7,15 +7,17 @@ published site keeps working after that without repeating it.
 ## Turn on GitHub Pages
 
 1. In this repository's own **Settings → Pages**.
-2. Set **Source** to **"Deploy from a branch"**, branch **main**, folder **/(root)**.
+2. Set **Source** to **"GitHub Actions"**.
 
-That's it — no build step runs on GitHub's side. The site and admin app are
-published exactly as committed, because the built `assets/` and `admin/`
-folders are already checked into the repo (whoever edits `src/`/`admin-src/`
-runs `npm run build` locally and commits the result, same as any other
-change). Editing `data/*.json` directly — which is all the admin app and the
-MCP server ever do — needs no build at all; it's published the moment it's
-committed.
+This is a one-time toggle. Once it's set, the included workflow
+(`.github/workflows/deploy.yml`) builds and publishes both the display site
+and the admin app automatically on every push to `main` — full build logs
+are visible under the repo's **Actions** tab if a deploy ever needs
+debugging (the legacy "deploy from a branch" builder gives no such logs,
+which is why this project uses Actions instead). Editing `data/*.json`
+directly — which is all the admin app and the MCP server ever do — still
+needs no local build step; the workflow just re-copies it as-is on the next
+push.
 
 After this, the display site is published from the repository root, and the
 admin editor is published at `/admin/`.
