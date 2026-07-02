@@ -20,18 +20,44 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Admin-app writes only ever touch data/ (see admin-src/githubApi.ts
+      # assertDataPath()) and never change anything esbuild would rebuild --
+      # so for a data-only push, skip straight to re-assembling the artifact
+      # with the already-committed assets/ and admin/assets/ output.
+      # Defaults to a full build whenever it can't tell for sure (first push,
+      # force-push, missing history), since that's the safe fallback.
+      - name: Check if this push only touches data/
+        id: check
+        run: |
+          before="${{ github.event.before }}"
+          if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$before" 2>/dev/null; then
+            echo "data_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(git diff --name-only "$before" "${{ github.sha }}")"
+          if [ -n "$changed" ] && [ -z "$(echo "$changed" | grep -v '^data/' || true)" ]; then
+            echo "data_only=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "data_only=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Node
+        if: steps.check.outputs.data_only != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Build display site
+        if: steps.check.outputs.data_only != 'true'
         run: |
           npm ci
           npm run build
 
       - name: Build admin app
+        if: steps.check.outputs.data_only != 'true'
         working-directory: admin-src
         run: |
           npm ci
