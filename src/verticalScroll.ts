@@ -1,0 +1,36 @@
+const SCROLL_SPEED_PX_PER_SEC = 40;
+
+/**
+ * Renders `contentHtml` inside `viewport`, auto-scrolling it vertically,
+ * seamlessly and continuously, only when it's too tall to fit. Short
+ * content just renders once, static, same as before -- nothing here ever
+ * hard-truncates a day's rows the way the original fixed row cap did.
+ */
+export function setScrollingContent(viewport: HTMLElement, contentHtml: string): void {
+  viewport.classList.remove("schedule-rows-active");
+  viewport.innerHTML =
+    `<div class="schedule-rows-inner">` +
+    `<div class="schedule-rows-copy">${contentHtml}</div>` +
+    `<div class="schedule-rows-copy" aria-hidden="true">${contentHtml}</div>` +
+    `</div>`;
+
+  const inner = viewport.querySelector<HTMLElement>(".schedule-rows-inner");
+  const copies = viewport.querySelectorAll<HTMLElement>(".schedule-rows-copy");
+  if (!inner || copies.length < 2) return;
+  inner.style.animationDuration = "";
+
+  requestAnimationFrame(() => {
+    // Each copy (rows + its trailing gap, set in CSS) is exactly half of
+    // the doubled inner height -- the distance one full loop travels.
+    const periodHeight = inner.scrollHeight / 2;
+    const overflowing = periodHeight > viewport.clientHeight;
+    if (!overflowing) {
+      copies[1].remove(); // no second copy needed when it isn't scrolling
+      return;
+    }
+
+    viewport.classList.add("schedule-rows-active");
+    const duration = Math.max(8, periodHeight / SCROLL_SPEED_PX_PER_SEC);
+    inner.style.animationDuration = `${duration}s`;
+  });
+}
