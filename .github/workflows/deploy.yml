@@ -45,10 +45,7 @@ jobs:
           cp -R assets _site/assets
           cp -R data _site/data
           cp -R admin _site/admin
-          shopt -s nullglob
-          for f in *.png *.jpg *.jpeg *.gif *.svg *.mp3 *.wav; do
-            cp "$f" _site/
-          done
+          cp -R media _site/media
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
