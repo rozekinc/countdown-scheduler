@@ -152,8 +152,30 @@ async function loadApps(): Promise<void> {
       renderMainPanel();
     }
   } catch (err) {
-    setStatus(`Failed to load data/apps.json: ${(err as Error).message}`, true);
+    const message = (err as Error).message;
+    setStatus(`Failed to load data/apps.json: ${message}`, true);
+    // A failed initial load otherwise leaves every panel silently empty,
+    // with only the small status-bar line above as a clue -- easy to miss
+    // and easy to mistake for "the whole page is blank." Make it loud.
+    renderLoadFailure(message);
   }
+}
+
+function renderLoadFailure(message: string): void {
+  clear(leftPanelEl);
+  clear(mainPanelEl);
+  mainPanelEl.append(
+    el("div", { class: "load-failure" }, [
+      el("h2", {}, ["Couldn't load data/apps.json"]),
+      el("p", {}, [message]),
+      el("p", { class: "muted" }, [
+        "Most likely cause: this page needs to be served from the repository's ",
+        "root directory (not from inside admin/), so the relative path ../data/apps.json ",
+        "actually resolves. If you're using \"npx serve\", run it from the repo root and ",
+        "open the /admin/ path, rather than running it from inside the admin folder.",
+      ]),
+    ]),
+  );
 }
 
 function onSignedIn(): void {
