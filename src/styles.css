@@ -1,0 +1,486 @@
+html, body {
+  margin: 0; padding: 0;
+  width: 100%; height: 100%;
+  background: var(--theme-background, #fff);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Noto Sans JP', sans-serif;
+  overflow: hidden;
+  transition: background 0.3s ease-in-out;
+}
+
+/* Schedule-screen tint, derived from the active app's own theme instead of
+   a fixed color -- see main.ts's setupToggle(), which only ever toggles
+   this class, never sets an inline background directly. */
+body.schedule-mode {
+  background: color-mix(in srgb, var(--theme-background, #fff) 80%, var(--theme-primary, #e60000) 20%);
+}
+
+.aspect-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #000;
+}
+
+.aspect-inner {
+  position: relative;
+  width: 100vw;
+  height: calc(100vw * 9 / 16);
+  max-height: 100vh;
+  max-width: calc(100vh * 16 / 9);
+  background-color: var(--theme-background, #fff);
+  overflow: hidden;
+  padding: 0;
+}
+
+/* --- logo and top-banner placement --- */
+.logo-area {
+  position: absolute;
+  top: 1vh;
+  left: 1vw;
+  width: clamp(200px, 40vw, 350px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  /* zero gap between the stacked images */
+  gap: 0;
+  z-index: 15;
+  pointer-events: none;
+}
+
+#top-banner {
+  width: 100%;
+  height: auto;
+  /* nudge the top banner down slightly */
+  margin-top: 20px;
+  /* tighten the gap to the logo below; set to 0 or negative if needed */
+  margin-bottom: -75px;
+}
+
+#logo {
+  height: clamp(200px, 40vh, 350px);
+  width: auto;
+  max-width: 90%;
+  object-fit: contain;
+  /* no top margin */
+  margin-top: 0;
+}
+/* ---------------------------- */
+
+.label {
+  font-size: clamp(20px, 3.5vw, 45px);
+  margin-right: 2px;
+  white-space: nowrap;
+  color: var(--theme-accent, #484848);
+}
+.bracket {
+  margin-left: 0;
+}
+
+.time-label {
+  font-size: clamp(18px, 3vw, 40px);
+  text-align: center;
+  color: var(--theme-accent, #484848);
+}
+
+/* current time */
+#time-container {
+  position: absolute;
+  top: 2.5vh;
+  left: 58%;
+  transform: translateX(-50%);
+  font-size: clamp(25px, 5.5vw, 80px);
+  color: var(--theme-accent, #484848);
+  user-select: none;
+  white-space: nowrap;
+  z-index: 20;
+  pointer-events: none;
+  transition: left 0.5s ease-in-out;
+}
+
+/* title and countdown block */
+#main {
+  position: absolute;
+  top: 28vh;
+  left: 40%;
+  transform: translateX(-50%);
+  width: 55%;
+  text-align: center;
+  user-select: none;
+  z-index: 10;
+}
+
+/* title */
+#title {
+  font-size: clamp(25px, 5.5vw, 80px);
+  margin: 0 0 1.33vh 0;
+  word-break: break-word;
+  white-space: pre-line;
+}
+
+/* countdown */
+#countdown {
+  font-size: clamp(36px, 8vw, 120px);
+  font-weight: bold;
+  color: var(--theme-primary, #e60000);
+  font-feature-settings: "tnum";
+  white-space: nowrap;
+}
+
+#countdown .ms {
+  font-size: 0.5em;
+  vertical-align: -0.1em;
+}
+
+#announcement {
+  position: absolute;
+  top: 62vh;
+  left: 0;
+  width: 100%; /* up to just left of the 25%-wide schedule panel */
+  box-sizing: border-box;
+  padding: 10px 0px; /* small margin in front of the divider */
+  background: transparent;
+  z-index: 100;
+  justify-content: center;
+  font-size: clamp(24px, 2.4vw, 38px);
+  color: black;
+  font-weight: bold;
+  white-space: nowrap;       /* never wrap */
+  overflow: hidden;          /* guard against overflow */
+}
+
+/* schedule list design */
+#schedule-list {
+  position: absolute;
+  top: 0;
+  height: 100vh;
+  right: 0;
+  width: 25%;
+  background: #ffe4c4;
+  border-left: 6px solid #696969;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  font-size: clamp(14px, 1.5vw, 24px);
+  z-index: 10;
+}
+
+#schedule-list h2 {
+  font-size: clamp(20px, 2.3vw, 36px);
+  margin: 0;
+  margin-top: 20px;
+  font-weight: bold;
+  text-align: center;
+}
+
+#schedule-list ul {
+  list-style-type: none;
+  padding-left: 1em;
+}
+
+#schedule-list ul li {
+  font-size: clamp(16px, 3vw, 32px);
+  padding: 6px 10px;
+  font-weight: bold;
+  border-bottom: 1px solid #ddd;
+}
+
+#schedule-list ul li .title {
+  display: inline-block;
+  color: var(--theme-accent, #484848);
+  font-weight: bold;
+  white-space: normal;
+  font-size: 0.85em;
+}
+
+#schedule-list ul li .title .bullet {
+  display: inline-block;
+  margin-right: 6px;
+  color: var(--theme-accent, #484848);
+  font-weight: bold;
+  vertical-align: top;
+  user-select: none;
+}
+
+#schedule-list ul li .time {
+  display: block;
+  margin-left: 1.1em;
+  margin-top: 2px;
+  color: var(--theme-accent, #484848);
+  font-weight: bold;
+}
+
+/* schedule screen (day-by-day rows) */
+#schedule-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  overflow: hidden;
+  display: none; /* toggled from JS */
+  z-index: 5;
+}
+
+/* --- schedule display area ---
+   #schedule-date-row is pinned (always visible); #schedule-rows-viewport
+   holds however many rows the day has -- no cap -- and auto-scrolls,
+   seamlessly and continuously, only once they don't fit. See
+   src/verticalScroll.ts, which measures overflow and toggles the
+   scrolling-active class. */
+#schedule-body {
+  position: absolute;
+  top: 28vh;
+  left: 0;
+  right: 0;
+  bottom: 12vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+#schedule-date-row {
+  width: 100%;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.schedule-rows-viewport {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.schedule-rows-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.schedule-rows-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding-bottom: 2em; /* gap before the looping copy repeats */
+}
+
+/* Two copies of the day's rows sit stacked in .schedule-rows-inner;
+   sliding by exactly one copy's height (50% of the doubled total) loops
+   seamlessly -- rows are always visible, never scroll to a blank gap. */
+.schedule-rows-active .schedule-rows-inner {
+  animation-name: schedule-scroll;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes schedule-scroll {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+/* fix each row's width so it stays centered (80% reads well) */
+.schedule-row-date, .schedule-row-title, .schedule-row-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 80%;
+  max-width: 1200px;
+  gap: 40px; /* distance between column A and column B */
+}
+
+/* title row */
+.schedule-row-title {
+  font-size: clamp(25px, 2.8vw, 38px);
+  font-weight: bold;
+  color: #333;
+  margin-top: 0.5vh;
+}
+
+/* content row (e.g. time) */
+.schedule-row-content {
+  font-size: clamp(25px, 2.8vw, 38px);
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 0.5vh;
+}
+
+/* Past vs. next-up styling, shared by the schedule screen's rows and the
+   countdown screen's sidebar list (#schedule-list li). Applied only where
+   a reliable time is known -- see ScheduleRow.time and countdown.ts. */
+.row-past {
+  opacity: 0.4;
+  filter: grayscale(60%);
+}
+
+.row-next {
+  position: relative;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--theme-primary, #e60000) 12%, transparent);
+  box-shadow: inset 0 0 0 2px var(--theme-primary, #e60000);
+}
+
+/* the "▶" marker (title rows only) */
+.has-bullet .text-wrapper {
+  position: relative;
+  padding-left: 1.2em;
+}
+
+.has-bullet .text-wrapper::before {
+  content: "▶";
+  position: absolute;
+  left: 0;
+  color: #000;
+}
+/* indent to match the 1.2em width of the title's ▶ marker exactly */
+.no-bullet-cell {
+  padding-left: 1.2em;
+}
+
+/* indent the date row too so it lines up with the other rows */
+.schedule-row-date {
+  font-size: clamp(25px, 3.5vw, 40px);
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 0.5vh;
+}
+
+.cell {
+  font-weight: bold;
+  white-space: nowrap; /* keep it tidy, no wrapping */
+}
+
+.sub-info {
+  color: #333;
+  font-weight: bold;
+}
+
+/* bottom announcement area (same style as the countdown screen).
+   NOTE: the original app had this as two separate #schedule-announcement
+   rules -- one setting width:100%, a later one setting left/right (5vw
+   each) with no width. Browsers resolve that "over-constrained" combo by
+   ignoring `right` and rendering at width:100% anyway, which pushed the
+   element well past the right edge of its container. Merged into one rule
+   below (bottom:2vh, left/right:5vw, no explicit width) so it just
+   computes its width from the left/right offsets, as originally intended. */
+#schedule-announcement {
+  position: absolute;
+  bottom: 2vh;
+  left: 5vw;
+  right: 5vw;
+  box-sizing: border-box;
+  padding: 10px 0;
+  justify-content: center;
+  font-size: clamp(24px, 2.4vw, 38px);
+  color: black;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  z-index: 100;
+}
+
+/* Announcement layout: a fixed label ("お知らせ：") followed by a content
+   viewport. Only the content ever scrolls (marquee-active), never the
+   label -- see src/marquee.ts, which measures overflow and toggles the
+   class. When the content fits, everything just sits centered, static. */
+#announcement,
+#schedule-announcement {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+}
+
+.marquee-label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.marquee-viewport {
+  /* Hugs its content by default, so a short announcement centers as one
+     group with the label (same look as before). Only grows to use the
+     full available width once there's actually something to scroll. */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.marquee-inner {
+  display: flex;
+  width: max-content;
+}
+
+.marquee-copy {
+  white-space: nowrap;
+  padding-right: 3em; /* gap before the looping copy repeats */
+}
+
+.marquee-active .marquee-viewport {
+  flex: 1 1 auto;
+  text-align: left;
+}
+
+/* Two copies of the content sit back to back in .marquee-inner; sliding by
+   exactly one copy's width (50% of the doubled total) loops seamlessly --
+   the viewport always has text in it, never goes empty between rotations. */
+.marquee-active .marquee-inner {
+  animation-name: marquee-scroll;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+#fullscreen-btn {
+  position: absolute;
+  right: 2vw;
+  bottom: 2vh;
+  width: clamp(24px, 2.5vw, 48px);
+  height: clamp(24px, 2.5vw, 48px);
+  cursor: pointer;
+  /* keep this above every other screen */
+  z-index: 99999;
+  opacity: 0.8;
+  user-select: none;
+}
+
+#toggle-btn {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  z-index: 9999;
+  background: #000;
+  color: #fff;
+  border: none;
+  padding: 22px 44px;
+  font-size: 26px;
+  font-weight: bold;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* scrollbar tuning */
+#schedule-list::-webkit-scrollbar { width: 8px; }
+#schedule-list::-webkit-scrollbar-thumb { background-color: #cacabc; border-radius: 4px; }
