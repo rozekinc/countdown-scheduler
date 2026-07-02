@@ -1,55 +1,10 @@
-# One-time setup
+# One-time repo setup
 
-These steps involve clicking through GitHub's own web interface with a real
-account, so an AI assistant cannot do them for you — they're account-specific
-and need a human in the loop. Do them once, in order, and the admin editor
-and the published site will keep working after that without repeating them.
+This step involves clicking through GitHub's own web interface with a real
+account, so an AI assistant cannot do it for you. Do it once and the
+published site keeps working after that without repeating it.
 
-## a. Register a GitHub App and turn on Device Flow
-
-The admin editor needs a way to save changes back to this repository from a
-browser, without a server anywhere to hold a secret. GitHub's **Device Flow**
-lets it do that safely.
-
-Prefer a **GitHub App** over a classic **OAuth App** for this: GitHub Apps
-support Device Flow as a secretless "public client," while classic OAuth
-Apps have historically required a `client_secret` at the token-exchange
-step, which we have nowhere safe to store in a static site. Double-check
-this against GitHub's current documentation at setup time — GitHub does
-update its auth offerings — rather than assuming the above stays true
-forever.
-
-1. Go to **Settings → Developer settings → GitHub Apps → New GitHub App**.
-2. Give it any name you like and fill in the required fields.
-3. Enable **"Device Flow"**.
-4. Under permissions, grant **Repository permissions → Contents: Read and
-   write**. Don't grant anything beyond that.
-5. Save it, and note down the **Client ID** shown on the app's page. This ID
-   is public by design — it identifies the app, it is not a password. See
-   [SECURITY.md](SECURITY.md) for why that's fine to have in the codebase.
-
-## b. Point the admin app at your GitHub App
-
-No file to edit, no rebuild — this is entered once directly in the running
-admin app and stays in your browser (`localStorage`), never in the repo:
-
-1. Open the admin app (`/admin/` on your GitHub Pages URL, or locally — see
-   [ReadMe.md](ReadMe.md)).
-2. Click **Settings**.
-3. Paste the **Client ID** from step (a) and click **Save**.
-
-The repository owner/name are figured out automatically from the page's own
-URL (GitHub Pages always serves a project site at
-`https://<owner>.github.io/<repo>/...`), so this step never needs to know or
-store that either. The **Settings** panel only asks for owner/repo directly
-when you're testing somewhere that isn't a `github.io` URL (VS Code Live
-Server, `npx serve`, etc.) — see the note in ReadMe.md.
-
-This is also why, once this PR is merged upstream, the exact same code
-starts working there unmodified: whoever owns that repo just repeats steps
-(a)–(c) for their own copy — nothing in this file ever needs editing.
-
-## c. Turn on GitHub Pages
+## Turn on GitHub Pages
 
 1. In this repository's own **Settings → Pages**.
 2. Set **Source** to **"Deploy from a branch"**, branch **main**, folder **/(root)**.
@@ -62,17 +17,47 @@ change). Editing `data/*.json` directly — which is all the admin app and the
 MCP server ever do — needs no build at all; it's published the moment it's
 committed.
 
-## d. Install the GitHub App
+After this, the display site is published from the repository root, and the
+admin editor is published at `/admin/`.
 
-1. Go to your GitHub App's page and choose **"Install App"**.
-2. Install it on the account that should own the event data.
-3. When asked which repositories it can access, choose **only this
-   repository** — don't grant it access to anything else.
+The repository owner/name are figured out automatically from the page's own
+URL (GitHub Pages always serves a project site at
+`https://<owner>.github.io/<repo>/...`), so nothing here ever needs to know
+or store that. This is also why, once this PR is merged upstream, the exact
+same code starts working there unmodified — whoever owns that repo just
+repeats this one step for their own copy; nothing in this file ever needs
+editing.
 
-## Done
+# Signing in to edit (do this whenever you want to make a change)
 
-After all four steps, the display site is published from the repository
-root, and the admin editor is published at `/admin/`. From here on, editing
-data is either: use the admin editor (see [ReadMe.md](ReadMe.md)), or ask an
-AI coding assistant to make the change via the recipes in
-[skills/](skills/) (see [AGENTS.md](AGENTS.md)).
+Unlike the step above, this isn't a one-time repo setup — it's a
+short-lived credential each person editing generates for themselves, per
+browser, and renews when it expires. Every edit — through the admin app or
+through Codex/the MCP server's `publish` tool — is still a normal git
+commit under your own GitHub identity; this token is just how the admin
+app is allowed to make that commit from a browser with no server behind it.
+
+1. On GitHub, go to **Settings → Developer settings → Personal access
+   tokens → Fine-grained tokens → Generate new token**.
+2. **Repository access**: choose **"Only select repositories"** and pick
+   just this one.
+3. **Permissions → Repository permissions → Contents**: set to
+   **"Read and write"**. Leave every other permission at its default
+   ("No access") — this token should be able to do exactly one thing.
+4. **Expiration**: pick something reasonable (90 days is a fine default) —
+   you'll just generate a new one when it lapses.
+5. Click **Generate token**, and copy it immediately — GitHub only shows it
+   once.
+6. Open the admin app (`/admin/` on your GitHub Pages URL, or locally — see
+   [ReadMe.md](ReadMe.md)), click **Sign in with token**, and paste it in.
+
+The token is checked against this exact repository the moment you sign in,
+so a wrong or mis-scoped token is caught immediately with a clear error
+instead of failing confusingly later. It's kept only in this browser tab's
+session storage — never written to disk, never sent anywhere except
+directly to GitHub's API from your own browser. See
+[SECURITY.md](SECURITY.md) for the full picture.
+
+From here on, editing data is either: use the admin editor, or ask an AI
+coding assistant to make the change via the recipes in [skills/](skills/)
+(see [AGENTS.md](AGENTS.md)).
