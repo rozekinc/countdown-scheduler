@@ -1,38 +1,50 @@
 # Security
 
-This project has no server and no database, and it stores no secrets. Here
-is exactly why that's true, and how it stays true.
+This project has no server and no database, and the repo itself stores no
+secrets. The one real credential in the picture — a GitHub token — is never
+committed, never leaves the person who generated it, and lives only in
+their own browser tab while they're actively signed in. Here's exactly why
+that's true, and how it stays true.
 
-## There is nothing sensitive to leak
+## Why there's a token at all, and why it's not in the codebase
 
-- The only credential-shaped thing in this whole project is the GitHub
-  Device Flow **Client ID** used by the admin editor (see
-  [SETUP.md](SETUP.md)). That ID is public by design — it identifies which
-  app is asking to sign in, the same way a website's domain name is public.
-  It is not a password and not a `client_secret`. It would be safe to commit
-  it, but this project doesn't even do that: it's entered once through the
-  admin app's **Settings** panel and kept in the browser's `localStorage`
-  (see `admin-src/config.ts`), never in a file. That also means this exact
-  code works unmodified on any fork or on the eventual upstream repo after a
-  PR merges — the repo owner/name are read from the page's own
-  `*.github.io` URL at runtime, and each deployment's operator enters their
-  own Client ID once, in their own browser.
-- There is no `client_secret` anywhere in this project. Classic OAuth token
-  exchange needs one; GitHub App Device Flow does not, which is exactly why
-  Device Flow was chosen (see [SETUP.md](SETUP.md), step a).
-- There is no database and no server to break into. All event data lives as
-  plain JSON files under `data/` in this repository, and publishing a
-  change is just a normal git commit.
+The admin editor needs *some* way to save changes back to this repository
+from a browser, with no server anywhere to broker that. GitHub's OAuth and
+Device Flow endpoints don't support this from a pure static page (they
+don't support CORS from a browser at all — a confirmed, longstanding
+limitation on GitHub's side, not something this project could configure
+around). The alternative that actually works without a server: each person
+who wants to edit generates their own **fine-grained Personal Access
+Token**, scoped to just this repository with `Contents: read/write` and
+nothing else (see [SETUP.md](SETUP.md)), and pastes it into the admin app.
+
+That token:
+- Is checked against this exact repository the moment it's entered
+  (`admin-src/auth.ts`), so a wrong or mis-scoped paste fails immediately
+  with a clear error rather than silently.
+- Lives only in `sessionStorage` — cleared when the tab closes or on
+  explicit sign-out, never written to `localStorage`, never written to any
+  file, never included in anything this codebase commits.
+- Is scoped by its owner (via GitHub's own token settings, not by
+  anything in this repo) to exactly this repository and exactly
+  `Contents: read/write` — it cannot read other repos, change settings,
+  add collaborators, or do anything beyond editing files here.
+- Has an expiration its owner chose. If it leaks, the blast radius is
+  "write access to this repo's files, for a bounded time" — never more.
+
+There is no database and no server to break into either way. All event
+data lives as plain JSON files under `data/` in this repository, and
+publishing a change is just a normal git commit under the token owner's
+own GitHub identity.
 
 ## The admin editor can only write to `data/`
 
-The admin editor authenticates a real person with their own GitHub login
-(via Device Flow) and then commits on their behalf — it never acts as some
+The admin editor commits as whoever is signed in — it never acts as some
 shared, privileged identity. On top of that, its write path is
 hard-restricted in code: `assertDataPath` in `admin-src/githubApi.ts` checks
 every file path before any write, and refuses to write anywhere outside
-`data/`. The admin editor cannot modify the display site's code, the
-workflow files, or anything else in the repository, even if asked to.
+`data/`. The admin editor cannot modify the display site's code or anything
+else in the repository, even if asked to.
 
 ## The MCP server never leaves your machine
 

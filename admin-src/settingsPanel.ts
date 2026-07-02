@@ -1,16 +1,13 @@
 import { el } from "./dom";
-import {
-  getClientId,
-  setClientId,
-  getRepoIdentity,
-  setRepoIdentityOverride,
-} from "./config";
+import { getRepoIdentity, setRepoIdentityOverride } from "./config";
 
 /**
- * A one-time-per-browser "Settings" form: the GitHub Client ID (required,
- * public, never committed to source -- see config.ts) and, only when the
- * repo identity can't be auto-detected from a github.io URL (i.e. local
- * testing), an owner/repo override. Values live in localStorage only.
+ * "Settings" is only ever needed for local testing: an owner/repo
+ * override, used when this page isn't served from a *.github.io URL
+ * (VS Code Live Server, `npx serve`, etc), where the repo identity can't
+ * be auto-detected from the URL. On a real deployment there's nothing to
+ * configure here at all -- sign-in (see authPanel.ts) is separate and
+ * uses a pasted-in token instead.
  */
 export function renderSettingsControls(container: HTMLElement, onSaved: () => void): void {
   container.innerHTML = "";
@@ -22,48 +19,40 @@ export function renderSettingsControls(container: HTMLElement, onSaved: () => vo
 
 function openSettingsModal(onSaved: () => void): void {
   const backdrop = el("div", { class: "modal-backdrop" });
-
-  const clientIdInput = el("input", {
-    type: "text",
-    class: "row-input",
-    value: getClientId() ?? "",
-    placeholder: "GitHub App / OAuth App Client ID",
-  }) as HTMLInputElement;
-
   const detected = getRepoIdentity();
-  const detectedNote = detected
-    ? el("p", { class: "muted" }, [
-        `Repo detected from URL: ${detected.owner}/${detected.repo}`,
-      ])
-    : el("p", { class: "muted" }, [
-        "Not running on a github.io URL -- set owner/repo below for local testing only.",
-      ]);
+  const closeBtn = el("button", { class: "btn btn-secondary" }, ["Close"]);
+  closeBtn.addEventListener("click", () => backdrop.remove());
+
+  if (detected) {
+    const body = el("div", { class: "modal-body" }, [
+      el("h3", {}, ["Settings"]),
+      el("p", { class: "muted" }, [
+        `Repo detected from URL: ${detected.owner}/${detected.repo}. Nothing to configure here.`,
+      ]),
+      el("div", { class: "actions-row" }, [closeBtn]),
+    ]);
+    const modal = el("div", { class: "modal" }, [body]);
+    backdrop.append(modal);
+    document.body.append(backdrop);
+    return;
+  }
 
   const ownerInput = el("input", {
     type: "text",
     class: "row-input",
-    value: !detected ? (readOverrideOwner() ?? "") : "",
+    value: getRepoIdentity()?.owner ?? "",
     placeholder: "owner (e.g. your-username)",
   }) as HTMLInputElement;
   const repoInput = el("input", {
     type: "text",
     class: "row-input",
-    value: !detected ? (readOverrideRepo() ?? "") : "",
+    value: getRepoIdentity()?.repo ?? "",
     placeholder: "repo (e.g. countdown-scheduler)",
   }) as HTMLInputElement;
 
-  const overrideFields = el("div", { class: "field" }, [
-    "Local testing override (ignored on a real github.io deployment):",
-    ownerInput,
-    repoInput,
-  ]);
-
   const saveBtn = el("button", { class: "btn btn-primary" }, ["Save"]);
-  const closeBtn = el("button", { class: "btn btn-secondary" }, ["Close"]);
-
   saveBtn.addEventListener("click", () => {
-    setClientId(clientIdInput.value);
-    if (!detected && ownerInput.value.trim() && repoInput.value.trim()) {
+    if (ownerInput.value.trim() && repoInput.value.trim()) {
       setRepoIdentityOverride({
         owner: ownerInput.value.trim(),
         repo: repoInput.value.trim(),
@@ -72,24 +61,17 @@ function openSettingsModal(onSaved: () => void): void {
     backdrop.remove();
     onSaved();
   });
-  closeBtn.addEventListener("click", () => backdrop.remove());
 
   const body = el("div", { class: "modal-body" }, [
     el("h3", {}, ["Settings"]),
-    el("label", { class: "field" }, ["GitHub Client ID:", clientIdInput]),
-    detectedNote,
-    ...(detected ? [] : [overrideFields]),
+    el("p", { class: "muted" }, [
+      "Not running on a github.io URL -- set owner/repo for local testing only.",
+    ]),
+    el("label", { class: "field" }, ["Owner:", ownerInput]),
+    el("label", { class: "field" }, ["Repo:", repoInput]),
     el("div", { class: "actions-row" }, [saveBtn, closeBtn]),
   ]);
   const modal = el("div", { class: "modal" }, [body]);
   backdrop.append(modal);
   document.body.append(backdrop);
-}
-
-function readOverrideOwner(): string | null {
-  return getRepoIdentity()?.owner ?? null;
-}
-
-function readOverrideRepo(): string | null {
-  return getRepoIdentity()?.repo ?? null;
 }
