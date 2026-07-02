@@ -4,6 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Countdown Scheduler Admin</title>
+  <!-- This page uses relative asset/data paths (assets/main.js, ../data/apps.json)
+       so it works unmodified whether it's served from GitHub Pages, VS Code
+       Live Server, or a local static server. Those paths only resolve
+       correctly if the URL ends in a slash (.../admin/) -- without it, the
+       browser treats "admin" as a filename and resolves relative paths one
+       directory too high (loading the *site's* JS here, which crashes since
+       it expects elements this page doesn't have). GitHub Pages redirects
+       bare directory URLs automatically; most local dev servers don't, so
+       this catches it before anything else on the page loads. -->
+  <script>
+    if (!location.pathname.endsWith("/")) {
+      location.replace(location.pathname + "/" + location.search + location.hash);
+    }
+  </script>
   <link rel="stylesheet" href="assets/main.css?v=359acc47c0" />
 </head>
 <body>
