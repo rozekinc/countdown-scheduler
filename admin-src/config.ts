@@ -14,7 +14,6 @@ export interface RepoIdentity {
 }
 
 const OWNER_REPO_OVERRIDE_KEY = "countdown-scheduler-admin:owner-repo-override";
-const CLIENT_ID_KEY = "countdown-scheduler-admin:client-id";
 
 /**
  * GitHub Pages project sites are always served at
@@ -68,19 +67,4 @@ export function setRepoIdentityOverride(identity: RepoIdentity): void {
 
 export function clearRepoIdentityOverride(): void {
   window.localStorage.removeItem(OWNER_REPO_OVERRIDE_KEY);
-}
-
-/**
- * The GitHub OAuth/App "Client ID" used for the Device Flow. This is
- * PUBLIC by design (Device Flow has no client_secret) but is still kept
- * out of source: each deployment's operator registers their own GitHub
- * App (see SETUP.md) and enters its Client ID once, here, via the admin
- * UI's Settings panel. Stored in localStorage only.
- */
-export function getClientId(): string | null {
-  return window.localStorage.getItem(CLIENT_ID_KEY);
-}
-
-export function setClientId(id: string): void {
-  window.localStorage.setItem(CLIENT_ID_KEY, id.trim());
 }

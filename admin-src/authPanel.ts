@@ -1,5 +1,5 @@
 import { el } from "./dom";
-import { startDeviceFlow, isSignedIn, signOut, DeviceFlowError } from "./auth";
+import { signInWithToken, isSignedIn, signOut, AuthError } from "./auth";
 
 export function renderAuthControls(
   container: HTMLElement,
@@ -23,10 +23,10 @@ export function renderAuthControls(
   }
 
   const signInBtn = el("button", { class: "btn btn-primary" }, [
-    "Sign in with GitHub",
+    "Sign in with token",
   ]);
   signInBtn.addEventListener("click", () => {
-    openDeviceFlowModal(() => {
+    openTokenModal(() => {
       renderAuthControls(container, onSignedIn);
       onSignedIn();
     });
@@ -34,61 +34,58 @@ export function renderAuthControls(
   container.append(signInBtn);
 }
 
-function openDeviceFlowModal(onSuccess: () => void): void {
+function openTokenModal(onSuccess: () => void): void {
   const backdrop = el("div", { class: "modal-backdrop" });
+
+  const tokenInput = el("input", {
+    type: "password",
+    class: "row-input",
+    placeholder: "github_pat_...",
+    autocomplete: "off",
+  }) as HTMLInputElement;
+
+  const errorEl = el("p", { class: "error" }, []);
+  errorEl.style.display = "none";
+
+  const submitBtn = el("button", { class: "btn btn-primary" }, ["Sign in"]);
+  const cancelBtn = el("button", { class: "btn btn-secondary" }, ["Cancel"]);
+
+  function submit(): void {
+    submitBtn.setAttribute("disabled", "true");
+    submitBtn.textContent = "Checking…";
+    errorEl.style.display = "none";
+    signInWithToken(tokenInput.value)
+      .then(() => {
+        backdrop.remove();
+        onSuccess();
+      })
+      .catch((err: unknown) => {
+        submitBtn.removeAttribute("disabled");
+        submitBtn.textContent = "Sign in";
+        errorEl.textContent = err instanceof AuthError ? err.message : "Sign-in failed.";
+        errorEl.style.display = "";
+      });
+  }
+
+  submitBtn.addEventListener("click", submit);
+  tokenInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submit();
+  });
+  cancelBtn.addEventListener("click", () => backdrop.remove());
+
   const body = el("div", { class: "modal-body" }, [
-    el("p", {}, ["Starting sign-in…"]),
+    el("h3", {}, ["Sign in"]),
+    el("p", { class: "muted" }, [
+      "Paste a fine-grained Personal Access Token scoped to just this repo " +
+        "(Contents: read and write, nothing else). See SETUP.md for exactly how " +
+        "to generate one. It's kept in this browser tab only, never saved to disk.",
+    ]),
+    el("label", { class: "field" }, ["Token:", tokenInput]),
+    errorEl,
+    el("div", { class: "actions-row" }, [submitBtn, cancelBtn]),
   ]);
   const modal = el("div", { class: "modal" }, [body]);
   backdrop.append(modal);
   document.body.append(backdrop);
-
-  const close = () => backdrop.remove();
-
-  startDeviceFlow((info) => {
-    body.innerHTML = "";
-    const codeBox = el("div", { class: "device-code" }, [info.user_code]);
-    const copyBtn = el("button", { class: "btn btn-secondary" }, [
-      "Copy code",
-    ]);
-    copyBtn.addEventListener("click", () => {
-      navigator.clipboard.writeText(info.user_code).catch(() => {});
-      copyBtn.textContent = "Copied!";
-      setTimeout(() => {
-        copyBtn.textContent = "Copy code";
-      }, 1500);
-    });
-    const link = el(
-      "a",
-      { href: info.verification_uri, target: "_blank", rel: "noopener" },
-      [info.verification_uri],
-    );
-    body.append(
-      el("p", {}, ["1. Copy this code:"]),
-      codeBox,
-      copyBtn,
-      el("p", {}, ["2. Open this page and enter the code:"]),
-      link,
-      el("p", { class: "muted" }, ["Waiting for authorization…"]),
-    );
-  })
-    .then(() => {
-      close();
-      onSuccess();
-    })
-    .catch((err: unknown) => {
-      const message =
-        err instanceof DeviceFlowError ? err.message : "Sign-in failed.";
-      body.innerHTML = "";
-      body.append(
-        el("p", { class: "error" }, [message]),
-        (() => {
-          const closeBtn = el("button", { class: "btn btn-secondary" }, [
-            "Close",
-          ]);
-          closeBtn.addEventListener("click", close);
-          return closeBtn;
-        })(),
-      );
-    });
+  tokenInput.focus();
 }
