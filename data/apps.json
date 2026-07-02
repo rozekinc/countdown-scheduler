@@ -1,22 +1,34 @@
 {
-  "selectedAppId": "web1",
+  "selectedAppId": "web2",
   "apps": [
     {
       "id": "web1",
       "name": "Web1",
-      "theme": { "primary": "#e60000", "accent": "#484848", "background": "#ffffff" },
+      "theme": {
+        "primary": "#e60000",
+        "accent": "#484848",
+        "background": "#ffffff"
+      },
       "activeEventId": "sample-event"
     },
     {
       "id": "web2",
       "name": "Web2",
-      "theme": { "primary": "#0057b8", "accent": "#2f2f2f", "background": "#f4f8ff" },
+      "theme": {
+        "primary": "#0057b8",
+        "accent": "#2f2f2f",
+        "background": "#f4f8ff"
+      },
       "activeEventId": "sample-event"
     },
     {
       "id": "web3",
       "name": "Web3",
-      "theme": { "primary": "#1b8a4c", "accent": "#333333", "background": "#f5fff7" },
+      "theme": {
+        "primary": "#1b8a4c",
+        "accent": "#333333",
+        "background": "#f5fff7"
+      },
       "activeEventId": "sample-event"
     }
   ]
