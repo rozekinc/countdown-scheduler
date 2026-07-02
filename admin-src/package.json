@@ -1,0 +1,17 @@
+{
+  "name": "countdown-scheduler-admin",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Static admin editor for countdown-scheduler event data (GitHub Device Flow auth + Contents API).",
+  "scripts": {
+    "build": "esbuild main.ts --bundle --outdir=../admin/assets --minify --format=iife && node ../scripts/cachebust.mjs ../admin/index.html ../admin/assets/main.js ../admin/assets/main.css",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}

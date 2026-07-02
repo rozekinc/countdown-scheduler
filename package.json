@@ -1,0 +1,13 @@
+{
+  "name": "countdown-scheduler-site",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --outdir=assets --minify && node scripts/cachebust.mjs index.html assets/main.js assets/main.css",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}
