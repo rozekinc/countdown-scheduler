@@ -13,7 +13,8 @@ const PAUSE_PADDING_FACTOR = 1.25;
  * content just renders once, static, same as before -- nothing here ever
  * hard-truncates a day's rows the way the original fixed row cap did.
  */
-export function setScrollingContent(viewport: HTMLElement, contentHtml: string): void {
+export function setScrollingContent(viewport: HTMLElement | null, contentHtml: string): void {
+  if (!viewport) return;
   viewport.classList.remove("schedule-rows-active");
   viewport.innerHTML =
     `<div class="schedule-rows-inner">` +
