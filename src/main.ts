@@ -1,5 +1,5 @@
 import "./styles.css";
-import { loadApps, resolveActiveApp, createEventDataSource, watchSelectedApp } from "./dataClient";
+import { loadApps, resolveActiveApp, createEventDataSource, watchDisplaySettings } from "./dataClient";
 import { applyTheme } from "./theme";
 import { initCountdown } from "./countdown";
 import { initSchedule } from "./schedule";
@@ -44,6 +44,7 @@ function enterFullscreen(): void {
 function setupToggle(): void {
   const toggleBtn = document.getElementById("toggle-btn");
   const cdMain = document.getElementById("main") as HTMLElement;
+  const cdAnnouncement = document.getElementById("announcement") as HTMLElement;
   const cdList = document.getElementById("schedule-list") as HTMLElement;
   const scheduleScreen = document.getElementById("schedule-screen") as HTMLElement;
   const timeContainer = document.getElementById("time-container") as HTMLElement;
@@ -55,19 +56,17 @@ function setupToggle(): void {
 
     if (isScheduleMode) {
       cdMain.style.display = "none";
+      cdAnnouncement.style.display = "none";
       cdList.style.display = "none";
       scheduleScreen.style.display = "block";
       timeContainer.style.left = "82%";
     } else {
       cdMain.style.display = "block";
+      cdAnnouncement.style.display = "flex";
       cdList.style.display = "block";
       scheduleScreen.style.display = "none";
       timeContainer.style.left = "58%";
     }
-    // Background tint is driven by CSS (body.schedule-mode), derived from
-    // the active app's theme -- not a hardcoded color -- so switching
-    // screens never clobbers the current app's theming.
-    document.body.classList.toggle("schedule-mode", isScheduleMode);
   });
 }
 
@@ -80,12 +79,16 @@ async function main(): Promise<void> {
 
   // Holds whichever app's data source is currently feeding the two
   // controllers above. Swapped out (never run concurrently) whenever the
-  // admin changes which app is live -- see watchSelectedApp below.
+  // admin changes which app is live -- see watchDisplaySettings below.
   let activeDataSource: ReturnType<typeof createEventDataSource> | null = null;
+  let currentApp: App | null = null;
+  let currentModeId: string | null = appsData.displayModeId ?? null;
 
-  function runApp(app: App): void {
+  function runApp(app: App, displayModeId: string | null): void {
     activeDataSource?.stop();
-    applyTheme(app);
+    currentApp = app;
+    currentModeId = displayModeId;
+    applyTheme(app, displayModeId);
 
     const dataSource = createEventDataSource(app);
     activeDataSource = dataSource;
@@ -105,12 +108,22 @@ async function main(): Promise<void> {
   }
 
   const initialApp = resolveActiveApp(appsData);
-  runApp(initialApp);
+  runApp(initialApp, appsData.displayModeId ?? null);
 
-  // On a screen pinned via ?app=, this is a no-op -- see isPinnedByUrl.
-  // Otherwise, whenever the admin swaps which app is live, this screen
-  // follows without needing a reload.
-  watchSelectedApp(appsData, runApp);
+  watchDisplaySettings(
+    appsData,
+    // On a screen pinned via ?app=, this is never called -- see isPinnedByUrl.
+    // Otherwise, whenever the admin swaps which app is live, this screen
+    // follows without needing a reload. Keeps whatever display mode is
+    // currently applied rather than reverting to the page's initial one.
+    (app) => runApp(app, currentModeId),
+    // Display-mode changes apply on every screen (pinned or not) without
+    // touching which app/event is showing -- just re-theme in place.
+    (displayModeId) => {
+      currentModeId = displayModeId;
+      if (currentApp) applyTheme(currentApp, displayModeId);
+    },
+  );
 
   await fetchAccurateTime();
 

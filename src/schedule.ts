@@ -1,6 +1,7 @@
 import type { EventData, ScheduleDay, ScheduleRow } from "./types";
 import { setAnnouncementText } from "./marquee";
 import { setScrollingContent } from "./verticalScroll";
+import { colorizeKeywords } from "./keywords";
 
 export interface ScheduleController {
   setEventData(data: EventData): void;
@@ -13,12 +14,6 @@ export interface ScheduleController {
 // even index = title row, odd index = content row. There is no row cap --
 // a long day just auto-scrolls (see verticalScroll.ts) instead of being
 // truncated.
-
-function colorizeKeywords(text: string): string {
-  return text
-    .replace(/JSB1000/g, '<span style="color:#CD5C5C;">JSB1000</span>')
-    .replace(/ST1000/g, '<span style="color:#4682B4;">ST1000</span>');
-}
 
 function dateKey(d: Date): string {
   const y = d.getFullYear();
@@ -129,7 +124,7 @@ export function initSchedule(getNow: () => Date): ScheduleController {
 
       setAnnouncementText(
         announcementElem,
-        `<span style="color: blue;">お知らせ：</span>`,
+        `<span class="announcement-label">お知らせ：</span>`,
         day?.announcement ?? "",
       );
 

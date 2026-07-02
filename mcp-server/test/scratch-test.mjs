@@ -6,7 +6,12 @@ import { mkdtemp, rm, readFile, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { addScheduleRow, closeEvent, createDraftEvent } from "../dist/tools.js";
+import {
+  addScheduleRow,
+  closeEvent,
+  createDraftEvent,
+  setSelectedDisplayMode,
+} from "../dist/tools.js";
 import { parsePorcelainStatus, assertDataOnlyChanges, NonDataChangeError } from "../dist/git-publish.js";
 import { InvalidArgumentError } from "../dist/fs-guard.js";
 
@@ -132,6 +137,25 @@ async function main() {
       });
       await closeEvent(repoRoot, "sample-event");
       await assert.rejects(() => closeEvent(repoRoot, "sample-event"));
+    });
+  });
+
+  // --- set_selected_display_mode ---
+  await checkAsync("setSelectedDisplayMode persists a valid id", async () => {
+    await withScratchRepo(async (repoRoot) => {
+      const result = await setSelectedDisplayMode(repoRoot, "daylight-contrast");
+      assert.equal(result.displayModeId, "daylight-contrast");
+      const onDisk = JSON.parse(await readFile(path.join(repoRoot, "data", "apps.json"), "utf8"));
+      assert.equal(onDisk.displayModeId, "daylight-contrast");
+    });
+  });
+
+  await checkAsync("setSelectedDisplayMode rejects an invalid id and leaves the file unchanged", async () => {
+    await withScratchRepo(async (repoRoot) => {
+      const before = await readFile(path.join(repoRoot, "data", "apps.json"), "utf8");
+      await assert.rejects(() => setSelectedDisplayMode(repoRoot, "neon-pink"));
+      const after = await readFile(path.join(repoRoot, "data", "apps.json"), "utf8");
+      assert.equal(after, before);
     });
   });
 

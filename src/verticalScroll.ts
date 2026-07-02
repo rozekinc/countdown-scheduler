@@ -1,5 +1,12 @@
 const SCROLL_SPEED_PX_PER_SEC = 40;
 
+// The schedule-scroll keyframes (styles.css) now spend ~24% of each cycle
+// holding still (a settle pause at the start and again at the midpoint)
+// rather than sliding, so the duration is padded by this factor -- keeps
+// the moving segments at roughly their original glide speed instead of
+// quietly speeding up to make room for the holds.
+const PAUSE_PADDING_FACTOR = 1.25;
+
 /**
  * Renders `contentHtml` inside `viewport`, auto-scrolling it vertically,
  * seamlessly and continuously, only when it's too tall to fit. Short
@@ -30,7 +37,8 @@ export function setScrollingContent(viewport: HTMLElement, contentHtml: string):
     }
 
     viewport.classList.add("schedule-rows-active");
-    const duration = Math.max(8, periodHeight / SCROLL_SPEED_PX_PER_SEC);
+    const duration =
+      Math.max(8, periodHeight / SCROLL_SPEED_PX_PER_SEC) * PAUSE_PADDING_FACTOR;
     inner.style.animationDuration = `${duration}s`;
   });
 }

@@ -36,9 +36,14 @@ html, body {
   color: #fff;
 }
 
-.app-select {
+.app-select, .display-mode-select {
   padding: 4px 8px;
   font-size: 14px;
+}
+
+.display-mode-switcher {
+  display: flex;
+  align-items: center;
 }
 
 .auth-controls {
@@ -335,4 +340,98 @@ html, body {
 
 .error {
   color: #b71c1c;
+}
+
+/* Live preview panel: a miniature mockup of the real display site, always
+   visible alongside the editor/overview so an operator can compare
+   display-mode presets without walking over to the actual TV. Its
+   --theme-* custom properties are set on this container only (see
+   previewTheme.ts), scoped here so they never collide with the admin
+   chrome's own --accent/--primary/--background variables above. */
+.preview-panel {
+  width: 260px;
+  flex-shrink: 0;
+  border-left: 1px solid #ddd;
+  background: #fafafa;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.preview-panel-title {
+  margin: 4px 0 2px 0;
+  font-size: 14px;
+  color: var(--accent);
+  border-bottom: 2px solid var(--primary);
+  padding-bottom: 4px;
+}
+
+.preview-mode-label {
+  margin: 0 0 10px 0;
+  font-size: 12px;
+  color: #777;
+}
+
+.preview-mock {
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--theme-background, #fff);
+  color: var(--theme-surface-text, #333);
+  border: 1px solid #ddd;
+  padding: 10px;
+  font-size: 12px;
+}
+
+.preview-mock-title {
+  font-weight: bold;
+  font-size: 13px;
+  color: var(--theme-primary, #e60000);
+  margin-bottom: 8px;
+}
+
+.preview-mock-countdown {
+  font-size: 26px;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+  color: var(--theme-accent, #484848);
+  text-align: center;
+  padding: 8px 0;
+}
+
+.preview-mock-announcement {
+  background: var(--theme-surface, #ffe4c4);
+  color: var(--theme-surface-text, #333);
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin: 8px 0;
+}
+
+.preview-mock-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.preview-mock-row {
+  display: flex;
+  justify-content: space-between;
+  background: var(--theme-surface, #ffe4c4);
+  color: var(--theme-surface-text, #333);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+/* Keyword highlights inside the preview mock, matching the real display
+   site's convention: color from the per-display-mode CSS var, plus an
+   underline so the distinction isn't color alone. */
+.preview-mock .keyword {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.preview-mock .keyword-a {
+  color: var(--keyword-a, #CD5C5C);
+}
+
+.preview-mock .keyword-b {
+  color: var(--keyword-b, #4682B4);
 }

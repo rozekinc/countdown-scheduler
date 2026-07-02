@@ -21,6 +21,7 @@ requests:
 - [skills/edit-a-day.md](skills/edit-a-day.md)
 - [skills/switch-active-app.md](skills/switch-active-app.md)
 - [skills/show-app-on-display.md](skills/show-app-on-display.md)
+- [skills/switch-display-mode.md](skills/switch-display-mode.md)
 - [skills/close-out-an-event.md](skills/close-out-an-event.md)
 - [skills/publish-changes.md](skills/publish-changes.md)
 

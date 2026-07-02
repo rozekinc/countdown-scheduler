@@ -71,22 +71,39 @@ export function resolveActiveApp(data: AppsData): App {
 }
 
 /**
- * On an unpinned screen, polls data/apps.json and calls `onSwitch` whenever
- * the admin changes which app is live (selectedAppId). No-op on a screen
- * pinned via ?app= -- that one is meant to stay put regardless.
+ * Polls data/apps.json and reports two things the admin can change live,
+ * with no reload needed on the display end:
+ *  - onAppSwitch: which app is showing (selectedAppId) -- no-op on a
+ *    screen pinned via ?app=, which is meant to stay put regardless.
+ *  - onModeChange: which display-mode preset is active (displayModeId) --
+ *    applies on every screen, pinned or not, since it's a readability
+ *    setting for the physical TV, not an app-identity choice.
  */
-export function watchSelectedApp(initialApps: AppsData, onSwitch: (app: App) => void): void {
-  if (isPinnedByUrl(initialApps.apps)) return;
-
+export function watchDisplaySettings(
+  initialApps: AppsData,
+  onAppSwitch: (app: App) => void,
+  onModeChange: (displayModeId: string | null) => void,
+): void {
+  const pinned = isPinnedByUrl(initialApps.apps);
   let currentAppId = resolveActiveApp(initialApps).id;
+  let currentModeId = initialApps.displayModeId ?? null;
+
   window.setInterval(() => {
     void (async () => {
       const fresh = await fetchJson<AppsData>(APPS_URL);
       if (!fresh || !Array.isArray(fresh.apps) || fresh.apps.length === 0) return;
+
+      const freshModeId = fresh.displayModeId ?? null;
+      if (freshModeId !== currentModeId) {
+        currentModeId = freshModeId;
+        onModeChange(currentModeId);
+      }
+
+      if (pinned) return;
       const resolved = resolveActiveApp(fresh);
       if (resolved.id !== currentAppId) {
         currentAppId = resolved.id;
-        onSwitch(resolved);
+        onAppSwitch(resolved);
       }
     })();
   }, APPS_POLL_INTERVAL_MS);

@@ -17,6 +17,7 @@ import {
   listEvents,
   setActiveEvent,
   setSelectedApp,
+  setSelectedDisplayMode,
 } from "./tools.js";
 
 /**
@@ -97,8 +98,9 @@ server.registerTool(
     title: "List apps",
     description:
       "Reads data/apps.json and returns each app's id, name, theme, activeEventId, " +
-      "the current status of that active event (or null if it can't be found), and which one " +
-      "(isSelected / selectedAppId) is currently live on the primary display.",
+      "the current status of that active event (or null if it can't be found), which one " +
+      "(isSelected / selectedAppId) is currently live on the primary display, and the " +
+      "displayModeId readability preset currently applied to every display screen.",
     inputSchema: {},
   },
   async () => safe(() => listApps(REPO_ROOT)),
@@ -240,6 +242,23 @@ server.registerTool(
     },
   },
   async ({ appId }) => safe(() => setSelectedApp(REPO_ROOT, appId)),
+);
+
+server.registerTool(
+  "set_selected_display_mode",
+  {
+    title: "Set selected display mode (readability preset for the physical TV)",
+    description:
+      "Sets data/apps.json's displayModeId, a readability preset for the physical display -- " +
+      "high-contrast daylight colors, a dark/glare-reduction palette, or \"standard\" (each app's " +
+      "own theme, unmodified). This applies on EVERY display screen, including one loaded with an " +
+      "explicit ?app= URL parameter -- unlike set_selected_app, which a ?app=-pinned screen ignores. " +
+      "It changes lighting/contrast only, never which app or event is showing.",
+    inputSchema: {
+      displayModeId: z.enum(["standard", "daylight-contrast", "dark-glare"]),
+    },
+  },
+  async ({ displayModeId }) => safe(() => setSelectedDisplayMode(REPO_ROOT, displayModeId)),
 );
 
 server.registerTool(

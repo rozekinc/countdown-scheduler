@@ -47,7 +47,7 @@ using the MCP JSON-RPC protocol.
 
 ## Tools
 
-- `list_apps` -- read `data/apps.json`, return each app plus the status of its active event.
+- `list_apps` -- read `data/apps.json`, return each app plus the status of its active event, and the current `displayModeId`.
 - `list_events(status?)` -- enumerate events under `data/events` and `data/archive`, optionally filtered by status.
 - `get_event(eventId)` -- return one event's full JSON.
 - `create_draft_event(appId, id, seed?)` -- create `data/events/<id>.json` with status `draft`.
@@ -57,6 +57,7 @@ using the MCP JSON-RPC protocol.
 - `edit_countdown_row(eventId, index, patch)` -- patch `title` and/or `time` on one `countdownRows` entry.
 - `set_active_event(appId, eventId)` -- point an app at an event and flip that event's status to `active`. This picks which event an app shows; it does not change what's on screen.
 - `set_selected_app(appId)` -- set which app is currently live on the primary display (`data/apps.json`'s `selectedAppId`). This is the remote control for what's actually showing on the TV; a screen loaded with an explicit `?app=` URL stays pinned and ignores it.
+- `set_selected_display_mode(displayModeId)` -- set the readability preset (`data/apps.json`'s `displayModeId`, one of `standard` / `daylight-contrast` / `dark-glare`) applied to every display screen. Unlike `set_selected_app`, this applies even to a screen pinned via `?app=` -- it's a lighting/contrast setting for the physical TV, not an app-identity choice.
 - `close_event(eventId)` -- set status to `ended` and move the file from `data/events/` to `data/archive/<year>/`.
 - `publish(message)` -- stage only `data/`, commit, and push. Aborts with no changes made if anything outside `data/` is dirty.
 

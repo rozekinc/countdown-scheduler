@@ -18,6 +18,10 @@ export interface AppsData {
    * apps[0]. Screens loaded with an explicit ?app= param ignore this --
    * they're pinned to that one app regardless. */
   selectedAppId?: string | null;
+  /** Which display-mode preset (see displayModes.ts) is active, e.g. for
+   * readability under bright ambient light. Null/omitted = "standard"
+   * (each app's own theme colors, unmodified). Applies to every screen. */
+  displayModeId?: string | null;
 }
 
 export interface CountdownRow {
