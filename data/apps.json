@@ -35,7 +35,7 @@
   "displayModeId": "standard",
   "aspectRatioId": "standard-4-3",
   "displayLanguage": "ja",
-  "textScale": 1,
+  "textScale": 1.45,
   "labels": {
     "currentTime": {
       "ja": "現在時刻",
