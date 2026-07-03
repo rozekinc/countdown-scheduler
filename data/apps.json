@@ -32,7 +32,7 @@
       "activeEventId": "race-weekend"
     }
   ],
-  "displayModeId": "dark-glare",
+  "displayModeId": "daylight-contrast",
   "aspectRatioId": "ultrawide-21-9",
   "displayLanguage": "ja",
   "textScale": 1,
@@ -75,8 +75,8 @@
     }
   },
   "redFlag": {
-    "active": false,
-    "since": null
+    "active": true,
+    "since": "2026-07-03T10:49:21.017Z"
   },
   "contentVersion": 3,
   "contentUpdatedAt": "2026-07-03"
