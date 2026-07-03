@@ -2,95 +2,40 @@
   "id": "race-weekend",
   "appId": "web1",
   "status": "active",
-  "highlightKeywords": [
-    "JSB1000",
-    "ST1000"
-  ],
+  "highlightKeywords": ["JSB1000", "ST1000"],
   "announcement": "安全に作業しよう！！",
   "countdownRows": [
-    {
-      "title": "FP\nwork complete",
-      "time": "2026-07-03T08:00:00+09:00"
-    },
-    {
-      "title": "FP restart",
-      "time": "2026-07-03T09:55:00+09:00"
-    },
-    {
-      "title": "QP Blue\nstart",
-      "time": "2026-07-03T12:00:00+09:00"
-    },
-    {
-      "title": "QP Blue\nfinish",
-      "time": "2026-07-03T12:20:00+09:00"
-    },
-    {
-      "title": "QP Yellow\nrestart",
-      "time": "2026-07-03T12:50:00+09:00"
-    },
-    {
-      "title": "QP Yellow\nfinish",
-      "time": "2026-07-03T13:05:06+09:00"
-    },
-    {
-      "title": "QP Red\nstart",
-      "time": "2026-07-03T13:20:00+09:00"
-    },
-    {
-      "title": "QP Red\nfinish",
-      "time": "2026-07-03T13:40:00+09:00"
-    },
-    {
-      "title": "Pitwalk start",
-      "time": "2026-07-03T13:50:00+09:00"
-    },
-    {
-      "title": "Pitwalk start",
-      "time": "2026-07-03T14:40:00+09:00"
-    },
-    {
-      "title": "QP Red\nstart",
-      "time": "2026-07-03T16:40:00+09:00"
-    },
-    {
-      "title": "QP Red\nfinish",
-      "time": "2026-07-03T17:00:00+09:00"
-    },
-    {
-      "title": "Night FP\nwork complete",
-      "time": "2026-07-03T18:00:00+09:00"
-    },
-    {
-      "title": "Night FP\nstart",
-      "time": "2026-07-03T18:30:00+09:00"
-    },
-    {
-      "title": "Night FP\nfinish",
-      "time": "2026-07-03T19:30:00+09:00"
-    }
+    { "title": "FP\nwork complete", "time": "2026-07-03T08:00:00+09:00" },
+    { "title": "FP restart", "time": "2026-07-03T09:55:00+09:00" },
+    { "title": "QP Blue\nstart", "time": "2026-07-03T12:00:00+09:00" },
+    { "title": "QP Blue\nfinish", "time": "2026-07-03T12:20:00+09:00" },
+    { "title": "QP Yellow\nrestart", "time": "2026-07-03T12:50:00+09:00" },
+    { "title": "QP Yellow\nfinish", "time": "2026-07-03T13:05:06+09:00" },
+    { "title": "QP Red\nstart", "time": "2026-07-03T13:20:00+09:00" },
+    { "title": "QP Red\nfinish", "time": "2026-07-03T13:40:00+09:00" },
+    { "title": "Pitwalk start", "time": "2026-07-03T13:50:00+09:00" },
+    { "title": "Pitwalk start", "time": "2026-07-03T14:40:00+09:00" },
+    { "title": "QP Red\nstart", "time": "2026-07-03T16:40:00+09:00" },
+    { "title": "QP Red\nfinish", "time": "2026-07-03T17:00:00+09:00" },
+    { "title": "Night FP\nwork complete", "time": "2026-07-03T18:00:00+09:00" },
+    { "title": "Night FP\nstart", "time": "2026-07-03T18:30:00+09:00" },
+    { "title": "Night FP\nfinish", "time": "2026-07-03T19:30:00+09:00" }
   ],
   "scheduleDays": [
     {
-      "date": "2026-06-29",
+      "date": "2026-07-03",
+      "items": [{ "title": "ダンロップ会議", "detail": "10:30~" }]
+    },
+    {
+      "date": "2026-07-04",
       "items": [
-        {
-          "title": "ダンロップ会議",
-          "detail": "10:30~"
-        }
+        { "title": "選手受付", "detail": "7:30~" },
+        { "title": "アームバンド受取", "detail": "10:00~18:00" }
       ]
     },
     {
-      "date": "2026-06-30",
-      "items": [
-        {
-          "title": "選手受付",
-          "detail": "7:30~"
-        },
-        {
-          "title": "アームバンド受取",
-          "detail": "10:00~18:00"
-        }
-      ]
+      "date": "2026-07-05",
+      "items": [{ "title": "撤収", "detail": "9:00~12:00" }]
     }
   ]
 }
