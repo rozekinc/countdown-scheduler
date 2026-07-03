@@ -34,13 +34,26 @@ export function signOut(): void {
   sessionStorage.removeItem(SESSION_TOKEN_KEY);
 }
 
+/** Result of a successful sign-in. `writeWarning` is true when the
+ * best-effort scope check strongly suggests the token is read-only (so a
+ * later Save would fail). It's advisory only -- sign-in still succeeds. */
+export interface SignInResult {
+  writeWarning: boolean;
+}
+
 /**
  * Stores the token, but only after one lightweight authenticated call
  * confirms it's actually valid AND can see this repo -- catches a
  * pasted-wrong/expired/mis-scoped token immediately with a precise error,
  * instead of failing confusingly on the first real save later.
+ *
+ * Also does a best-effort read/write scope check: a fine-grained PAT with
+ * Contents: read (but not write) passes the read check here yet fails at
+ * Save. When the repo response's `permissions.push` is explicitly false (or
+ * a classic token's X-OAuth-Scopes lacks repo write), we flag it so the UI
+ * can warn. If scope can't be determined we stay silent -- never block.
  */
-export async function signInWithToken(token: string): Promise<void> {
+export async function signInWithToken(token: string): Promise<SignInResult> {
   const trimmed = token.trim();
   if (!trimmed) {
     throw new AuthError("Paste a token first.");
@@ -71,5 +84,34 @@ export async function signInWithToken(token: string): Promise<void> {
     throw new AuthError(`Couldn't verify the token (HTTP ${res.status}).`);
   }
 
+  const writeWarning = await detectReadOnly(res, Boolean(identity));
+
   sessionStorage.setItem(SESSION_TOKEN_KEY, trimmed);
+  return { writeWarning };
+}
+
+/** Best-effort: returns true only when we're fairly confident the token
+ * cannot write. Any ambiguity (missing fields, parse failure) returns false
+ * so sign-in is never blocked on a guess. */
+async function detectReadOnly(res: Response, haveRepo: boolean): Promise<boolean> {
+  try {
+    // Classic tokens advertise their scopes here; fine-grained PATs send an
+    // empty string, so a non-empty value means "classic".
+    const scopes = res.headers.get("x-oauth-scopes");
+
+    if (haveRepo) {
+      // Fine-grained PAT against the repo endpoint: GitHub returns a
+      // `permissions` object where `push` reflects Contents write access.
+      const body = (await res.json()) as { permissions?: { push?: unknown } };
+      const push = body?.permissions?.push;
+      if (typeof push === "boolean") return !push;
+    }
+
+    if (scopes) {
+      return !/\b(repo|public_repo)\b/.test(scopes);
+    }
+  } catch {
+    // ignore -- can't determine, don't warn
+  }
+  return false;
 }

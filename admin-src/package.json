@@ -2,7 +2,7 @@
   "name": "countdown-scheduler-admin",
   "private": true,
   "version": "1.0.0",
-  "description": "Static admin editor for countdown-scheduler event data (GitHub Device Flow auth + Contents API).",
+  "description": "Static admin editor for countdown-scheduler event data (pasted-in fine-grained GitHub PAT + Contents API).",
   "scripts": {
     "build": "esbuild main.ts --bundle --outdir=../admin/assets --minify --format=iife && node ../scripts/cachebust.mjs ../admin/index.html ../admin/assets/main.js ../admin/assets/main.css",
     "typecheck": "tsc --noEmit"

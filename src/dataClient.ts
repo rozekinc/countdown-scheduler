@@ -86,6 +86,9 @@ export function resolveActiveApp(data: AppsData): App {
  *  - onAspectRatioChange: which aspect-ratio preset the stage is
  *    letterboxed to (aspectRatioId) -- same reasoning as onModeChange,
  *    applies everywhere regardless of pinning.
+ *  - onContentVersionChange: the content version/date the published data
+ *    carries (contentVersion/contentUpdatedAt) -- applies on every screen,
+ *    pinned or not, since it just reflects "which data am I looking at".
  * Countdown vs. schedule is NOT here -- it's a local, client-side-only
  * toggle button on the display itself (see main.ts's setupScreenToggle),
  * never written to data/apps.json.
@@ -95,11 +98,14 @@ export function watchDisplaySettings(
   onAppSwitch: (app: App) => void,
   onModeChange: (displayModeId: string | null) => void,
   onAspectRatioChange: (aspectRatioId: string | null) => void,
+  onContentVersionChange: (data: AppsData) => void,
 ): void {
   const pinned = isPinnedByUrl(initialApps.apps);
   let currentAppId = resolveActiveApp(initialApps).id;
   let currentModeId = initialApps.displayModeId ?? null;
   let currentAspectRatioId = initialApps.aspectRatioId ?? null;
+  let currentContentVersion = initialApps.contentVersion ?? null;
+  let currentContentUpdatedAt = initialApps.contentUpdatedAt ?? null;
 
   window.setInterval(() => {
     void (async () => {
@@ -116,6 +122,17 @@ export function watchDisplaySettings(
       if (freshAspectRatioId !== currentAspectRatioId) {
         currentAspectRatioId = freshAspectRatioId;
         onAspectRatioChange(currentAspectRatioId);
+      }
+
+      const freshContentVersion = fresh.contentVersion ?? null;
+      const freshContentUpdatedAt = fresh.contentUpdatedAt ?? null;
+      if (
+        freshContentVersion !== currentContentVersion ||
+        freshContentUpdatedAt !== currentContentUpdatedAt
+      ) {
+        currentContentVersion = freshContentVersion;
+        currentContentUpdatedAt = freshContentUpdatedAt;
+        onContentVersionChange(fresh);
       }
 
       if (pinned) return;

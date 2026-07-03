@@ -92,13 +92,18 @@ function computePairTimings(rows: ScheduleRow[], now: Date): PairTiming[] {
   }));
 }
 
-function renderDataRow(row: ScheduleRow, index: number, timing: PairTiming | undefined): string {
+function renderDataRow(
+  row: ScheduleRow,
+  index: number,
+  timing: PairTiming | undefined,
+  keywords: string[] | undefined,
+): string {
   const valA = row.A ?? "";
   const valB = row.B ?? "";
   if (!valA && !valB) return "";
 
-  const contentA = colorizeKeywords(String(valA));
-  const contentB = colorizeKeywords(String(valB));
+  const contentA = colorizeKeywords(String(valA), keywords);
+  const contentB = colorizeKeywords(String(valB), keywords);
 
   const isTitleRow = index % 2 === 0;
   const stateClass = timing?.isNext ? " row-next" : timing?.isPast ? " row-past" : "";
@@ -139,7 +144,7 @@ export function initSchedule(getNow: () => Date): ScheduleController {
       const timings = computePairTimings(day.rows, getNow());
       let rowsHtml = "";
       day.rows.forEach((row, index) => {
-        rowsHtml += renderDataRow(row, index, timings[Math.floor(index / 2)]);
+        rowsHtml += renderDataRow(row, index, timings[Math.floor(index / 2)], data.highlightKeywords);
       });
       setScrollingContent(rowsViewportElem, rowsHtml);
     },

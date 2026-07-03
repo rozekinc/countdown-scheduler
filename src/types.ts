@@ -26,6 +26,11 @@ export interface AppsData {
    * letterboxed/pillarboxed to, independent of the physical screen's own
    * ratio. Null/omitted = 16:9. Applies to every screen. */
   aspectRatioId?: string | null;
+  /** Monotonic content version, bumped by the publish routine on every data
+   * change so screens can show "which data am I looking at". Paired with
+   * contentUpdatedAt (an ISO date/datetime string). Omitted = unversioned. */
+  contentVersion?: number | null;
+  contentUpdatedAt?: string | null;
 }
 
 export interface CountdownRow {
@@ -53,8 +58,15 @@ export type EventStatus = "draft" | "active" | "ended";
 export interface EventData {
   id: string;
   appId: string;
+  /** Editorial/admin-only: used by the admin editor to organize events;
+   * it is never enforced on the public display (no display-side gating on
+   * status). Purely a bookkeeping label. */
   status: EventStatus;
   announcement: string;
   countdownRows: CountdownRow[];
   scheduleDays: ScheduleDay[];
+  /** Terms highlighted (via keyword-a / keyword-b color slots) wherever
+   * they appear in countdown/schedule text. Per-event content. Omitted or
+   * empty falls back to the built-in defaults (see keywords.ts). */
+  highlightKeywords?: string[];
 }

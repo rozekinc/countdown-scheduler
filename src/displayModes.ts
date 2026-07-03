@@ -6,7 +6,9 @@ export interface DisplayModeColors {
   surface: string;
   /** Text color for content sitting on `surface`. */
   surfaceText: string;
-  /** Colors for the two hardcoded highlighted keywords (JSB1000 / ST1000). */
+  /** Colors for the two highlighted-keyword slots (keyword-a / keyword-b).
+   * The keyword terms themselves are per-event data (EventData.highlightKeywords,
+   * defaulting to JSB1000 / ST1000); these are just the two color slots. */
   keywordA: string;
   keywordB: string;
 }

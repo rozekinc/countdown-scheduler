@@ -34,6 +34,11 @@ export interface AppState {
    * is letterboxed to on every screen. Null means 16:9. */
   aspectRatioId: string | null;
 
+  /** Read-only content revision + date from data/apps.json, shown in the
+   * header's version indicator. Null when the file omits them. */
+  contentVersion: number | null;
+  contentUpdatedAt: string | null;
+
   eventsForApp: EventListEntry[];
   currentEventId: string | null;
   currentEvent: EventData | null;
@@ -64,6 +69,8 @@ export const state: AppState = {
   selectedAppId: null,
   displayModeId: null,
   aspectRatioId: null,
+  contentVersion: null,
+  contentUpdatedAt: null,
   eventsForApp: [],
   currentEventId: null,
   currentEvent: null,
