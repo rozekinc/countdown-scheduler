@@ -5,6 +5,7 @@
 import type { AppsFile, EventData } from "./types";
 
 const SNAPSHOT_KEY = "countdown-scheduler:live-snapshot";
+const SOURCE_KEY = "countdown-scheduler:display-source";
 const CHANNEL = "countdown-scheduler-live";
 
 export interface LiveSnapshot {
@@ -38,4 +39,19 @@ export function writeLiveSnapshot(snapshot: LiveSnapshot): void {
   } catch {
     /* storage unavailable -- the display just won't get this local update. */
   }
+}
+
+/** Whether a same-browser display is currently reading from the local bridge
+ * ("local") rather than published GitHub data ("github"). In local mode the
+ * admin's edits are already live, so a Save-to-GitHub is optional. */
+export function isLiveMode(): boolean {
+  return window.localStorage.getItem(SOURCE_KEY) === "local";
+}
+
+/** Fire `cb` when the display source changes in another same-origin tab
+ * (the toggle lives on the display page). */
+export function onSourceChange(cb: () => void): void {
+  window.addEventListener("storage", (e) => {
+    if (e.key === SOURCE_KEY) cb();
+  });
 }
