@@ -254,6 +254,7 @@ async function loadApps(): Promise<void> {
     state.selectedAppId = data.selectedAppId ?? (state.apps[0]?.id ?? null);
     state.displayModeId = data.displayModeId ?? null;
     state.aspectRatioId = data.aspectRatioId ?? null;
+    state.screenMode = data.screenMode ?? null;
     if (state.apps.length > 0) {
       state.currentAppId = state.apps[0].id;
     }
@@ -360,31 +361,21 @@ function stageSelectedAppOnDisplay(): void {
   updateSaveButtonState();
 }
 
-/** Effective screenMode for the current app: a staged-this-session change
- * if there is one, else whatever's already on the loaded AppConfig. */
-function currentScreenMode(): ScreenMode {
-  const appId = state.currentAppId;
-  if (!appId) return "countdown";
-  const staged = state.appsPatch.screenModeByApp?.[appId];
-  if (staged) return staged;
-  return currentApp()?.screenMode ?? "countdown";
-}
-
 function screenModeLabel(mode: ScreenMode): string {
   return mode === "schedule" ? t("screenMode.schedule") : t("screenMode.countdown");
 }
 
 /**
- * Each app is a dedicated style/screen (e.g. one app for the countdown,
- * another for the full schedule) -- not a runtime toggle on the display
- * itself anymore. This picks which screen THIS app shows.
+ * One global "what's on the TV" switch -- the physical setup is a single
+ * HDMI-connected display, and this is the one on/off toggle for it,
+ * independent of which app's branding (selectedAppId) is currently live.
+ * Same treatment as display mode / aspect ratio.
  */
 function renderScreenModeSwitcher(): void {
   clear(screenModeSwitcherEl);
-  if (!state.currentAppId) return;
   const select = el("select", { class: "screen-mode-select" });
   const modes: ScreenMode[] = ["countdown", "schedule"];
-  const active = currentScreenMode();
+  const active = state.screenMode ?? "countdown";
   for (const mode of modes) {
     const option = el("option", { value: mode }, [screenModeLabel(mode)]);
     if (mode === active) option.setAttribute("selected", "selected");
@@ -396,15 +387,12 @@ function renderScreenModeSwitcher(): void {
   screenModeSwitcherEl.append(el("label", {}, [t("screenMode.label")]), select);
 }
 
-/** Stages this app's screenMode. Not written until Save. */
+/** Stages the screen shown on every display. Not written until Save --
+ * see stageSelectedAppOnDisplay(). */
 function stageScreenMode(mode: ScreenMode): void {
-  const appId = state.currentAppId;
-  if (!appId) return;
-  state.appsPatch.screenModeByApp = {
-    ...(state.appsPatch.screenModeByApp ?? {}),
-    [appId]: mode,
-  };
-  setStatus(t("screenMode.staged", { appId, label: screenModeLabel(mode) }));
+  state.screenMode = mode;
+  state.appsPatch.screenMode = mode;
+  setStatus(t("screenMode.staged", { label: screenModeLabel(mode) }));
   renderScreenModeSwitcher();
   updateSaveButtonState();
 }
@@ -761,13 +749,12 @@ async function saveAll(): Promise<void> {
 
     const patch = state.appsPatch;
     const activeEdits = Object.entries(patch.activeEventIdByApp ?? {});
-    const screenModeEdits = Object.entries(patch.screenModeByApp ?? {});
     const hasAppsPatch =
       patch.selectedAppId !== undefined ||
       patch.displayModeId !== undefined ||
       patch.aspectRatioId !== undefined ||
-      activeEdits.length > 0 ||
-      screenModeEdits.length > 0;
+      patch.screenMode !== undefined ||
+      activeEdits.length > 0;
 
     if (hasAppsPatch) {
       // Re-read right before committing (this is a read, not a write) so
@@ -779,13 +766,10 @@ async function saveAll(): Promise<void> {
       if (patch.selectedAppId !== undefined) appsData.selectedAppId = patch.selectedAppId;
       if (patch.displayModeId !== undefined) appsData.displayModeId = patch.displayModeId;
       if (patch.aspectRatioId !== undefined) appsData.aspectRatioId = patch.aspectRatioId;
+      if (patch.screenMode !== undefined) appsData.screenMode = patch.screenMode;
       for (const [appId, eventId] of activeEdits) {
         const app = appsData.apps.find((a) => a.id === appId);
         if (app) app.activeEventId = eventId;
-      }
-      for (const [appId, mode] of screenModeEdits) {
-        const app = appsData.apps.find((a) => a.id === appId);
-        if (app) app.screenMode = mode;
       }
       changes.push({ path: APPS_JSON_PATH, content: JSON.stringify(appsData, null, 2) + "\n" });
       messageParts.push("update display settings");
