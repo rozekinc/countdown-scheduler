@@ -89,7 +89,7 @@ export async function getFile(path: string): Promise<GetFileResult | null> {
   assertDataPath(path);
   const res = await fetch(
     `${contentsUrl(path)}?ref=${encodeURIComponent(TARGET_BRANCH)}`,
-    { headers: authHeaders() },
+    { headers: authHeaders(), cache: "no-store" },
   );
   if (res.status === 404) {
     return null;
@@ -113,7 +113,7 @@ export async function listDir(path: string): Promise<DirEntry[]> {
   assertDataPath(path);
   const res = await fetch(
     `${contentsUrl(path)}?ref=${encodeURIComponent(TARGET_BRANCH)}`,
-    { headers: authHeaders() },
+    { headers: authHeaders(), cache: "no-store" },
   );
   if (res.status === 404) {
     return [];
@@ -164,15 +164,25 @@ export async function commitFiles(changes: FileChange[], message: string): Promi
 
   const headers = { ...authHeaders(), "Content-Type": "application/json" };
 
+  // no-store is essential here, not just hygiene: this ref is a mutable
+  // pointer that moves with every save, and a browser-cached GET serving
+  // even a few-seconds-stale sha causes the ref update at the end of this
+  // function to be rejected as "not a fast-forward" -- surfacing to the
+  // user as a false "someone else may have saved" on two saves done in
+  // quick succession, when really it was our own prior save.
   const refRes = await fetch(repoUrl(`git/ref/heads/${encodeURIComponent(TARGET_BRANCH)}`), {
     headers: authHeaders(),
+    cache: "no-store",
   });
   if (!refRes.ok) {
     throw new GithubApiError(`GET branch ref failed (HTTP ${refRes.status}).`, refRes.status);
   }
   const headSha = (await refRes.json()).object.sha as string;
 
-  const commitRes = await fetch(repoUrl(`git/commits/${headSha}`), { headers: authHeaders() });
+  const commitRes = await fetch(repoUrl(`git/commits/${headSha}`), {
+    headers: authHeaders(),
+    cache: "no-store",
+  });
   if (!commitRes.ok) {
     throw new GithubApiError(`GET base commit failed (HTTP ${commitRes.status}).`, commitRes.status);
   }

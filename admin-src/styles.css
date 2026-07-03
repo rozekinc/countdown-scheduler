@@ -2,6 +2,8 @@
   --accent: #484848;
   --primary: #e60000;
   --background: #ffffff;
+  --border: #e1e4e8;
+  --border-strong: #d0d5db;
 }
 
 * {
@@ -13,8 +15,9 @@ html, body {
   padding: 0;
   height: 100%;
   font-family: 'Noto Sans JP', system-ui, sans-serif;
-  background: #f4f4f4;
-  color: #222;
+  background: #eef0f3;
+  color: #1f2328;
+  -webkit-font-smoothing: antialiased;
 }
 
 #app {
@@ -29,19 +32,25 @@ html, body {
   align-items: center;
   gap: 10px;
   row-gap: 4px;
-  padding: 6px 12px;
+  padding: 7px 14px;
   background: var(--accent);
   color: #fff;
   font-size: 13px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  transition: background-color 0.2s ease;
 }
 
 .app-header label {
-  color: #fff;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .app-select, .display-mode-select, .aspect-ratio-select, .screen-mode-select, .lang-select {
   padding: 3px 6px;
   font-size: 13px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.95);
+  color: #1f2328;
 }
 
 .display-mode-switcher, .aspect-ratio-switcher, .screen-mode-switcher, .lang-switcher {
@@ -74,7 +83,7 @@ html, body {
 .left-panel {
   width: 260px;
   flex-shrink: 0;
-  border-right: 1px solid #ddd;
+  border-right: 1px solid var(--border);
   background: #fff;
   overflow-y: auto;
   padding: 10px;
@@ -82,10 +91,13 @@ html, body {
 
 .left-panel h3 {
   margin: 2px 0 6px 0;
-  font-size: 13px;
-  color: var(--accent);
-  border-bottom: 2px solid var(--primary);
-  padding-bottom: 3px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #6b7280;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 5px;
 }
 
 .event-list, .day-list {
@@ -97,17 +109,18 @@ html, body {
 .event-list-item, .day-list-item {
   padding: 6px 8px;
   margin-bottom: 3px;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  background: #f6f6f6;
+  background: #f6f7f8;
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
+  transition: background-color 0.12s ease;
 }
 
 .event-list-item:hover, .day-list-item:hover {
-  background: #ececec;
+  background: #eaecef;
 }
 
 .event-list-item.selected, .day-list-item.selected {
@@ -117,8 +130,8 @@ html, body {
 
 .event-status-badge {
   font-size: 10px;
-  padding: 1px 5px;
-  border-radius: 8px;
+  padding: 1px 6px;
+  border-radius: 999px;
   background: #ddd;
   color: #333;
   margin-left: 6px;
@@ -157,9 +170,10 @@ html, body {
   max-width: 640px;
   margin: 24px auto;
   padding: 20px 24px;
-  border: 2px solid #b71c1c;
-  border-radius: 8px;
+  border: 1px solid #f3b4b4;
+  border-radius: 10px;
   background: #fff5f5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .load-failure h2 {
@@ -193,8 +207,17 @@ html, body {
   padding: 5px 7px;
   font-size: 13px;
   font-family: inherit;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: #fff;
+  color: #1f2328;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.announcement-input:focus, .row-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
 }
 
 .datetime-pair {
@@ -221,10 +244,14 @@ html, body {
 }
 
 .countdown-rows-section h3, .day-editor-section h3, .import-section h3 {
-  font-size: 14px;
-  color: var(--accent);
-  border-bottom: 2px solid var(--primary);
-  padding-bottom: 3px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #6b7280;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 5px;
+  margin: 0 0 8px 0;
 }
 
 .rows-table {
@@ -244,49 +271,73 @@ html, body {
   grid-template-columns: 1fr 1fr auto;
   gap: 6px;
   align-items: start;
-  padding: 5px;
-  border: 1px solid #eee;
-  border-radius: 4px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  transition: border-color 0.12s ease;
+}
+
+.row-editor:hover {
+  border-color: var(--border-strong);
 }
 
 .row-editor.readonly {
   grid-template-columns: 1fr 1fr;
-  background: #fafafa;
+  background: #fafbfc;
 }
 
 .btn {
   border: none;
-  border-radius: 4px;
-  padding: 6px 11px;
+  border-radius: 6px;
+  padding: 6px 12px;
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
+  transition: filter 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+
+.btn:hover {
+  filter: brightness(0.94);
+}
+
+.btn:active {
+  filter: brightness(0.88);
+}
+
+.btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+  filter: none;
 }
 
 .btn-small {
-  padding: 3px 7px;
+  padding: 3px 8px;
   font-size: 11px;
+  border-radius: 5px;
 }
 
 .btn-primary {
   background: var(--primary);
   color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 .btn-secondary {
-  background: #e0e0e0;
-  color: #222;
+  background: #e8eaed;
+  color: #1f2328;
 }
 
 .btn-danger {
   background: #b71c1c;
   color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 .status-bar {
   padding: 5px 12px;
   font-size: 12px;
-  background: #fafafa;
-  border-top: 1px solid #ddd;
+  background: #fafbfc;
+  border-top: 1px solid var(--border);
   min-height: 18px;
 }
 
@@ -314,8 +365,8 @@ html, body {
 .overview-table {
   display: flex;
   flex-direction: column;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   overflow: hidden;
 }
 
@@ -338,14 +389,15 @@ html, body {
 .overview-item {
   background: #fff;
   border: none;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border);
   cursor: pointer;
   font-family: inherit;
   color: inherit;
+  transition: background-color 0.12s ease;
 }
 
 .overview-item:hover {
-  background: #f6f6f6;
+  background: #f6f7f8;
 }
 
 .overview-item.archived {
@@ -355,7 +407,7 @@ html, body {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(15, 17, 21, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -364,10 +416,11 @@ html, body {
 
 .modal {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 20px;
   min-width: 320px;
   max-width: 90vw;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
 }
 
 .device-code {
@@ -377,7 +430,7 @@ html, body {
   text-align: center;
   padding: 12px;
   background: #f0f0f0;
-  border-radius: 6px;
+  border-radius: 8px;
   margin: 8px 0;
 }
 
@@ -394,34 +447,44 @@ html, body {
 .preview-panel {
   width: 230px;
   flex-shrink: 0;
-  border-left: 1px solid #ddd;
-  background: #fafafa;
+  border-left: 1px solid var(--border);
+  background: #fafbfc;
   overflow-y: auto;
   padding: 10px;
 }
 
 .preview-panel-title {
   margin: 4px 0 2px 0;
-  font-size: 13px;
-  color: var(--accent);
-  border-bottom: 2px solid var(--primary);
-  padding-bottom: 3px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #6b7280;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 5px;
 }
 
 .preview-mode-label {
-  margin: 0 0 8px 0;
+  margin: 8px 0 8px 0;
   font-size: 11px;
-  color: #777;
+  color: #888;
 }
 
+/* No overflow:hidden here on purpose: the inline aspect-ratio (see
+   renderPreviewPanel in ui.ts) is a MINIMUM shape hint, not a hard cap --
+   for wide ratios (16:9, 21:9) the implied height is shorter than the
+   mock's real content (title + countdown + announcement + rows), and
+   clipping it was actively unhelpful. With overflow visible, the box
+   grows past the ratio whenever content needs more room, and only
+   matches it exactly when there's naturally enough space (e.g. 9:16). */
 .preview-mock {
-  border-radius: 6px;
-  overflow: hidden;
+  border-radius: 8px;
   background: var(--theme-background, #fff);
   color: var(--theme-surface-text, #333);
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   padding: 10px;
   font-size: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .preview-mock-title {
