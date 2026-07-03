@@ -1,41 +1,25 @@
-import type { EventData, ScheduleDay, ScheduleRow } from "./types";
+import type { AppsData, EventData, ScheduleDay } from "./types";
 import { setAnnouncementText } from "./marquee";
-import { setScrollingContent } from "./verticalScroll";
 import { colorizeKeywords } from "./keywords";
+import { resolveLabel, relativeDayLabel } from "./labels";
 
 export interface ScheduleController {
   setEventData(data: EventData): void;
+  /** Re-render using the current data with fresh labels/language -- called
+   * when the display settings change live. */
+  refresh(): void;
 }
 
-// The original sheet only ever carried one day's worth of rows, so its
-// index-parity rule (row 0 = date, odd = title, even = content) folded the
-// date into the same row list. Here the date lives on the ScheduleDay
-// itself, so the same alternation is applied to `rows` starting at index 0:
-// even index = title row, odd index = content row. There is no row cap --
-// a long day just auto-scrolls (see verticalScroll.ts) instead of being
-// truncated.
+// The schedule screen renders up to three days side by side as columns,
+// built from scheduleDays[].items. Preference is upcoming days (date >=
+// today, soonest first); when none are upcoming it falls back to the most
+// recent day(s) so the screen is never blank.
 
 function dateKey(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
-}
-
-function pickDay(days: ScheduleDay[], now: Date): ScheduleDay | null {
-  if (days.length === 0) return null;
-  const todayKey = dateKey(now);
-
-  const exact = days.find((day) => day.date === todayKey);
-  if (exact) return exact;
-
-  const upcoming = days
-    .filter((day) => day.date >= todayKey)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  if (upcoming.length > 0) return upcoming[0];
-
-  const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
-  return sorted[sorted.length - 1];
 }
 
 function formatDateLabel(dateStr: string): string {
@@ -45,108 +29,92 @@ function formatDateLabel(dateStr: string): string {
   return `${parsed.getMonth() + 1}月${parsed.getDate()}日（${weekday}）`;
 }
 
-function renderDateRow(dateStr: string): string {
+const MAX_COLUMNS = 3;
+
+function pickDays(days: ScheduleDay[], now: Date): ScheduleDay[] {
+  if (days.length === 0) return [];
+  const todayKey = dateKey(now);
+
+  const upcoming = days
+    .filter((day) => day.date >= todayKey)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (upcoming.length > 0) return upcoming.slice(0, MAX_COLUMNS);
+
+  // Nothing upcoming -- show the most recent day(s) instead of a blank screen.
+  const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
+  return sorted.slice(-MAX_COLUMNS);
+}
+
+function renderColumn(
+  day: ScheduleDay,
+  now: Date,
+  apps: AppsData,
+  keywords: string[] | undefined,
+): string {
+  const rel = relativeDayLabel(apps, day.date, now);
+  const relHtml = rel ? `<div class="schedule-col-rel">${rel}</div>` : "";
+
+  const itemsHtml = day.items
+    .map(
+      (item) =>
+        `<div class="schedule-col-item">` +
+        `<div class="schedule-item-title">${colorizeKeywords(item.title, keywords).replace(/\n/g, "<br>")}</div>` +
+        `<div class="schedule-item-detail">${item.detail ?? ""}</div>` +
+        `</div>`,
+    )
+    .join("");
+
+  const annHtml = day.announcement
+    ? `<div class="schedule-col-announcement">${day.announcement}</div>`
+    : "";
+
   return (
-    `<div class="schedule-row-date">` +
-    `<div class="cell no-bullet-cell"><div class="text-wrapper">${formatDateLabel(dateStr)}</div></div>` +
-    `<div class="cell no-bullet-cell"><div class="text-wrapper"></div></div>` +
+    `<div class="schedule-column">` +
+    `<div class="schedule-col-header">` +
+    `<div class="schedule-col-date">${formatDateLabel(day.date)}</div>` +
+    relHtml +
+    `</div>` +
+    `<div class="schedule-col-items">${itemsHtml}</div>` +
+    annHtml +
     `</div>`
   );
 }
 
-// Rows come in title/content pairs (one logical schedule item spans two
-// rows). A pair's time -- if either row in it carries one -- decides
-// whether the whole pair renders as past (grayed) or next-up (highlighted).
-interface PairTiming {
-  isPast: boolean;
-  isNext: boolean;
-}
-
-function pairTime(rows: ScheduleRow[], pairStart: number): Date | null {
-  const raw = rows[pairStart]?.time ?? rows[pairStart + 1]?.time;
-  if (!raw) return null;
-  const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function computePairTimings(rows: ScheduleRow[], now: Date): PairTiming[] {
-  const pairCount = Math.ceil(rows.length / 2);
-  const times: Array<Date | null> = [];
-  for (let pair = 0; pair < pairCount; pair++) {
-    times.push(pairTime(rows, pair * 2));
-  }
-
-  let nextPair = -1;
-  let nextTime: number | null = null;
-  times.forEach((t, pair) => {
-    if (!t || t.getTime() < now.getTime()) return;
-    if (nextTime === null || t.getTime() < nextTime) {
-      nextTime = t.getTime();
-      nextPair = pair;
-    }
-  });
-
-  return times.map((t, pair) => ({
-    isPast: t !== null && t.getTime() < now.getTime(),
-    isNext: pair === nextPair,
-  }));
-}
-
-function renderDataRow(
-  row: ScheduleRow,
-  index: number,
-  timing: PairTiming | undefined,
-  keywords: string[] | undefined,
-): string {
-  const valA = row.A ?? "";
-  const valB = row.B ?? "";
-  if (!valA && !valB) return "";
-
-  const contentA = colorizeKeywords(String(valA), keywords);
-  const contentB = colorizeKeywords(String(valB), keywords);
-
-  const isTitleRow = index % 2 === 0;
-  const stateClass = timing?.isNext ? " row-next" : timing?.isPast ? " row-past" : "";
-  const rowClass = (isTitleRow ? "schedule-row-title" : "schedule-row-content") + stateClass;
-
-  const classA = isTitleRow && valA ? "has-bullet" : "no-bullet-cell";
-  const partA = `<div class="cell-a ${classA}"><div class="text-wrapper">${contentA}</div></div>`;
-
-  const classB = isTitleRow && valB ? "has-bullet" : "no-bullet-cell";
-  const partB = `<div class="cell-b ${classB}"><div class="text-wrapper">${contentB}</div></div>`;
-
-  return `<div class="${rowClass}">${partA}${partB}</div>`;
-}
-
-export function initSchedule(getNow: () => Date): ScheduleController {
-  const dateRowElem = document.getElementById("schedule-date-row") as HTMLElement;
-  const rowsViewportElem = document.getElementById("schedule-rows-viewport") as HTMLElement;
+export function initSchedule(getNow: () => Date, getApps: () => AppsData): ScheduleController {
+  const columnsElem = document.getElementById("schedule-columns") as HTMLElement;
   const announcementElem = document.getElementById("schedule-announcement") as HTMLElement;
+
+  let currentData: EventData | null = null;
+
+  function render(): void {
+    const apps = getApps();
+    const now = getNow();
+    const data = currentData;
+
+    setAnnouncementText(
+      announcementElem,
+      `<span class="announcement-label">${resolveLabel(apps, "noticePrefix")}</span>`,
+      data?.announcement ?? "",
+    );
+
+    if (!data) {
+      columnsElem.innerHTML = "";
+      return;
+    }
+
+    const days = pickDays(data.scheduleDays, now);
+    columnsElem.innerHTML = days
+      .map((day) => renderColumn(day, now, apps, data.highlightKeywords))
+      .join("");
+  }
 
   return {
     setEventData(data: EventData): void {
-      const day = pickDay(data.scheduleDays, getNow());
-
-      setAnnouncementText(
-        announcementElem,
-        `<span class="announcement-label">お知らせ：</span>`,
-        day?.announcement ?? "",
-      );
-
-      if (!day) {
-        dateRowElem.innerHTML = "";
-        rowsViewportElem.innerHTML = "";
-        return;
-      }
-
-      dateRowElem.innerHTML = renderDateRow(day.date);
-
-      const timings = computePairTimings(day.rows, getNow());
-      let rowsHtml = "";
-      day.rows.forEach((row, index) => {
-        rowsHtml += renderDataRow(row, index, timings[Math.floor(index / 2)], data.highlightKeywords);
-      });
-      setScrollingContent(rowsViewportElem, rowsHtml);
+      currentData = data;
+      render();
+    },
+    refresh(): void {
+      render();
     },
   };
 }

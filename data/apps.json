@@ -4,36 +4,37 @@
     {
       "id": "web1",
       "name": "Web1",
-      "theme": {
-        "primary": "#e60000",
-        "accent": "#484848",
-        "background": "#ffffff"
-      },
-      "activeEventId": "sample-event"
+      "theme": { "primary": "#e60000", "accent": "#484848", "background": "#ffffff" },
+      "activeEventId": "race-weekend"
     },
     {
       "id": "web2",
       "name": "Web2",
-      "theme": {
-        "primary": "#0057b8",
-        "accent": "#2f2f2f",
-        "background": "#f4f8ff"
-      },
-      "activeEventId": "sample-event"
+      "theme": { "primary": "#0057b8", "accent": "#2f2f2f", "background": "#f4f8ff" },
+      "activeEventId": "race-weekend"
     },
     {
       "id": "web3",
       "name": "Web3",
-      "theme": {
-        "primary": "#1b8a4c",
-        "accent": "#333333",
-        "background": "#f5fff7"
-      },
-      "activeEventId": "sample-event-draft"
+      "theme": { "primary": "#1b8a4c", "accent": "#333333", "background": "#f5fff7" },
+      "activeEventId": "race-weekend"
     }
   ],
   "displayModeId": "standard",
   "aspectRatioId": "ultrawide-21-9",
-  "contentVersion": 1,
+  "displayLanguage": "ja",
+  "textScale": 1,
+  "labels": {
+    "currentTime": { "ja": "現在時刻", "en": "Current Time" },
+    "nextSchedule": { "ja": "次のスケジュール", "en": "Next Schedule" },
+    "noticePrefix": { "ja": "お知らせ：", "en": "Notice: " },
+    "until": { "ja": "まで", "en": "until" },
+    "finished": { "ja": "終了しました", "en": "Finished" },
+    "toggle": { "ja": "切替", "en": "Switch" },
+    "today": { "ja": "今日", "en": "Today" },
+    "tomorrow": { "ja": "明日", "en": "Tomorrow" },
+    "dayAfter": { "ja": "明後日", "en": "Day After" }
+  },
+  "contentVersion": 2,
   "contentUpdatedAt": "2026-07-03"
 }

@@ -35,3 +35,38 @@ export function setScrollingContent(viewport: HTMLElement | null, contentHtml: s
     inner.style.animationDuration = `${duration}s`;
   });
 }
+
+/**
+ * The same seamless vertical auto-scroll as setScrollingContent above, but
+ * for the countdown screen's "next schedule" side list (#list-viewport): the
+ * two stacked copies are <ul> elements so the list's <li> styling
+ * (#schedule-list ul li) still applies. Only scrolls when the items are
+ * taller than the viewport; otherwise renders once, static.
+ */
+export function setScrollingList(viewport: HTMLElement | null, itemsHtml: string): void {
+  if (!viewport) return;
+  viewport.classList.remove("list-scroll-active");
+  viewport.innerHTML =
+    `<div class="list-scroll-inner">` +
+    `<ul class="list-scroll-copy">${itemsHtml}</ul>` +
+    `<ul class="list-scroll-copy" aria-hidden="true">${itemsHtml}</ul>` +
+    `</div>`;
+
+  const inner = viewport.querySelector<HTMLElement>(".list-scroll-inner");
+  const copies = viewport.querySelectorAll<HTMLElement>(".list-scroll-copy");
+  if (!inner || copies.length < 2) return;
+  inner.style.animationDuration = "";
+
+  requestAnimationFrame(() => {
+    const periodHeight = inner.scrollHeight / 2;
+    const overflowing = periodHeight > viewport.clientHeight;
+    if (!overflowing) {
+      copies[1].remove(); // no second copy needed when it isn't scrolling
+      return;
+    }
+
+    viewport.classList.add("list-scroll-active");
+    const duration = Math.max(8, periodHeight / SCROLL_SPEED_PX_PER_SEC);
+    inner.style.animationDuration = `${duration}s`;
+  });
+}

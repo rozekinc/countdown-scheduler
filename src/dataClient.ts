@@ -96,6 +96,10 @@ export function resolveActiveApp(data: AppsData): App {
  *  - onContentVersionChange: the content version/date the published data
  *    carries (contentVersion/contentUpdatedAt) -- applies on every screen,
  *    pinned or not, since it just reflects "which data am I looking at".
+ *  - onDisplaySettingsChange: the chrome-level presentation settings
+ *    (displayLanguage / textScale / labels) -- applies on every screen,
+ *    pinned or not, so the display re-applies its labels, language and text
+ *    scale live without a reload.
  * Countdown vs. schedule is NOT here -- it's a local, client-side-only
  * toggle button on the display itself (see main.ts's setupScreenToggle),
  * never written to data/apps.json.
@@ -106,6 +110,7 @@ export function watchDisplaySettings(
   onModeChange: (displayModeId: string | null) => void,
   onAspectRatioChange: (aspectRatioId: string | null) => void,
   onContentVersionChange: (data: AppsData) => void,
+  onDisplaySettingsChange: (data: AppsData) => void,
 ): void {
   const pinned = isPinnedByUrl(initialApps.apps);
   let currentAppId = resolveActiveApp(initialApps).id;
@@ -113,6 +118,9 @@ export function watchDisplaySettings(
   let currentAspectRatioId = initialApps.aspectRatioId ?? null;
   let currentContentVersion = initialApps.contentVersion ?? null;
   let currentContentUpdatedAt = initialApps.contentUpdatedAt ?? null;
+  let currentDisplayLanguage = initialApps.displayLanguage ?? null;
+  let currentTextScale = initialApps.textScale ?? null;
+  let currentLabelsJson = JSON.stringify(initialApps.labels ?? null);
 
   window.setInterval(() => {
     void (async () => {
@@ -140,6 +148,20 @@ export function watchDisplaySettings(
         currentContentVersion = freshContentVersion;
         currentContentUpdatedAt = freshContentUpdatedAt;
         onContentVersionChange(fresh);
+      }
+
+      const freshDisplayLanguage = fresh.displayLanguage ?? null;
+      const freshTextScale = fresh.textScale ?? null;
+      const freshLabelsJson = JSON.stringify(fresh.labels ?? null);
+      if (
+        freshDisplayLanguage !== currentDisplayLanguage ||
+        freshTextScale !== currentTextScale ||
+        freshLabelsJson !== currentLabelsJson
+      ) {
+        currentDisplayLanguage = freshDisplayLanguage;
+        currentTextScale = freshTextScale;
+        currentLabelsJson = freshLabelsJson;
+        onDisplaySettingsChange(fresh);
       }
 
       if (pinned) return;

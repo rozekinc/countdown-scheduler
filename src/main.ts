@@ -4,7 +4,8 @@ import { applyTheme, applyAspectRatio } from "./theme";
 import { initCountdown } from "./countdown";
 import { initSchedule } from "./schedule";
 import { initVersionBadge } from "./versionBadge";
-import type { App, EventData } from "./types";
+import { resolveLabel, displayLanguage } from "./labels";
+import type { App, AppsData, EventData } from "./types";
 
 interface FullscreenDocumentElement extends HTMLElement {
   webkitRequestFullscreen?: () => void;
@@ -103,19 +104,48 @@ function setupScreenToggle(): void {
     } else {
       cdMain.style.display = "block";
       cdAnnouncement.style.display = "flex";
-      cdList.style.display = "block";
+      cdList.style.display = "flex";
       scheduleScreen.style.display = "none";
       timeContainer.style.left = "58%";
     }
   });
 }
 
+// Populates the static chrome text (current-time label, next-schedule
+// heading, toggle button) from the editable labels, and sets the document
+// language. Re-run live when apps.json's labels/language change.
+function applyChromeLabels(apps: AppsData): void {
+  document.documentElement.lang = displayLanguage(apps);
+  const timeLabel = document.getElementById("time-label");
+  if (timeLabel) timeLabel.textContent = resolveLabel(apps, "currentTime");
+  const nextScheduleLabel = document.getElementById("next-schedule-label");
+  if (nextScheduleLabel) nextScheduleLabel.textContent = resolveLabel(apps, "nextSchedule");
+  const toggleBtn = document.getElementById("toggle-btn");
+  if (toggleBtn) toggleBtn.textContent = resolveLabel(apps, "toggle");
+}
+
+// Global font-size multiplier exposed as a CSS var the display's font-size
+// declarations multiply by (see --text-scale in styles.css). Default 1.
+function applyTextScale(apps: AppsData): void {
+  const scale = typeof apps.textScale === "number" && apps.textScale > 0 ? apps.textScale : 1;
+  document.documentElement.style.setProperty("--text-scale", String(scale));
+}
+
 async function main(): Promise<void> {
   const currentTimeElem = document.getElementById("current-time") as HTMLElement;
 
   const appsData = await loadApps();
-  const countdownController = initCountdown(getNow);
-  const scheduleController = initSchedule(getNow);
+  // The latest apps-level presentation settings (labels/language/textScale).
+  // Swapped in when apps.json changes so the controllers resolve labels
+  // against current values (see onDisplaySettingsChange below).
+  let currentAppsData: AppsData = appsData;
+  const getApps = (): AppsData => currentAppsData;
+
+  applyChromeLabels(currentAppsData);
+  applyTextScale(currentAppsData);
+
+  const countdownController = initCountdown(getNow, getApps);
+  const scheduleController = initSchedule(getNow, getApps);
 
   // Holds whichever app's data source is currently feeding the two
   // controllers above. Swapped out (never run concurrently) whenever the
@@ -176,6 +206,16 @@ async function main(): Promise<void> {
     // Content-version changes (a publish) refresh the corner badge in
     // place, so the screen shows which data it's currently looking at.
     (data) => updateVersionBadge(data),
+    // Chrome-level presentation changes (displayLanguage / textScale /
+    // labels) re-apply the static chrome, the text scale, and re-render the
+    // controllers' label-bearing text in place -- no reload.
+    (data) => {
+      currentAppsData = data;
+      applyChromeLabels(currentAppsData);
+      applyTextScale(currentAppsData);
+      countdownController.refresh();
+      scheduleController.refresh();
+    },
   );
 
   await fetchAccurateTime();

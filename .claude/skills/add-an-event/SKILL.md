@@ -36,33 +36,45 @@ the `id` field inside the file. Populate every `EventData` field:
 - `announcement`: the announcement string.
 - `countdownRows`: array of `{ "title", "time" }`. `time` is a full ISO-8601
   timestamp with the `+09:00` offset (e.g. `"2026-09-05T13:00:00+09:00"`).
-- `scheduleDays`: array of `{ "date", "announcement", "rows": [...] }`.
+- `scheduleDays`: array of `{ "date", "announcement"?, "items": [...] }`.
 - `highlightKeywords` (optional): a `string[]` of terms the display should color
   wherever they appear. Include it only if the user names keywords to highlight;
   omit the field otherwise.
 
-### Schedule `rows` pairing (important)
+### Schedule days and items
 
-Each schedule entry displays as title/content pairs, laid out as consecutive
-even/odd row indices:
+Each `scheduleDays` entry is one day, keyed by its `date`:
 
-- Even index (0, 2, 4, …) = the title row. It carries `A` = the item title,
-  `B` = a short description, and `time` = the pair's full ISO-8601 time
-  (`+09:00`).
-- Odd index (1, 3, 5, …) = the content row for the pair above it. It carries
-  `A` = the human time range (e.g. `"13:00 - 13:30"`), `B` = the location/detail
-  (e.g. `"Main Stage"`), and no `time`.
+- `date`: the ISO date (`YYYY-MM-DD`). The display shows this date plus an
+  automatic today / tomorrow / day-after label computed from the current date.
+- `announcement` (optional): a per-day note shown under that day's column. Omit
+  the field if the day has none.
+- `items`: an ordered array of `{ "title", "detail" }`. `title` is the item
+  name (e.g. `"選手受付"`); `detail` is one free-text line such as a time range
+  (`"10:30~"`, `"10:00~18:00"`) or a location. Items render top-to-bottom in
+  array order.
 
-Keep rows in this even-title / odd-content order. See
-`data/events/sample-event.json` for a worked example.
+Example day:
+
+```json
+{
+  "date": "2026-06-30",
+  "items": [
+    { "title": "選手受付", "detail": "7:30~" },
+    { "title": "アームバンド受取", "detail": "10:00~18:00" }
+  ]
+}
+```
+
+See `data/events/race-weekend.json` for a full worked example.
 
 ## Verify
 
 - Confirm `data/events/<id>.json` parses as valid JSON and its `id` matches the
   filename stem.
 - Confirm `appId` matches an existing app id in `data/apps.json`.
-- Confirm every `countdownRows[].time` and every even-index `scheduleDays[].rows[].time`
-  is full ISO-8601 with `+09:00`.
+- Confirm every `countdownRows[].time` is full ISO-8601 with `+09:00`, and every
+  `scheduleDays[].date` is `YYYY-MM-DD`.
 - Tell the user the event id you created and that it is a `draft`, not yet on
   any display.
 

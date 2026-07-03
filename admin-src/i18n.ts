@@ -28,6 +28,22 @@ const EN = {
   "settings.save": "Save",
   "settings.saved": "Settings saved.",
 
+  "settings.displaySettings": "Display settings",
+  "settings.displaySettingsHint":
+    "These control the DISPLAY screens (not this admin's language). They are saved with the main Save button, like display mode.",
+  "settings.displayLanguage": "Display language:",
+  "settings.displayLangJa": "日本語",
+  "settings.displayLangEn": "English",
+  "settings.textScale": "Text size:",
+  "settings.textScaleHint": "0.6× – 1.6× of the default display font size.",
+  "settings.labelsTitle": "Display labels",
+  "settings.labelsHint":
+    "Edit the fixed labels around the event content, in both languages. The display shows the one matching the display language above.",
+  "settings.labelJa": "JA",
+  "settings.labelEn": "EN",
+  "settings.displaySettingsStaged":
+    "Display settings staged -- click Save to publish.",
+
   "auth.signOut": "Sign out",
   "auth.signedIn": "Signed in",
   "auth.signInWithToken": "Sign in with token",
@@ -68,6 +84,16 @@ const EN = {
   "preview.summary": "{mode} · {ratio}",
   "preview.sampleKeywordA": "Sample A",
   "preview.sampleKeywordB": "Sample B",
+  "preview.countdownScreen": "Countdown screen",
+  "preview.scheduleScreen": "Schedule screen",
+  "preview.sampleCountdownTitle": "Qualifying",
+  "preview.sampleNext1": "Practice",
+  "preview.sampleNext2": "Pit walk",
+  "preview.sampleAnnouncement": "Drive safe!",
+  "preview.sampleItem1Title": "Rider check-in",
+  "preview.sampleItem1Detail": "7:30~",
+  "preview.sampleItem2Title": "Team meeting",
+  "preview.sampleItem2Detail": "10:30~",
 
   "events.loading": "Loading events…",
   "events.title": "Events",
@@ -114,10 +140,10 @@ const EN = {
   "day.scheduleFor": "Schedule for {date}",
   "day.date": "Date: ",
   "day.announcement": "Day announcement: ",
-  "day.addRow": "+ Add row",
+  "day.addRow": "+ Add item",
   "day.remove": "Remove",
-  "day.timeOptional":
-    "Optional: set this so the display can gray this row out once it's passed and highlight it while it's next up.",
+  "day.itemTitle": "Title (e.g. Rider check-in)",
+  "day.itemDetail": "Detail (e.g. 10:30~ or a location)",
 
   "import.title": "Import from Excel (.xlsx)",
   "import.parseFailed": "Failed to parse {name}: {message}",
@@ -170,6 +196,22 @@ const JA: Record<TranslationKey, string> = {
   "settings.save": "保存",
   "settings.saved": "設定を保存しました。",
 
+  "settings.displaySettings": "表示設定",
+  "settings.displaySettingsHint":
+    "これらは表示画面を制御します (この管理画面の言語ではありません)。表示モードと同様に、メインの保存ボタンで保存されます。",
+  "settings.displayLanguage": "表示言語:",
+  "settings.displayLangJa": "日本語",
+  "settings.displayLangEn": "English",
+  "settings.textScale": "文字サイズ:",
+  "settings.textScaleHint": "既定の表示フォントサイズの 0.6倍 ～ 1.6倍。",
+  "settings.labelsTitle": "表示ラベル",
+  "settings.labelsHint":
+    "イベント内容の周りの固定ラベルを両言語で編集します。表示では上記の表示言語に一致するものが表示されます。",
+  "settings.labelJa": "日",
+  "settings.labelEn": "英",
+  "settings.displaySettingsStaged":
+    "表示設定を設定しました -- 保存をクリックして公開してください。",
+
   "auth.signOut": "サインアウト",
   "auth.signedIn": "サインイン済み",
   "auth.signInWithToken": "トークンでサインイン",
@@ -210,6 +252,16 @@ const JA: Record<TranslationKey, string> = {
   "preview.summary": "{mode} · {ratio}",
   "preview.sampleKeywordA": "サンプルA",
   "preview.sampleKeywordB": "サンプルB",
+  "preview.countdownScreen": "カウントダウン画面",
+  "preview.scheduleScreen": "スケジュール画面",
+  "preview.sampleCountdownTitle": "予選",
+  "preview.sampleNext1": "フリー走行",
+  "preview.sampleNext2": "ピットウォーク",
+  "preview.sampleAnnouncement": "安全運転で！",
+  "preview.sampleItem1Title": "選手受付",
+  "preview.sampleItem1Detail": "7:30~",
+  "preview.sampleItem2Title": "チーム会議",
+  "preview.sampleItem2Detail": "10:30~",
 
   "events.loading": "イベントを読み込み中…",
   "events.title": "イベント",
@@ -256,10 +308,10 @@ const JA: Record<TranslationKey, string> = {
   "day.scheduleFor": "{date} のスケジュール",
   "day.date": "日付: ",
   "day.announcement": "その日のお知らせ: ",
-  "day.addRow": "+ 行を追加",
+  "day.addRow": "+ 項目を追加",
   "day.remove": "削除",
-  "day.timeOptional":
-    "任意: 設定すると、時刻が過ぎた行をグレーアウトし、次の行を強調表示します。",
+  "day.itemTitle": "タイトル (例: 選手受付)",
+  "day.itemDetail": "詳細 (例: 10:30~ や場所)",
 
   "import.title": "Excel (.xlsx) からインポート",
   "import.parseFailed": "{name} の解析に失敗しました: {message}",
