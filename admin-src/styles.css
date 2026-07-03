@@ -44,7 +44,7 @@ html, body {
   color: rgba(255, 255, 255, 0.9);
 }
 
-.app-select, .display-mode-select, .aspect-ratio-select, .screen-mode-select, .lang-select {
+.app-select, .display-mode-select, .aspect-ratio-select, .lang-select {
   padding: 3px 6px;
   font-size: 13px;
   border-radius: 5px;
@@ -53,7 +53,7 @@ html, body {
   color: #1f2328;
 }
 
-.display-mode-switcher, .aspect-ratio-switcher, .screen-mode-switcher, .lang-switcher {
+.display-mode-switcher, .aspect-ratio-switcher, .lang-switcher {
   display: flex;
   align-items: center;
 }

@@ -4,8 +4,6 @@ export interface Theme {
   background: string;
 }
 
-export type ScreenMode = "countdown" | "schedule";
-
 export interface App {
   id: string;
   name: string;
@@ -28,13 +26,6 @@ export interface AppsData {
    * letterboxed/pillarboxed to, independent of the physical screen's own
    * ratio. Null/omitted = 16:9. Applies to every screen. */
   aspectRatioId?: string | null;
-  /** Which screen every display shows -- "countdown" (title + countdown +
-   * upcoming-schedule sidebar) or "schedule" (the full day-by-day
-   * schedule). A single global choice, same as displayModeId/
-   * aspectRatioId: the physical setup is one TV, and this is the one
-   * on/off switch for what's currently on it, independent of which app's
-   * branding is live. Omitted = "countdown". Applies to every screen. */
-  screenMode?: ScreenMode | null;
 }
 
 export interface CountdownRow {

@@ -8,8 +8,6 @@ export interface AppTheme {
   background: string;
 }
 
-export type ScreenMode = "countdown" | "schedule";
-
 export interface AppConfig {
   id: string;
   name: string;
@@ -28,11 +26,6 @@ export interface AppsFile {
   /** Which aspect-ratio preset (see aspectRatios.ts) the stage is
    * letterboxed/pillarboxed to on every screen. Null/absent = 16:9. */
   aspectRatioId?: string | null;
-  /** Which screen every display shows -- "countdown" or "schedule". A
-   * single global on/off switch for the one physical TV, independent of
-   * which app's branding is live (selectedAppId). Null/absent =
-   * "countdown". */
-  screenMode?: ScreenMode | null;
 }
 
 export type EventStatus = "draft" | "active" | "ended";
