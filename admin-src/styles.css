@@ -565,3 +565,179 @@ html, body {
 .preview-mock .keyword-b {
   color: var(--keyword-b, #4682B4);
 }
+
+/* Two-screen display preview (countdown page + schedule page). Each screen
+   is a .preview-mock whose root font-size is scaled by the text-size
+   setting (inline style in renderPreviewPanel); inner labels use em units
+   so they scale with it. */
+.preview-screen-wrap {
+  margin-top: 12px;
+}
+
+.preview-screen-label {
+  margin: 0 0 4px 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+.preview-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.preview-cd-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5em;
+}
+
+.preview-cd-clock-label {
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
+.preview-cd-clock {
+  font-size: 1.1em;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+  color: var(--theme-accent, #484848);
+}
+
+.preview-mock-countdown .preview-cd-until {
+  font-size: 0.55em;
+  font-weight: normal;
+  opacity: 0.85;
+}
+
+.preview-cd-next-head {
+  font-size: 0.9em;
+  font-weight: bold;
+  color: var(--theme-primary, #e60000);
+  margin-bottom: 0.3em;
+}
+
+.preview-notice-prefix {
+  font-weight: bold;
+}
+
+.preview-toggle-chip {
+  align-self: flex-end;
+  font-size: 0.8em;
+  padding: 0.15em 0.6em;
+  border-radius: 999px;
+  background: var(--theme-primary, #e60000);
+  color: #fff;
+}
+
+.preview-sched-cols {
+  display: flex;
+  gap: 0.5em;
+}
+
+.preview-sched-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.preview-sched-date {
+  font-weight: bold;
+  color: var(--theme-primary, #e60000);
+}
+
+.preview-sched-rel {
+  font-size: 0.8em;
+  opacity: 0.8;
+}
+
+/* Wider, scrollable settings modal for the display-settings + labels
+   editor. */
+.settings-modal {
+  width: 560px;
+}
+
+.settings-modal-body {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.display-settings h4 {
+  margin: 16px 0 4px 0;
+}
+
+.display-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 2px 0;
+}
+
+.display-settings-label {
+  font-weight: 600;
+  min-width: 110px;
+}
+
+.display-settings-value {
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+}
+
+.text-scale-slider {
+  flex: 1;
+}
+
+.display-settings-hint {
+  margin-top: 0;
+}
+
+.label-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.label-editor-row {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.label-editor-where {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.label-editor-inputs {
+  display: flex;
+  gap: 8px;
+}
+
+.label-editor-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.label-editor-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7280;
+  min-width: 1.6em;
+}
+
+.label-editor-input {
+  flex: 1;
+}
+
+.repo-identity-settings {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}

@@ -11,26 +11,50 @@ export interface App {
   activeEventId: string;
 }
 
+export type DisplayLanguage = "ja" | "en";
+
+/** An editable UI label, authored in both languages. The display renders the
+ * one matching AppsData.displayLanguage; the admin editor edits both. */
+export interface Label {
+  ja: string;
+  en: string;
+}
+
+/** Every editable text location (chrome) across the two screens. Event
+ * content (titles, schedule items, announcements) is NOT here -- that lives
+ * in the event data. These are the fixed labels around it. */
+export type LabelKey =
+  | "currentTime" // 現在時刻 / Current Time
+  | "nextSchedule" // 次のスケジュール / Next Schedule
+  | "noticePrefix" // お知らせ： / Notice:  (prefix before announcement text)
+  | "until" // まで / until  (suffix after a countdown target's time)
+  | "finished" // 終了しました / Finished  (after the last countdown)
+  | "toggle" // 切替 / Switch  (screen toggle button)
+  | "today" // 今日 / Today
+  | "tomorrow" // 明日 / Tomorrow
+  | "dayAfter"; // 明後日 / Day After
+
 export interface AppsData {
   apps: App[];
-  /** Which app the primary display (no ?app= override) should currently
-   * show, set remotely from the admin app. Null/omitted falls back to
-   * apps[0]. Screens loaded with an explicit ?app= param ignore this --
-   * they're pinned to that one app regardless. */
+  /** Which app the primary display (no ?app= override) should show. */
   selectedAppId?: string | null;
-  /** Which display-mode preset (see displayModes.ts) is active, e.g. for
-   * readability under bright ambient light. Null/omitted = "standard"
-   * (each app's own theme colors, unmodified). Applies to every screen. */
+  /** Active display-mode preset (see displayModes.ts). */
   displayModeId?: string | null;
-  /** Which aspect-ratio preset (see aspectRatios.ts) the stage is
-   * letterboxed/pillarboxed to, independent of the physical screen's own
-   * ratio. Null/omitted = 16:9. Applies to every screen. */
+  /** Active aspect-ratio preset (see aspectRatios.ts). */
   aspectRatioId?: string | null;
-  /** Monotonic content version, bumped by the publish routine on every data
-   * change so screens can show "which data am I looking at". Paired with
-   * contentUpdatedAt (an ISO date/datetime string). Omitted = unversioned. */
+  /** Monotonic content version + ISO date, bumped on every publish so the
+   * screens can show which data they are displaying. */
   contentVersion?: number | null;
   contentUpdatedAt?: string | null;
+  /** Which language the display renders its labels in. Default "ja". Applies
+   * to every screen. */
+  displayLanguage?: DisplayLanguage | null;
+  /** Global font-size multiplier for the display (1 = default). Applies to
+   * every screen. */
+  textScale?: number | null;
+  /** Editable UI labels in both languages. Missing keys fall back to the
+   * built-in defaults (see labels.ts). */
+  labels?: Partial<Record<LabelKey, Label>> | null;
 }
 
 export interface CountdownRow {
@@ -38,19 +62,20 @@ export interface CountdownRow {
   time: string;
 }
 
-export interface ScheduleRow {
-  A: string;
-  B: string;
-  /** Optional ISO datetime for this row. When present, the display can
-   * gray it out once it's passed and highlight it while it's next up.
-   * Omitted rows (no reliable time, e.g. free-form notes) render plain. */
-  time?: string;
+/** One entry in a day's schedule column. */
+export interface ScheduleItem {
+  title: string;
+  /** Free-text detail line, e.g. a time range like "10:30~" or a location. */
+  detail: string;
 }
 
 export interface ScheduleDay {
+  /** ISO date (YYYY-MM-DD). The display shows this date plus an automatic
+   * today / tomorrow / day-after label computed from the current date. */
   date: string;
-  announcement: string;
-  rows: ScheduleRow[];
+  /** Optional per-day announcement shown under that day's column. */
+  announcement?: string;
+  items: ScheduleItem[];
 }
 
 export type EventStatus = "draft" | "active" | "ended";
@@ -58,15 +83,12 @@ export type EventStatus = "draft" | "active" | "ended";
 export interface EventData {
   id: string;
   appId: string;
-  /** Editorial/admin-only: used by the admin editor to organize events;
-   * it is never enforced on the public display (no display-side gating on
-   * status). Purely a bookkeeping label. */
+  /** Editorial/admin-only bookkeeping label; never enforced on the display. */
   status: EventStatus;
   announcement: string;
   countdownRows: CountdownRow[];
   scheduleDays: ScheduleDay[];
-  /** Terms highlighted (via keyword-a / keyword-b color slots) wherever
-   * they appear in countdown/schedule text. Per-event content. Omitted or
-   * empty falls back to the built-in defaults (see keywords.ts). */
+  /** Terms highlighted (keyword-a / keyword-b color slots) wherever they
+   * appear in countdown/schedule text. Omitted/empty = built-in defaults. */
   highlightKeywords?: string[];
 }

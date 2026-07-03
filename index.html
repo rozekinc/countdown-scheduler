@@ -2,9 +2,9 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="app-build" content="1.0.0+bc450a8" />
+  <meta name="app-build" content="1.0.0+2946531" />
   <title>カウントダウンスケジューラー</title>
-  <link rel="stylesheet" href="assets/main.css?v=f00cf1cf9d" />
+  <link rel="stylesheet" href="assets/main.css?v=f2a63dae1d" />
 </head>
 <body>
   <div class="aspect-container">
@@ -16,7 +16,7 @@
       </div>
 
       <div id="time-container">
-        <div class="time-label">現在時刻</div>
+        <div class="time-label" id="time-label">現在時刻</div>
         <div id="current-time-label">
           <span class="bracket">【</span>
           <span id="current-time">00:00:00</span>
@@ -37,15 +37,15 @@
       <div id="announcement" class="announcement-bar"></div>
 
       <aside id="schedule-list">
-        <h2>次のスケジュール</h2>
-        <ul id="list"></ul>
+        <h2 id="next-schedule-label">次のスケジュール</h2>
+        <!-- The list auto-scrolls vertically when its items overflow this
+             viewport; see src/verticalScroll.ts setScrollingList. -->
+        <div id="list-viewport"></div>
       </aside>
 
       <div id="schedule-screen">
-        <div id="schedule-body">
-          <div id="schedule-date-row"></div>
-          <div id="schedule-rows-viewport"></div>
-        </div>
+        <!-- Day columns are built in src/schedule.ts from scheduleDays[]. -->
+        <div id="schedule-columns"></div>
         <div id="schedule-announcement" class="announcement-bar"></div>
       </div>
 
@@ -61,6 +61,6 @@
 
   <button id="toggle-btn" type="button">切替</button>
 
-  <script src="assets/main.js?v=f00cf1cf9d" defer></script>
+  <script src="assets/main.js?v=f2a63dae1d" defer></script>
 </body>
 </html>

@@ -1,12 +1,12 @@
 // One-time Excel (.xlsx) import: parses a worksheet client-side into the
-// scheduleDays row shape ({A, B} pairs). Never saves automatically -- the
-// caller must show the parsed rows for review and only save when the user
-// confirms.
+// scheduleDays item shape ({title, detail} pairs -- column A -> title,
+// column B -> detail). Never saves automatically -- the caller must show
+// the parsed items for review and only save when the user confirms.
 
 import * as XLSX from "xlsx";
-import type { ScheduleRow } from "./types";
+import type { ScheduleItem } from "./types";
 
-export async function parseXlsxToRows(file: File): Promise<ScheduleRow[]> {
+export async function parseXlsxToItems(file: File): Promise<ScheduleItem[]> {
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: "array" });
   const firstSheetName = workbook.SheetNames[0];
@@ -20,9 +20,9 @@ export async function parseXlsxToRows(file: File): Promise<ScheduleRow[]> {
   });
 
   return rows
-    .map((row): ScheduleRow => ({
-      A: row[0] !== undefined ? String(row[0]) : "",
-      B: row[1] !== undefined ? String(row[1]) : "",
+    .map((row): ScheduleItem => ({
+      title: row[0] !== undefined ? String(row[0]) : "",
+      detail: row[1] !== undefined ? String(row[1]) : "",
     }))
-    .filter((row) => row.A !== "" || row.B !== "");
+    .filter((item) => item.title !== "" || item.detail !== "");
 }

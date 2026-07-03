@@ -1,14 +1,28 @@
-import type { EventData } from "./types";
+import type { AppsData, EventData } from "./types";
 import { setAnnouncementText } from "./marquee";
+import { setScrollingList } from "./verticalScroll";
 import { colorizeKeywords } from "./keywords";
+import { resolveLabel, relativeDayLabel } from "./labels";
 
 export interface CountdownController {
   setEventData(data: EventData): void;
+  /** Re-apply chrome text (title suffix, finished label, list day headers,
+   * announcement prefix) without disturbing the running timer -- called when
+   * the display language / labels change live. */
+  refresh(): void;
 }
 
 interface ParsedRow {
   title: string;
   time: Date;
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+function hhmmss(d: Date): string {
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
 }
 
 function playSequentialSounds(sounds: HTMLAudioElement[]): void {
@@ -25,11 +39,11 @@ function playSequentialSounds(sounds: HTMLAudioElement[]): void {
     });
 }
 
-export function initCountdown(getNow: () => Date): CountdownController {
+export function initCountdown(getNow: () => Date, getApps: () => AppsData): CountdownController {
   const titleElem = document.getElementById("title") as HTMLElement;
   const countdownElem = document.getElementById("countdown") as HTMLElement;
   const announcementElem = document.getElementById("announcement") as HTMLElement;
-  const listElem = document.getElementById("list") as HTMLElement;
+  const listElem = document.getElementById("list-viewport") as HTMLElement;
 
   const soundAto = document.getElementById("sound-ato") as HTMLAudioElement;
   const sound20 = document.getElementById("sound-20") as HTMLAudioElement;
@@ -37,6 +51,32 @@ export function initCountdown(getNow: () => Date): CountdownController {
   const sound5 = document.getElementById("sound-5") as HTMLAudioElement;
   const soundFun = document.getElementById("sound-fun") as HTMLAudioElement;
 
+  // The countdown display is built ONCE as fixed child spans; each 50ms tick
+  // only writes their textContent (never innerHTML), so the browser never
+  // re-parses HTML 20x/sec -- that re-parse was the source of the flicker.
+  const hEl = document.createElement("span");
+  const mEl = document.createElement("span");
+  const sEl = document.createElement("span");
+  const msEl = document.createElement("span");
+  msEl.className = "ms";
+  countdownElem.textContent = "";
+  countdownElem.append(
+    hEl,
+    document.createTextNode(":"),
+    mEl,
+    document.createTextNode(":"),
+    sEl,
+    msEl,
+  );
+
+  function setCountdownText(h: string, m: string, s: string, ms: string): void {
+    hEl.textContent = h;
+    mEl.textContent = m;
+    sEl.textContent = s;
+    msEl.textContent = `.${ms}`;
+  }
+
+  let currentData: EventData | null = null;
   let parsedSchedule: ParsedRow[] = [];
   let keywords: string[] | undefined;
   let currentIndex = 0;
@@ -48,31 +88,73 @@ export function initCountdown(getNow: () => Date): CountdownController {
   let played10 = false;
   let played20 = false;
 
+  function renderAnnouncement(): void {
+    const apps = getApps();
+    setAnnouncementText(
+      announcementElem,
+      `<span class="announcement-label">${resolveLabel(apps, "noticePrefix")}</span>`,
+      currentData?.announcement ?? "",
+    );
+  }
+
+  // The title is rewritten ONLY when the target item changes (or on a live
+  // label change) -- never inside the 50ms tick.
+  function renderTitle(): void {
+    const apps = getApps();
+    if (currentIndex >= parsedSchedule.length) {
+      titleElem.textContent = resolveLabel(apps, "finished");
+      return;
+    }
+    const { title, time } = parsedSchedule[currentIndex];
+    const until = resolveLabel(apps, "until");
+    titleElem.innerHTML =
+      `${colorizeKeywords(title, keywords).replace(/\n/g, "<br>")}<br>` +
+      `<span class="countdown-time">${hhmmss(time)}${until}</span>`;
+  }
+
+  function dayKeyOf(d: Date): string {
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  }
+
+  function isoOf(d: Date): string {
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  }
+
+  function shortDateLabel(d: Date): string {
+    return `${d.getMonth() + 1}月${d.getDate()}日`;
+  }
+
   function updateScheduleList(): void {
     const now = getNow();
-    listElem.innerHTML = "";
+    const apps = getApps();
     const upcoming = parsedSchedule.slice(currentIndex + 1);
-    const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
-    let tomorrowInserted = false;
+    // Seed with the day of the item currently counting down (shown in #main),
+    // so a header is inserted only when the list crosses into a NEW day.
+    let lastDayKey: string | null =
+      currentIndex < parsedSchedule.length ? dayKeyOf(parsedSchedule[currentIndex].time) : null;
 
+    let html = "";
     upcoming.forEach((item, position) => {
-      const itemKey = `${item.time.getFullYear()}-${item.time.getMonth()}-${item.time.getDate()}`;
-      if (itemKey !== todayKey && !tomorrowInserted) {
-        const sep = document.createElement("li");
-        sep.innerHTML =
-          '<div style="text-align:center; font-size: clamp(24px, 2.3vw, 36px); font-weight: bold; color: #000;">---------------------<br>明日のスケジュール</div>';
-        listElem.appendChild(sep);
-        tomorrowInserted = true;
+      const dk = dayKeyOf(item.time);
+      if (dk !== lastDayKey) {
+        lastDayKey = dk;
+        // Relative-day header (today/tomorrow/day-after); beyond that fall
+        // back to the date itself.
+        const label = relativeDayLabel(apps, isoOf(item.time), now) ?? shortDateLabel(item.time);
+        html +=
+          `<li><div class="list-day-header">---------------------<br>${label}</div></li>`;
       }
-      const li = document.createElement("li");
       // The item currently counting down is shown separately in #main;
       // the first entry here is the one coming up right after it.
-      if (position === 0) li.classList.add("row-next");
-      li.innerHTML =
+      const cls = position === 0 ? ' class="row-next"' : "";
+      html +=
+        `<li${cls}>` +
         `<div class="title"><span class="bullet">▶</span>${colorizeKeywords(item.title, keywords).replace(/\n/g, "<br>")}</div>` +
-        `<div class="time">${String(item.time.getHours()).padStart(2, "0")}:${String(item.time.getMinutes()).padStart(2, "0")}:${String(item.time.getSeconds()).padStart(2, "0")}</div>`;
-      listElem.appendChild(li);
+        `<div class="time">${hhmmss(item.time)}</div>` +
+        `</li>`;
     });
+
+    setScrollingList(listElem, html);
   }
 
   function startNextCountdown(): void {
@@ -85,16 +167,15 @@ export function initCountdown(getNow: () => Date): CountdownController {
       window.clearInterval(countdownInterval);
     }
 
+    updateScheduleList();
+    renderTitle();
+
     if (currentIndex >= parsedSchedule.length) {
-      titleElem.innerHTML = "終了しました";
-      countdownElem.textContent = "--:--:--.---";
+      setCountdownText("--", "--", "--", "---");
       return;
     }
 
-    const { title, time } = parsedSchedule[currentIndex];
-    titleElem.innerHTML = `${colorizeKeywords(title, keywords).replace(/\n/g, "<br>")}<br><span class="countdown-time">${time
-      .toTimeString()
-      .slice(0, 8)}まで</span>`;
+    const { time } = parsedSchedule[currentIndex];
 
     countdownInterval = window.setInterval(() => {
       const diff = time.getTime() - getNow().getTime();
@@ -117,24 +198,23 @@ export function initCountdown(getNow: () => Date): CountdownController {
         currentIndex++;
         window.setTimeout(startNextCountdown, 2000);
       } else {
-        const h = String(Math.floor(diff / 3600000)).padStart(2, "0");
-        const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, "0");
-        const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, "0");
-        const ms = String(diff % 1000).padStart(3, "0");
-        countdownElem.innerHTML = `${h}:${m}:${s}<span class="ms">.${ms}</span>`;
+        // textContent-only update -- no HTML re-parse, no flicker.
+        setCountdownText(
+          pad2(Math.floor(diff / 3600000)),
+          pad2(Math.floor((diff % 3600000) / 60000)),
+          pad2(Math.floor((diff % 60000) / 1000)),
+          String(diff % 1000).padStart(3, "0"),
+        );
       }
     }, 50);
   }
 
   return {
     setEventData(data: EventData): void {
+      currentData = data;
       keywords = data.highlightKeywords;
 
-      setAnnouncementText(
-        announcementElem,
-        `<span class="announcement-label">お知らせ：</span>`,
-        data.announcement ?? "",
-      );
+      renderAnnouncement();
 
       const newSchedule = data.countdownRows
         .map((row) => ({ title: row.title, time: new Date(row.time) }))
@@ -143,9 +223,13 @@ export function initCountdown(getNow: () => Date): CountdownController {
 
       if (newSchedule.length > 0) {
         parsedSchedule = newSchedule;
-        updateScheduleList();
         startNextCountdown();
       }
+    },
+    refresh(): void {
+      renderAnnouncement();
+      renderTitle();
+      updateScheduleList();
     },
   };
 }

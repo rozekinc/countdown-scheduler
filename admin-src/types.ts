@@ -2,6 +2,10 @@
 // Keep this file in sync with the data/ JSON documents; do not invent
 // alternate field names.
 
+import type { DisplayLanguage, Label, LabelKey } from "./labels";
+
+export type { DisplayLanguage, Label, LabelKey } from "./labels";
+
 export interface AppTheme {
   primary: string;
   accent: string;
@@ -26,6 +30,13 @@ export interface AppsFile {
   /** Which aspect-ratio preset (see aspectRatios.ts) the stage is
    * letterboxed/pillarboxed to on every screen. Null/absent = 16:9. */
   aspectRatioId?: string | null;
+  /** Which language the display renders its labels in. Default "ja". */
+  displayLanguage?: DisplayLanguage | null;
+  /** Global font-size multiplier for the display (1 = default). */
+  textScale?: number | null;
+  /** Editable UI labels in both languages. Missing keys fall back to the
+   * built-in defaults (see labels.ts). */
+  labels?: Partial<Record<LabelKey, Label>> | null;
   /** Monotonic content revision, bumped when the published data set
    * changes. Surfaced read-only in the admin's version indicator. */
   contentVersion?: number;
@@ -41,19 +52,18 @@ export interface CountdownRow {
   time: string; // ISO 8601, e.g. 2026-07-10T13:00:00+09:00
 }
 
-export interface ScheduleRow {
-  A: string;
-  B: string;
-  /** Optional ISO datetime. When set, the display grays this row out once
-   * it's passed and highlights it while it's next up. Leave blank for
-   * free-form rows with no reliable time. */
-  time?: string;
+/** One entry in a day's schedule column. */
+export interface ScheduleItem {
+  title: string;
+  /** Free-text detail line, e.g. a time range like "10:30~" or a location. */
+  detail: string;
 }
 
 export interface ScheduleDay {
   date: string; // YYYY-MM-DD
-  announcement: string;
-  rows: ScheduleRow[];
+  /** Optional per-day announcement shown under that day's column. */
+  announcement?: string;
+  items: ScheduleItem[];
 }
 
 export interface EventData {
@@ -63,4 +73,7 @@ export interface EventData {
   announcement: string;
   countdownRows: CountdownRow[];
   scheduleDays: ScheduleDay[];
+  /** Terms highlighted (keyword-a / keyword-b color slots) wherever they
+   * appear in countdown/schedule text. Omitted/empty = built-in defaults. */
+  highlightKeywords?: string[];
 }

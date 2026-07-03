@@ -91,7 +91,7 @@ html, body {
 }
 
 .time-label {
-  font-size: clamp(18px, 3cqw, 40px);
+  font-size: calc(clamp(18px, 3cqw, 40px) * var(--text-scale, 1));
   text-align: center;
   color: var(--theme-accent, #484848);
 }
@@ -102,7 +102,7 @@ html, body {
   top: 2.5cqh;
   left: 58%;
   transform: translateX(-50%);
-  font-size: clamp(25px, 5.5cqw, 80px);
+  font-size: calc(clamp(25px, 5.5cqw, 80px) * var(--text-scale, 1));
   color: var(--theme-accent, #484848);
   user-select: none;
   white-space: nowrap;
@@ -111,10 +111,13 @@ html, body {
   transition: left 0.5s ease-in-out;
 }
 
-/* title and countdown block */
+/* title and countdown block -- raised slightly and with the title pulled
+   close to the countdown (see #title's margin below) so the current-session
+   title reads as one tight unit with its countdown rather than floating
+   loosely above it. */
 #main {
   position: absolute;
-  top: 28cqh;
+  top: 30cqh;
   left: 40%;
   transform: translateX(-50%);
   width: 55%;
@@ -127,10 +130,11 @@ html, body {
    countdown below it, so the countdown reads as the dominant, first-glance
    value rather than competing with it. */
 #title {
-  font-size: clamp(25px, 5cqw, 70px);
+  font-size: calc(clamp(25px, 5cqw, 70px) * var(--text-scale, 1));
   font-weight: 600;
   opacity: 0.85;
-  margin: 0 0 1.33cqh 0;
+  /* tight gap to the countdown below -- was a loose 1.33cqh offset */
+  margin: 0 0 0.3cqh 0;
   word-break: break-word;
   white-space: pre-line;
   /* Was unset (browser-default black) -- fine on the light per-app themes
@@ -146,7 +150,7 @@ html, body {
    weight is pushed past a plain bold to hold up against the surrounding
    chrome. */
 #countdown {
-  font-size: clamp(56px, 8.5cqw, 130px);
+  font-size: calc(clamp(56px, 8.5cqw, 130px) * var(--text-scale, 1));
   font-weight: 800;
   color: var(--theme-primary, #e60000);
   font-feature-settings: "tnum";
@@ -163,7 +167,9 @@ html, body {
    its own top offset with #main's, a bug in the original app that pushed
    it much lower than intended). */
 
-/* schedule list design */
+/* schedule list design -- a fixed heading over an auto-scrolling viewport.
+   Flex column so #list-viewport takes the remaining height and can clip +
+   scroll its content (see src/verticalScroll.ts setScrollingList). */
 #schedule-list {
   position: absolute;
   top: 0;
@@ -175,17 +181,59 @@ html, body {
   margin: 0;
   padding: 0;
   list-style: none;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   font-size: clamp(14px, 1.5cqw, 24px);
   z-index: 10;
 }
 
 #schedule-list h2 {
-  font-size: clamp(20px, 2.3cqw, 36px);
+  font-size: calc(clamp(20px, 2.3cqw, 36px) * var(--text-scale, 1));
   margin: 0;
   margin-top: 20px;
+  flex: 0 0 auto;
   font-weight: bold;
   text-align: center;
+  color: var(--theme-surface-text, #000);
+}
+
+/* auto-scroll viewport: takes the height left under the heading and clips,
+   so setScrollingList can detect overflow and loop the items seamlessly. */
+#list-viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.list-scroll-inner {
+  display: block;
+  width: 100%;
+}
+
+/* Two stacked copies of the list; translating by exactly one copy's height
+   (50% of the doubled total) loops seamlessly -- reuses @keyframes
+   schedule-scroll (defined further down). Only runs when overflowing. */
+.list-scroll-copy {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding-bottom: 2em; /* gap before the looping copy repeats */
+}
+
+.list-scroll-active .list-scroll-inner {
+  animation-name: schedule-scroll;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* relative-day separator inside the list (今日/明日/明後日 or a date) */
+.list-day-header {
+  text-align: center;
+  font-size: calc(clamp(24px, 2.3cqw, 36px) * var(--text-scale, 1));
+  font-weight: bold;
   color: var(--theme-surface-text, #000);
 }
 
@@ -199,7 +247,7 @@ html, body {
    use opacity for the past/next distinction, and this ID-scoped selector
    would out-specificity a plain class, silently breaking that dimming. */
 #schedule-list ul li {
-  font-size: clamp(16px, 3cqw, 32px);
+  font-size: calc(clamp(16px, 3cqw, 32px) * var(--text-scale, 1));
   padding: 6px 10px;
   font-weight: 600;
   border-bottom: 1px solid #ddd;
@@ -247,45 +295,80 @@ html, body {
   z-index: 5;
 }
 
-/* --- schedule display area ---
-   #schedule-date-row is pinned (always visible); #schedule-rows-viewport
-   holds however many rows the day has -- no cap -- and auto-scrolls,
-   seamlessly and continuously, only once they don't fit. See
-   src/verticalScroll.ts, which measures overflow and toggles the
-   scrolling-active class. */
-#schedule-body {
+/* --- schedule display area (day columns) ---
+   Up to three upcoming days are laid out side by side as columns (built in
+   src/schedule.ts). The columns area sits between the top chrome and the
+   announcement bar; each column has a date header, an optional relative-day
+   sub-label, then that day's items. */
+#schedule-columns {
   position: absolute;
-  top: 28cqh;
+  top: 22cqh;
   left: 0;
   right: 0;
   bottom: 12cqh;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 3cqw;
+  padding: 0 4cqw;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
-#schedule-date-row {
-  width: 100%;
-  flex: 0 0 auto;
+.schedule-column {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 32%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  text-align: center;
 }
 
-/* #schedule-rows-viewport (an ID, not a class -- see index.html/schedule.ts)
-   is the actual element these rules need to target. It only ever gets
-   the .schedule-rows-active class toggled onto it (see below), never
-   .schedule-rows-viewport itself, so a class selector here silently
-   matched nothing: no overflow:hidden, no flex sizing, and the rows just
-   rendered at full unclipped height, spilling into the announcement bar
-   below. */
-#schedule-rows-viewport {
+.schedule-col-header {
+  flex: 0 0 auto;
+  margin-bottom: 1.5cqh;
+}
+
+.schedule-col-date {
+  font-size: calc(clamp(25px, 3.3cqw, 44px) * var(--text-scale, 1));
+  font-weight: bold;
+  color: var(--theme-surface-text, #333);
+}
+
+.schedule-col-rel {
+  margin-top: 0.4cqh;
+  font-size: calc(clamp(18px, 2.2cqw, 30px) * var(--text-scale, 1));
+  font-weight: bold;
+  color: var(--theme-primary, #e60000);
+}
+
+.schedule-col-items {
   width: 100%;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  position: relative;
+}
+
+.schedule-col-item {
+  margin: 0.8cqh 0;
+}
+
+.schedule-item-title {
+  font-size: calc(clamp(22px, 2.6cqw, 36px) * var(--text-scale, 1));
+  font-weight: bold;
+  color: var(--theme-surface-text, #333);
+}
+
+.schedule-item-detail {
+  margin-top: 0.2cqh;
+  font-size: calc(clamp(18px, 2.1cqw, 28px) * var(--text-scale, 1));
+  font-weight: bold;
+  color: var(--theme-accent, #484848);
+}
+
+.schedule-col-announcement {
+  margin-top: 1.2cqh;
+  font-size: calc(clamp(16px, 1.8cqw, 24px) * var(--text-scale, 1));
+  font-weight: bold;
+  color: var(--theme-primary, #e60000);
 }
 
 .schedule-rows-inner {
@@ -442,7 +525,7 @@ html, body {
   align-items: baseline;
   gap: 0.4em;
   justify-content: center;
-  font-size: clamp(24px, 2.4cqw, 38px);
+  font-size: calc(clamp(24px, 2.4cqw, 38px) * var(--text-scale, 1));
   color: var(--theme-accent, black);
   font-weight: bold;
   white-space: nowrap;

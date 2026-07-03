@@ -4,16 +4,18 @@ import { renderSettingsControls } from "./settingsPanel";
 import { renderOverview } from "./overview";
 import { getJsonFile, listDir, commitFiles, type FileChange } from "./githubApi";
 import { isSignedIn } from "./auth";
-import { parseXlsxToRows } from "./excelImport";
+import { parseXlsxToItems } from "./excelImport";
 import {
   state,
   currentApp,
   currentDay,
   hasPendingChanges,
   clearPendingChanges,
+  seedLabels,
   type EventListEntry,
 } from "./state";
-import type { AppsFile, EventData, ScheduleRow } from "./types";
+import type { AppsFile, EventData, ScheduleItem, DisplayLanguage, LabelKey } from "./types";
+import { DEFAULT_LABELS } from "./labels";
 import { DISPLAY_MODES, DEFAULT_DISPLAY_MODE_ID, getDisplayMode } from "./displayModes";
 import { ASPECT_RATIOS, DEFAULT_ASPECT_RATIO_ID, getAspectRatio } from "./aspectRatios";
 import { applyPreviewTheme } from "./previewTheme";
@@ -85,7 +87,7 @@ export function init(root: HTMLElement): void {
   renderLangSwitcher();
   renderVersionIndicator();
   renderAuthControls(authControlsEl, onSignedIn);
-  renderSettingsControls(settingsControlsEl, onSettingsSaved);
+  renderSettingsControls(settingsControlsEl, onSettingsSaved, onDisplaySettingsChanged);
   renderViewToggle();
   applyViewMode();
   loadApps();
@@ -108,7 +110,7 @@ export function init(root: HTMLElement): void {
     renderLangSwitcher();
     renderVersionIndicator();
     renderAuthControls(authControlsEl, onSignedIn);
-    renderSettingsControls(settingsControlsEl, onSettingsSaved);
+    renderSettingsControls(settingsControlsEl, onSettingsSaved, onDisplaySettingsChanged);
     renderAppSwitcher();
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
@@ -264,6 +266,16 @@ function onSettingsSaved(): void {
   }
 }
 
+/** Called by the settings panel after any Display-settings edit (language /
+ * text size / labels). Those edits mutate state + state.appsPatch directly
+ * (see settingsPanel.ts); this refreshes the live preview and the Save
+ * button so the effect is visible immediately and Save picks it up. */
+function onDisplaySettingsChanged(): void {
+  setStatus(t("settings.displaySettingsStaged"));
+  renderPreviewPanel();
+  updateSaveButtonState();
+}
+
 function setStatus(message: string, isError = false): void {
   statusBarEl.textContent = message;
   statusBarEl.className = isError ? "status-bar status-error" : "status-bar";
@@ -278,6 +290,9 @@ async function loadApps(): Promise<void> {
     state.selectedAppId = data.selectedAppId ?? (state.apps[0]?.id ?? null);
     state.displayModeId = data.displayModeId ?? null;
     state.aspectRatioId = data.aspectRatioId ?? null;
+    state.displayLanguage = data.displayLanguage === "en" ? "en" : "ja";
+    state.textScale = typeof data.textScale === "number" ? data.textScale : 1;
+    state.labels = seedLabels(data.labels);
     state.contentVersion = data.contentVersion ?? null;
     state.contentUpdatedAt = data.contentUpdatedAt ?? null;
     if (state.apps.length > 0) {
@@ -447,13 +462,28 @@ function stageAspectRatio(aspectRatioId: string): void {
   updateSaveButtonState();
 }
 
+/** The active display language for the DISPLAY labels (not the admin UI). */
+function displayLang(): DisplayLanguage {
+  return state.displayLanguage === "en" ? "en" : "ja";
+}
+
+/** A display label resolved from the working labels state (edited live via
+ * the settings panel), falling back to the built-in default -- mirrors
+ * resolveLabel() in src/labels.ts so the preview matches the real site. */
+function resolveDisplayLabel(key: LabelKey): string {
+  const lang = displayLang();
+  const chosen = state.labels?.[key] ?? DEFAULT_LABELS[key];
+  return chosen[lang] || DEFAULT_LABELS[key][lang] || DEFAULT_LABELS[key].ja;
+}
+
 /**
- * A miniature, representative mockup of the real display site (title, a
- * countdown-style number, an announcement bar, a couple of schedule rows),
- * styled with the same --theme-* CSS custom properties the real site uses,
- * so switching the app or the display-mode dropdown updates it instantly.
- * This is not a live embed of the site -- just enough to compare presets
- * without walking over to the actual TV.
+ * A miniature, representative mockup of BOTH display screens (the countdown
+ * page and the schedule page), styled with the same --theme-* CSS custom
+ * properties the real site uses. It renders the editable display labels in
+ * the currently-selected display language, scaled by the text-size setting,
+ * so switching the app, display mode, language, text size, or editing a
+ * label updates it instantly. Not a live embed -- just enough to see where
+ * each label lands on each screen without walking over to the actual TV.
  */
 function renderPreviewPanel(): void {
   clear(previewPanelEl);
@@ -465,27 +495,97 @@ function renderPreviewPanel(): void {
   previewPanelEl.append(el("h3", { class: "preview-panel-title" }, [t("preview.title")]));
   previewPanelEl.append(el("p", { class: "preview-mode-label" }, [t("preview.summary", { mode: modeLabel, ratio: ratio.label })]));
 
-  const mock = el("div", { class: "preview-mock", style: `aspect-ratio: ${ratio.w} / ${ratio.h};` }, [
+  // Text size is a font-size multiplier on the real display; scale the mock
+  // root font-size so every em-based label inside scales with it.
+  const scale = typeof state.textScale === "number" && state.textScale > 0 ? state.textScale : 1;
+  const rootFontStyle = `font-size: ${(12 * scale).toFixed(2)}px;`;
+
+  previewPanelEl.append(
+    renderCountdownScreenMock(app, rootFontStyle),
+    renderScheduleScreenMock(rootFontStyle),
+  );
+}
+
+/** Countdown-page mock: current-time label + clock, a countdown target with
+ * the "until" suffix, the next-schedule list, an announcement, and the
+ * screen-toggle label. */
+function renderCountdownScreenMock(app: ReturnType<typeof currentApp>, rootFontStyle: string): HTMLElement {
+  const wrap = el("div", { class: "preview-screen-wrap" });
+  wrap.append(el("p", { class: "preview-screen-label" }, [t("preview.countdownScreen")]));
+
+  const screen = el("div", { class: "preview-mock preview-screen", style: rootFontStyle }, [
     el("div", { class: "preview-mock-title" }, [app ? app.name : t("preview.noApp")]),
-    el("div", { class: "preview-mock-countdown" }, ["12:34:56"]),
-    el("div", { class: "preview-mock-announcement" }, [
-      t("preview.nextUp"),
-      el("span", { class: "keyword keyword-a" }, [t("preview.sampleKeywordA")]),
-      t("preview.then"),
-      el("span", { class: "keyword keyword-b" }, [t("preview.sampleKeywordB")]),
+    el("div", { class: "preview-cd-top" }, [
+      el("span", { class: "preview-cd-clock-label" }, [resolveDisplayLabel("currentTime")]),
+      el("span", { class: "preview-cd-clock" }, ["12:34:56"]),
     ]),
-    el("div", { class: "preview-mock-rows" }, [
-      el("div", { class: "preview-mock-row" }, [
-        el("span", {}, ["Practice"]),
-        el("span", {}, ["09:00"]),
+    el("div", { class: "preview-mock-countdown" }, [
+      el("span", {}, [t("preview.sampleCountdownTitle")]),
+      el("span", { class: "preview-cd-until" }, [` 13:30 ${resolveDisplayLabel("until")}`]),
+    ]),
+    el("div", { class: "preview-cd-next" }, [
+      el("div", { class: "preview-cd-next-head" }, [resolveDisplayLabel("nextSchedule")]),
+      el("div", { class: "preview-mock-rows" }, [
+        el("div", { class: "preview-mock-row" }, [
+          el("span", {}, [t("preview.sampleNext1")]),
+          el("span", {}, ["09:00"]),
+        ]),
+        el("div", { class: "preview-mock-row" }, [
+          el("span", {}, [t("preview.sampleNext2")]),
+          el("span", {}, ["13:50"]),
+        ]),
       ]),
-      el("div", { class: "preview-mock-row" }, [
-        el("span", {}, ["Qualifying"]),
-        el("span", {}, ["13:30"]),
+    ]),
+    el("div", { class: "preview-mock-announcement" }, [
+      el("span", { class: "preview-notice-prefix" }, [resolveDisplayLabel("noticePrefix")]),
+      t("preview.sampleAnnouncement"),
+    ]),
+    el("div", { class: "preview-toggle-chip" }, [resolveDisplayLabel("toggle")]),
+  ]);
+  wrap.append(screen);
+  return wrap;
+}
+
+/** Schedule-page mock: two day columns (today / tomorrow) with the relative
+ * day labels and a couple of schedule items each, plus the announcement. */
+function renderScheduleScreenMock(rootFontStyle: string): HTMLElement {
+  const wrap = el("div", { class: "preview-screen-wrap" });
+  wrap.append(el("p", { class: "preview-screen-label" }, [t("preview.scheduleScreen")]));
+
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const fmt = (d: Date) =>
+    `${d.getMonth() + 1}/${d.getDate()}`;
+
+  const column = (dateLabel: string, relLabel: string, items: Array<[string, string]>) =>
+    el("div", { class: "preview-sched-col" }, [
+      el("div", { class: "preview-sched-date" }, [dateLabel]),
+      el("div", { class: "preview-sched-rel" }, [relLabel]),
+      ...items.map(([title, detail]) =>
+        el("div", { class: "preview-mock-row" }, [
+          el("span", {}, [title]),
+          el("span", {}, [detail]),
+        ]),
+      ),
+    ]);
+
+  const screen = el("div", { class: "preview-mock preview-screen", style: rootFontStyle }, [
+    el("div", { class: "preview-mock-announcement" }, [
+      el("span", { class: "preview-notice-prefix" }, [resolveDisplayLabel("noticePrefix")]),
+      t("preview.sampleAnnouncement"),
+    ]),
+    el("div", { class: "preview-sched-cols" }, [
+      column(fmt(today), resolveDisplayLabel("today"), [
+        [t("preview.sampleItem1Title"), t("preview.sampleItem1Detail")],
+      ]),
+      column(fmt(tomorrow), resolveDisplayLabel("tomorrow"), [
+        [t("preview.sampleItem2Title"), t("preview.sampleItem2Detail")],
       ]),
     ]),
   ]);
-  previewPanelEl.append(mock);
+  wrap.append(screen);
+  return wrap;
 }
 
 async function loadEventsForCurrentApp(): Promise<void> {
@@ -578,7 +678,7 @@ function renderLeftPanel(): void {
       // No prompt() for the date -- push a blank day and let the date
       // picker (+ today/tomorrow/day-after shortcuts) rendered for it
       // (see renderDayEditor) be how it's set.
-      state.currentEvent.scheduleDays.push({ date: "", announcement: "", rows: [] });
+      state.currentEvent.scheduleDays.push({ date: "", announcement: "", items: [] });
       state.selectedDayIndex = state.currentEvent.scheduleDays.length - 1;
       markEventDirty();
       renderLeftPanel();
@@ -603,7 +703,7 @@ async function selectEvent(id: string): Promise<void> {
     state.currentEventId = id;
     state.currentEvent = file.data;
     state.selectedDayIndex = 0;
-    state.pendingImportRows = null;
+    state.pendingImportItems = null;
     state.eventDirty = false;
     state.pendingClose = false;
     setStatus("");
@@ -699,7 +799,7 @@ function stageNewDraftEvent(appId: string, id: string): void {
   state.currentEventId = id;
   state.currentEvent = newEvent;
   state.selectedDayIndex = 0;
-  state.pendingImportRows = null;
+  state.pendingImportItems = null;
   state.pendingClose = false;
   state.eventsForApp = [...state.eventsForApp, { id, status: "draft" }];
   markEventDirty();
@@ -798,6 +898,9 @@ async function saveAll(): Promise<void> {
       patch.selectedAppId !== undefined ||
       patch.displayModeId !== undefined ||
       patch.aspectRatioId !== undefined ||
+      patch.displayLanguage !== undefined ||
+      patch.textScale !== undefined ||
+      patch.labels !== undefined ||
       activeEdits.length > 0;
 
     if (hasAppsPatch) {
@@ -810,6 +913,9 @@ async function saveAll(): Promise<void> {
       if (patch.selectedAppId !== undefined) appsData.selectedAppId = patch.selectedAppId;
       if (patch.displayModeId !== undefined) appsData.displayModeId = patch.displayModeId;
       if (patch.aspectRatioId !== undefined) appsData.aspectRatioId = patch.aspectRatioId;
+      if (patch.displayLanguage !== undefined) appsData.displayLanguage = patch.displayLanguage;
+      if (patch.textScale !== undefined) appsData.textScale = patch.textScale;
+      if (patch.labels !== undefined) appsData.labels = patch.labels;
       for (const [appId, eventId] of activeEdits) {
         const app = appsData.apps.find((a) => a.id === appId);
         if (app) app.activeEventId = eventId;
@@ -1028,7 +1134,7 @@ function renderDayEditor(): HTMLElement {
 
   section.append(el("label", { class: "field" }, [t("day.date"), dateInput]), shortcuts);
 
-  const dayAnnouncementInput = el("textarea", { class: "announcement-input", rows: "2" }, [day.announcement]);
+  const dayAnnouncementInput = el("textarea", { class: "announcement-input", rows: "2" }, [day.announcement ?? ""]);
   dayAnnouncementInput.addEventListener("input", () => {
     day.announcement = (dayAnnouncementInput as HTMLTextAreaElement).value;
     markEventDirty();
@@ -1036,49 +1142,44 @@ function renderDayEditor(): HTMLElement {
   section.append(el("label", { class: "field" }, [t("day.announcement"), dayAnnouncementInput]));
 
   const table = el("div", { class: "rows-table scrollable" });
-  day.rows.forEach((row, index) => {
-    const rowEl = el("div", { class: "row-editor" });
+  day.items.forEach((item, index) => {
+    const rowEl = el("div", { class: "row-editor schedule-item-editor" });
 
-    const aInput = el("textarea", { class: "row-input", rows: "1" }, [row.A]);
-    aInput.addEventListener("input", () => {
-      row.A = (aInput as HTMLTextAreaElement).value;
+    const titleInput = el("textarea", {
+      class: "row-input",
+      rows: "1",
+      placeholder: t("day.itemTitle"),
+    }, [item.title]);
+    titleInput.addEventListener("input", () => {
+      item.title = (titleInput as HTMLTextAreaElement).value;
       markEventDirty();
     });
 
-    const bInput = el("textarea", { class: "row-input", rows: "1" }, [row.B]);
-    bInput.addEventListener("input", () => {
-      row.B = (bInput as HTMLTextAreaElement).value;
+    const detailInput = el("textarea", {
+      class: "row-input",
+      rows: "1",
+      placeholder: t("day.itemDetail"),
+    }, [item.detail]);
+    detailInput.addEventListener("input", () => {
+      item.detail = (detailInput as HTMLTextAreaElement).value;
       markEventDirty();
     });
-
-    const dateTimeInputs = createDateTimeInputs(
-      row.time ?? "",
-      (iso) => {
-        if (iso) {
-          row.time = iso;
-        } else {
-          delete row.time;
-        }
-        markEventDirty();
-      },
-      { title: t("day.timeOptional") },
-    );
 
     const removeBtn = el("button", { class: "btn btn-secondary btn-small" }, [t("day.remove")]);
     removeBtn.addEventListener("click", () => {
-      day.rows.splice(index, 1);
+      day.items.splice(index, 1);
       markEventDirty();
       renderMainPanel();
     });
 
-    rowEl.append(aInput, bInput, dateTimeInputs, removeBtn);
+    rowEl.append(titleInput, detailInput, removeBtn);
     table.append(rowEl);
   });
   section.append(table);
 
   const addRowBtn = el("button", { class: "btn btn-secondary" }, [t("day.addRow")]);
   addRowBtn.addEventListener("click", () => {
-    day.rows.push({ A: "", B: "" });
+    day.items.push({ title: "", detail: "" });
     markEventDirty();
     renderMainPanel();
   });
@@ -1097,7 +1198,7 @@ function renderImportSection(): HTMLElement {
     const file = input.files?.[0];
     if (!file) return;
     try {
-      state.pendingImportRows = await parseXlsxToRows(file);
+      state.pendingImportItems = await parseXlsxToItems(file);
       renderMainPanel();
     } catch (err) {
       setStatus(t("import.parseFailed", { name: file.name, message: (err as Error).message }), true);
@@ -1105,14 +1206,14 @@ function renderImportSection(): HTMLElement {
   });
   section.append(fileInput);
 
-  if (state.pendingImportRows) {
-    section.append(el("p", {}, [t("import.parsed", { count: state.pendingImportRows.length })]));
+  if (state.pendingImportItems) {
+    section.append(el("p", {}, [t("import.parsed", { count: state.pendingImportItems.length })]));
     const preview = el("div", { class: "rows-table scrollable" });
-    for (const row of state.pendingImportRows) {
+    for (const item of state.pendingImportItems) {
       preview.append(
         el("div", { class: "row-editor readonly" }, [
-          el("span", { class: "row-input" }, [row.A]),
-          el("span", { class: "row-input" }, [row.B]),
+          el("span", { class: "row-input" }, [item.title]),
+          el("span", { class: "row-input" }, [item.detail]),
         ]),
       );
     }
@@ -1121,13 +1222,13 @@ function renderImportSection(): HTMLElement {
     const applyBtn = el("button", { class: "btn btn-primary" }, [t("import.apply")]);
     applyBtn.addEventListener("click", () => {
       const day = currentDay();
-      const rows: ScheduleRow[] = state.pendingImportRows ?? [];
+      const items: ScheduleItem[] = state.pendingImportItems ?? [];
       if (!day) {
         setStatus(t("import.noDay"), true);
         return;
       }
-      day.rows = rows;
-      state.pendingImportRows = null;
+      day.items = items;
+      state.pendingImportItems = null;
       markEventDirty();
       setStatus(t("import.applied"));
       renderMainPanel();
@@ -1135,7 +1236,7 @@ function renderImportSection(): HTMLElement {
 
     const cancelBtn = el("button", { class: "btn btn-secondary" }, [t("import.cancel")]);
     cancelBtn.addEventListener("click", () => {
-      state.pendingImportRows = null;
+      state.pendingImportItems = null;
       renderMainPanel();
     });
 
