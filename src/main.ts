@@ -180,6 +180,7 @@ async function main(): Promise<void> {
   const initialApp = resolveActiveApp(appsData);
   applyAspectRatio(appsData.aspectRatioId ?? null);
   runApp(initialApp, appsData.displayModeId ?? null);
+  countdownController.setRedFlag(appsData.redFlag);
 
   // Subtle corner badge showing which content version + code build this
   // screen is running; updateVersionBadge is called from the apps.json
@@ -215,8 +216,17 @@ async function main(): Promise<void> {
       applyTextScale(currentAppsData);
       countdownController.refresh();
       scheduleController.refresh();
+      countdownController.setRedFlag(data.redFlag);
     },
   );
+
+  // Re-fit the countdown block when the window/stage size changes (the fit is
+  // height-bounded, so a resize can change how much the title needs to shrink).
+  let resizeTimer: number | undefined;
+  window.addEventListener("resize", () => {
+    if (resizeTimer !== undefined) window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(() => countdownController.refresh(), 150);
+  });
 
   // Wire up interaction and start the clock IMMEDIATELY -- do NOT block the
   // whole UI on the time sync. worldtimeapi can be slow or unreachable (it

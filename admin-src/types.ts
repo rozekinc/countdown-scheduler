@@ -19,6 +19,11 @@ export interface AppConfig {
   activeEventId: string | null;
 }
 
+export interface RedFlagState {
+  active: boolean;
+  since?: string | null;
+}
+
 export interface AppsFile {
   apps: AppConfig[];
   /** Which app the primary display (no ?app= override) should currently
@@ -37,6 +42,8 @@ export interface AppsFile {
   /** Editable UI labels in both languages. Missing keys fall back to the
    * built-in defaults (see labels.ts). */
   labels?: Partial<Record<LabelKey, Label>> | null;
+  /** Red-flag / stoppage state, toggled from the admin header. */
+  redFlag?: RedFlagState | null;
   /** Monotonic content revision, bumped when the published data set
    * changes. Surfaced read-only in the admin's version indicator. */
   contentVersion?: number;

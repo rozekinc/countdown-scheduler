@@ -5,6 +5,7 @@ import type {
   EventData,
   Label,
   LabelKey,
+  RedFlagState,
   ScheduleItem,
 } from "./types";
 
@@ -30,6 +31,8 @@ export interface AppsPatch {
   /** appId -> new activeEventId (null clears it), staged by "Set active" /
    * "Close event" for whichever app(s) were touched this session. */
   activeEventIdByApp?: Record<string, string | null>;
+  /** Red-flag / stoppage state, committed immediately from the header. */
+  redFlag?: RedFlagState;
 }
 
 export interface AppState {
@@ -57,6 +60,9 @@ export interface AppState {
   displayLanguage: DisplayLanguage;
   textScale: number;
   labels: Record<LabelKey, Label>;
+
+  /** Current red-flag / stoppage state from data/apps.json. */
+  redFlag: RedFlagState;
 
   /** Read-only content revision + date from data/apps.json, shown in the
    * header's version indicator. Null when the file omits them. */
@@ -125,6 +131,7 @@ export const state: AppState = {
   displayLanguage: "ja",
   textScale: 1,
   labels: defaultLabels(),
+  redFlag: { active: false, since: null },
   contentVersion: null,
   contentUpdatedAt: null,
   eventsForApp: [],

@@ -117,12 +117,22 @@ html, body {
    loosely above it. */
 #main {
   position: absolute;
-  top: 26cqh;
-  left: 40%;
-  transform: translateX(-50%);
-  width: 55%;
+  /* A bounded vertical band between the top chrome (clock/logo) and the
+     announcement bar, spanning the non-sidebar width. Flex-centered, and a
+     long title/countdown auto-shrinks to fit via --fit-scale (set by
+     src/fitText.ts) instead of overflowing into the announcement below. */
+  top: 25cqh;
+  bottom: 13cqh;
+  left: 0;
+  width: 75%; /* the schedule sidebar takes the right 25% */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.4cqh;
   text-align: center;
   user-select: none;
+  overflow: hidden;
   z-index: 10;
 }
 
@@ -133,11 +143,10 @@ html, body {
   /* Sized by the SMALLER of width/height units so it also fits short stages
      (e.g. the 21:9 ultrawide preset, which is much less tall than 16:9 and
      was overflowing into the countdown/announcement below). */
-  font-size: calc(clamp(22px, min(4.5cqw, 8cqh), 58px) * var(--text-scale, 1));
+  font-size: calc(clamp(22px, min(4.5cqw, 8cqh), 58px) * var(--text-scale, 1) * var(--fit-scale, 1));
   font-weight: 600;
   opacity: 0.85;
-  /* tight gap to the countdown below -- was a loose 1.33cqh offset */
-  margin: 0 0 0.3cqh 0;
+  margin: 0;
   word-break: break-word;
   white-space: pre-line;
   /* Was unset (browser-default black) -- fine on the light per-app themes
@@ -153,9 +162,10 @@ html, body {
    weight is pushed past a plain bold to hold up against the surrounding
    chrome. */
 #countdown {
-  /* min(cqw, cqh) so the single biggest element still fits the short 21:9
-     stage instead of overflowing past the announcement bar. */
-  font-size: calc(clamp(44px, min(8cqw, 15cqh), 120px) * var(--text-scale, 1));
+  /* min(cqw, cqh) so the single biggest element scales with BOTH dimensions;
+     --fit-scale shrinks the whole block further if a long title would push it
+     past the available height. */
+  font-size: calc(clamp(40px, min(8cqw, 14cqh), 120px) * var(--text-scale, 1) * var(--fit-scale, 1));
   font-weight: 800;
   color: var(--theme-primary, #e60000);
   font-feature-settings: "tnum";
@@ -165,6 +175,63 @@ html, body {
 #countdown .ms {
   font-size: 0.5em;
   vertical-align: -0.1em;
+}
+
+/* --- Red flag / stoppage --- */
+.rf-hidden {
+  display: none !important;
+}
+
+/* Red-flag indicator, top-left, only while a red flag is active. */
+#red-flag {
+  position: absolute;
+  top: 2.5cqh;
+  left: 1.5cqw;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 0.6cqw;
+  background: #d40000;
+  color: #fff;
+  padding: 0.7cqh 1.4cqw;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: calc(clamp(20px, 2.4cqw, 40px) * var(--text-scale, 1));
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+}
+#red-flag .rf-flag {
+  width: 1.1em;
+  height: 1.1em;
+  background: #fff;
+  /* a simple waving-flag silhouette */
+  clip-path: polygon(0 0, 100% 0, 100% 72%, 0 72%);
+}
+
+/* A red border around the whole stage is a strong at-a-glance cue. */
+body.red-flag-on .aspect-inner {
+  box-shadow: inset 0 0 0 6px #d40000;
+}
+
+/* Stoppage (count-up) timer, shown under the frozen countdown. */
+#stoppage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 0.6cqh;
+}
+.stoppage-label {
+  font-size: calc(clamp(15px, 1.8cqw, 26px) * var(--text-scale, 1) * var(--fit-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.8;
+  color: var(--theme-accent, #333);
+}
+#stoppage-timer {
+  font-size: calc(clamp(28px, min(5.5cqw, 10cqh), 80px) * var(--text-scale, 1) * var(--fit-scale, 1));
+  font-weight: 800;
+  color: #d40000;
+  font-feature-settings: "tnum";
+  white-space: nowrap;
 }
 
 /* See .announcement-bar further down for #announcement's actual layout --

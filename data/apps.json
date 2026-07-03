@@ -74,6 +74,7 @@
       "en": "Day After"
     }
   },
+  "redFlag": { "active": false, "since": null },
   "contentVersion": 2,
   "contentUpdatedAt": "2026-07-03"
 }

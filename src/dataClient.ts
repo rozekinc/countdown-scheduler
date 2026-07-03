@@ -121,6 +121,7 @@ export function watchDisplaySettings(
   let currentDisplayLanguage = initialApps.displayLanguage ?? null;
   let currentTextScale = initialApps.textScale ?? null;
   let currentLabelsJson = JSON.stringify(initialApps.labels ?? null);
+  let currentRedFlagJson = JSON.stringify(initialApps.redFlag ?? null);
 
   window.setInterval(() => {
     void (async () => {
@@ -153,14 +154,17 @@ export function watchDisplaySettings(
       const freshDisplayLanguage = fresh.displayLanguage ?? null;
       const freshTextScale = fresh.textScale ?? null;
       const freshLabelsJson = JSON.stringify(fresh.labels ?? null);
+      const freshRedFlagJson = JSON.stringify(fresh.redFlag ?? null);
       if (
         freshDisplayLanguage !== currentDisplayLanguage ||
         freshTextScale !== currentTextScale ||
-        freshLabelsJson !== currentLabelsJson
+        freshLabelsJson !== currentLabelsJson ||
+        freshRedFlagJson !== currentRedFlagJson
       ) {
         currentDisplayLanguage = freshDisplayLanguage;
         currentTextScale = freshTextScale;
         currentLabelsJson = freshLabelsJson;
+        currentRedFlagJson = freshRedFlagJson;
         onDisplaySettingsChange(fresh);
       }
 

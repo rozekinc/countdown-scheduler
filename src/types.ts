@@ -55,6 +55,17 @@ export interface AppsData {
   /** Editable UI labels in both languages. Missing keys fall back to the
    * built-in defaults (see labels.ts). */
   labels?: Partial<Record<LabelKey, Label>> | null;
+  /** Red-flag / session-stoppage state, toggled from the admin. When active,
+   * the display freezes the main countdown, shows a red-flag indicator, and
+   * runs a count-up "stoppage" timer from `since`. */
+  redFlag?: RedFlagState | null;
+}
+
+export interface RedFlagState {
+  active: boolean;
+  /** ISO timestamp of when the red flag was raised; the stoppage timer counts
+   * up from here. Null/absent when not active. */
+  since?: string | null;
 }
 
 export interface CountdownRow {

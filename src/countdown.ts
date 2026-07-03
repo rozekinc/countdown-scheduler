@@ -1,8 +1,9 @@
-import type { AppsData, EventData } from "./types";
+import type { AppsData, EventData, RedFlagState } from "./types";
 import { setAnnouncementText } from "./marquee";
 import { setScrollingList } from "./verticalScroll";
 import { colorizeKeywords } from "./keywords";
-import { resolveLabel, relativeDayLabel } from "./labels";
+import { resolveLabel, relativeDayLabel, displayLanguage } from "./labels";
+import { fitToHeight } from "./fitText";
 
 export interface CountdownController {
   setEventData(data: EventData): void;
@@ -10,6 +11,9 @@ export interface CountdownController {
    * announcement prefix) without disturbing the running timer -- called when
    * the display language / labels change live. */
   refresh(): void;
+  /** Apply red-flag state: freeze the main countdown + show the count-up
+   * stoppage timer + red-flag indicator when active; resume when cleared. */
+  setRedFlag(state: RedFlagState | null | undefined): void;
 }
 
 interface ParsedRow {
@@ -40,10 +44,16 @@ function playSequentialSounds(sounds: HTMLAudioElement[]): void {
 }
 
 export function initCountdown(getNow: () => Date, getApps: () => AppsData): CountdownController {
+  const mainElem = document.getElementById("main") as HTMLElement;
   const titleElem = document.getElementById("title") as HTMLElement;
   const countdownElem = document.getElementById("countdown") as HTMLElement;
   const announcementElem = document.getElementById("announcement") as HTMLElement;
   const listElem = document.getElementById("list-viewport") as HTMLElement;
+  const redFlagElem = document.getElementById("red-flag") as HTMLElement;
+  const redFlagTextElem = document.getElementById("red-flag-text") as HTMLElement;
+  const stoppageElem = document.getElementById("stoppage") as HTMLElement;
+  const stoppageLabelElem = document.getElementById("stoppage-label") as HTMLElement;
+  const stoppageTimerElem = document.getElementById("stoppage-timer") as HTMLElement;
 
   const soundAto = document.getElementById("sound-ato") as HTMLAudioElement;
   const sound20 = document.getElementById("sound-20") as HTMLAudioElement;
@@ -88,6 +98,69 @@ export function initCountdown(getNow: () => Date, getApps: () => AppsData): Coun
   let played10 = false;
   let played20 = false;
 
+  let redFlagActive = false;
+  let redFlagSinceMs = 0;
+  let stoppageInterval: number | undefined;
+
+  // Re-fit the title/countdown block to its bounded height after the browser
+  // has laid out new content, so a long title shrinks instead of overflowing.
+  function fitMain(): void {
+    window.requestAnimationFrame(() => fitToHeight(mainElem));
+  }
+
+  // Freeze the main countdown at the time remaining when the flag was raised
+  // (target - since). Used both when the flag is applied and when schedule
+  // data arrives after the flag was already up (async load), so the frozen
+  // value is always shown -- never a blank "::".
+  function freezeCountdown(): void {
+    if (currentIndex >= parsedSchedule.length) {
+      setCountdownText("--", "--", "--", "---");
+      return;
+    }
+    const frozen = Math.max(0, parsedSchedule[currentIndex].time.getTime() - redFlagSinceMs);
+    setCountdownText(
+      pad2(Math.floor(frozen / 3600000)),
+      pad2(Math.floor((frozen % 3600000) / 60000)),
+      pad2(Math.floor((frozen % 60000) / 1000)),
+      String(frozen % 1000).padStart(3, "0"),
+    );
+  }
+
+  function updateStoppage(): void {
+    const elapsed = Math.max(0, getNow().getTime() - redFlagSinceMs);
+    stoppageTimerElem.textContent =
+      `${pad2(Math.floor(elapsed / 3600000))}:` +
+      `${pad2(Math.floor((elapsed % 3600000) / 60000))}:` +
+      `${pad2(Math.floor((elapsed % 60000) / 1000))}`;
+  }
+
+  function applyRedFlag(state: RedFlagState | null | undefined): void {
+    const active = !!state?.active;
+    const sinceMs = state?.since ? new Date(state.since).getTime() : NaN;
+    redFlagActive = active;
+    redFlagSinceMs = Number.isNaN(sinceMs) ? getNow().getTime() : sinceMs;
+
+    const en = displayLanguage(getApps()) === "en";
+    redFlagTextElem.textContent = en ? "RED FLAG" : "赤旗";
+    stoppageLabelElem.textContent = en ? "STOPPAGE" : "中断時間";
+
+    document.body.classList.toggle("red-flag-on", active);
+    redFlagElem.classList.toggle("rf-hidden", !active);
+    stoppageElem.classList.toggle("rf-hidden", !active);
+
+    if (active) {
+      freezeCountdown();
+      updateStoppage();
+      if (stoppageInterval === undefined) {
+        stoppageInterval = window.setInterval(updateStoppage, 200);
+      }
+    } else if (stoppageInterval !== undefined) {
+      window.clearInterval(stoppageInterval);
+      stoppageInterval = undefined;
+    }
+    fitMain();
+  }
+
   function renderAnnouncement(): void {
     const apps = getApps();
     setAnnouncementText(
@@ -110,6 +183,7 @@ export function initCountdown(getNow: () => Date, getApps: () => AppsData): Coun
     titleElem.innerHTML =
       `${colorizeKeywords(title, keywords).replace(/\n/g, "<br>")}<br>` +
       `<span class="countdown-time">${hhmmss(time)}${until}</span>`;
+    fitMain();
   }
 
   function dayKeyOf(d: Date): string {
@@ -175,9 +249,18 @@ export function initCountdown(getNow: () => Date, getApps: () => AppsData): Coun
       return;
     }
 
+    // If a red flag is up when fresh schedule data arrives, show the frozen
+    // remaining time (the tick below will no-op while the flag is up).
+    if (redFlagActive) freezeCountdown();
+
     const { time } = parsedSchedule[currentIndex];
 
     countdownInterval = window.setInterval(() => {
+      // While a red flag is up, the main countdown FREEZES: no display update,
+      // no cue sounds, and no advancing to the next target. The stoppage timer
+      // (updated on its own interval) counts up instead.
+      if (redFlagActive) return;
+
       const diff = time.getTime() - getNow().getTime();
 
       if (!played20 && diff <= 1200000 && diff > 1140000) {
@@ -230,6 +313,15 @@ export function initCountdown(getNow: () => Date, getApps: () => AppsData): Coun
       renderAnnouncement();
       renderTitle();
       updateScheduleList();
+      // Re-apply red-flag labels in the (possibly changed) language.
+      if (redFlagActive) {
+        const en = displayLanguage(getApps()) === "en";
+        redFlagTextElem.textContent = en ? "RED FLAG" : "赤旗";
+        stoppageLabelElem.textContent = en ? "STOPPAGE" : "中断時間";
+      }
+    },
+    setRedFlag(state: RedFlagState | null | undefined): void {
+      applyRedFlag(state);
     },
   };
 }
