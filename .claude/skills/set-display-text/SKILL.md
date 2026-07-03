@@ -10,7 +10,8 @@ Edit the three global text settings in `data/apps.json`: `displayLanguage`
 `labels` (the editable wording for the fixed UI labels). These are global — they
 apply to every screen, including screens pinned with an `?app=` link. Event
 content (countdown titles, schedule items, announcements) is NOT here; that lives
-in the event files.
+in the event files. To place, move, or resize a piece of text (or any item) on
+the screen — rather than change its wording — use `edit-the-layout` instead.
 
 ## Preconditions
 

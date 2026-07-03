@@ -1,4 +1,5 @@
 import type { App, AppsData, EventData } from "./types";
+import { defaultLayoutForApp, type LayoutDoc } from "./layout";
 import { dataBaseUrl } from "./config";
 
 // Prefix for every data fetch. On a github.io deployment this points at
@@ -58,6 +59,15 @@ export async function loadApps(): Promise<AppsData> {
   if (!data || !Array.isArray(data.apps) || data.apps.length === 0) {
     throw new Error("apps.json の読み込みに失敗しました");
   }
+  return data;
+}
+
+/** Loads the per-app layout (data/layouts/<appId>.json). Falls back to the
+ * built-in base layout when the file is absent (or malformed), so a display
+ * with no authored layout looks exactly like the pre-editor default. */
+export async function loadLayout(appId: string): Promise<LayoutDoc> {
+  const data = await fetchJson<LayoutDoc>(`${BASE}data/layouts/${appId}.json`);
+  if (!data || !Array.isArray(data.items)) return defaultLayoutForApp(appId);
   return data;
 }
 

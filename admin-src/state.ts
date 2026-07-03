@@ -1,4 +1,5 @@
 import { DEFAULT_LABELS } from "./labels";
+import type { LayoutDoc } from "./layout";
 import type {
   AppConfig,
   DisplayLanguage,
@@ -37,8 +38,8 @@ export interface AppsPatch {
 
 export interface AppState {
   /** "editor" edits one app's events; "overview" lists every event across
-   * every app, click-to-jump-into-editor. */
-  viewMode: "editor" | "overview";
+   * every app; "layout" is the free-canvas layout editor for the current app. */
+  viewMode: "editor" | "overview" | "layout";
 
   apps: AppConfig[];
   currentAppId: string | null;
@@ -88,6 +89,12 @@ export interface AppState {
   /** Unsaved data/apps.json edits (Show on display / display mode / Set
    * active), reconciled against a fresh read and committed on Save. */
   appsPatch: AppsPatch;
+
+  /** Working copy of the current app's layout (data/layouts/<appId>.json),
+   * loaded on app switch and edited in the layout view. Null until loaded. */
+  layout: LayoutDoc | null;
+  /** True once the layout has an unsaved edit; committed on the next Save. */
+  layoutDirty: boolean;
 
   statusMessage: string;
 }
@@ -142,6 +149,8 @@ export const state: AppState = {
   eventDirty: false,
   pendingClose: false,
   appsPatch: {},
+  layout: null,
+  layoutDirty: false,
   statusMessage: "",
 };
 
@@ -159,6 +168,7 @@ export function hasPendingChanges(): boolean {
   const patch = state.appsPatch;
   return (
     state.eventDirty ||
+    state.layoutDirty ||
     patch.selectedAppId !== undefined ||
     patch.displayModeId !== undefined ||
     patch.aspectRatioId !== undefined ||
@@ -174,4 +184,5 @@ export function clearPendingChanges(): void {
   state.eventDirty = false;
   state.pendingClose = false;
   state.appsPatch = {};
+  state.layoutDirty = false;
 }

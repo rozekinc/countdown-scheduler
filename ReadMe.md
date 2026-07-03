@@ -15,6 +15,11 @@ database:
   colors and which event it is currently showing).
 - `data/events/` — one file per event, holding the countdown items, the
   announcement text, and the day-by-day schedule.
+- `data/layouts/` — one file per app (`<appId>.json`), holding that app's
+  free-canvas layout: which items (countdown, clock, text, images, schedule,
+  announcement) are placed where on the screen. Edited visually in the admin's
+  **Layout** view. An app with no layout file falls back to the built-in default
+  that reproduces the original fixed look.
 - `data/archive/` — finished events, moved here (sorted by year) so
   `data/events/` only ever holds things that are still current.
 
@@ -113,9 +118,11 @@ you always know what you're looking at:
 - It is scoped by its owner to exactly this repository with `Contents:
   read/write` and nothing else, with an expiration. If it leaks, the blast
   radius is "write access to this repo's files, for a bounded time."
-- The admin editor can only write under `data/`: `assertDataPath` in
+- The admin editor can only write under `data/` and `media/images/` (the latter
+  so the Layout view can upload display images): `assertDataPath` in
   `admin-src/githubApi.ts` checks every path before any write and refuses
-  anything outside `data/`. It cannot modify the site's code or anything else.
+  anything outside those two prefixes. It cannot modify the site's code or
+  anything else.
 - Publishing needs no secrets: `.github/workflows/deploy.yml` deploys to Pages
   using GitHub's built-in `GITHUB_TOKEN` and OIDC — issued automatically per run,
   scoped to this repo, nothing anyone types in or can leak.

@@ -18,6 +18,8 @@ import type { AppsFile, EventData, ScheduleItem } from "./types";
 import { DISPLAY_MODES, DEFAULT_DISPLAY_MODE_ID, getDisplayMode } from "./displayModes";
 import { ASPECT_RATIOS, DEFAULT_ASPECT_RATIO_ID, getAspectRatio } from "./aspectRatios";
 import { readLiveSnapshot, writeLiveSnapshot, isLiveMode, onSourceChange } from "./liveBridge";
+import { renderLayoutEditor, primeAssets, type LayoutEditorCtx } from "./layoutEditor";
+import { defaultLayoutForApp, type LayoutDoc } from "./layout";
 import { t, getLang, setLang, onLangChange, type Lang } from "./i18n";
 
 // Public data/apps.json is fetched with a plain (unauthenticated) fetch,
@@ -37,6 +39,7 @@ let viewToggleEl: HTMLElement;
 let leftPanelEl: HTMLElement;
 let mainPanelEl: HTMLElement;
 let overviewPanelEl: HTMLElement;
+let layoutPanelEl: HTMLElement;
 let statusBarEl: HTMLElement;
 let saveBarEl: HTMLElement;
 let saveBtnEl: HTMLButtonElement;
@@ -71,7 +74,8 @@ export function init(root: HTMLElement): void {
   leftPanelEl = el("aside", { class: "left-panel" });
   mainPanelEl = el("main", { class: "main-panel" });
   overviewPanelEl = el("div", { class: "overview-panel" });
-  body.append(leftPanelEl, mainPanelEl, overviewPanelEl);
+  layoutPanelEl = el("div", { class: "layout-panel" });
+  body.append(leftPanelEl, mainPanelEl, overviewPanelEl, layoutPanelEl);
 
   statusBarEl = el("div", { class: "status-bar" });
 
@@ -227,19 +231,26 @@ function renderViewToggle(): void {
     { class: `btn ${state.viewMode === "overview" ? "btn-primary" : "btn-secondary"}` },
     [t("nav.allEvents")],
   );
+  const layoutBtn = el(
+    "button",
+    { class: `btn ${state.viewMode === "layout" ? "btn-primary" : "btn-secondary"}` },
+    ["Layout"],
+  );
   editorBtn.addEventListener("click", () => switchViewMode("editor"));
   overviewBtn.addEventListener("click", () => switchViewMode("overview"));
-  viewToggleEl.append(editorBtn, overviewBtn);
+  layoutBtn.addEventListener("click", () => switchViewMode("layout"));
+  viewToggleEl.append(editorBtn, overviewBtn, layoutBtn);
 }
 
 function applyViewMode(): void {
-  const isOverview = state.viewMode === "overview";
-  leftPanelEl.style.display = isOverview ? "none" : "";
-  mainPanelEl.style.display = isOverview ? "none" : "";
-  overviewPanelEl.style.display = isOverview ? "" : "none";
+  const mode = state.viewMode;
+  leftPanelEl.style.display = mode === "editor" ? "" : "none";
+  mainPanelEl.style.display = mode === "editor" ? "" : "none";
+  overviewPanelEl.style.display = mode === "overview" ? "" : "none";
+  layoutPanelEl.style.display = mode === "layout" ? "" : "none";
 }
 
-function switchViewMode(mode: "editor" | "overview"): void {
+function switchViewMode(mode: "editor" | "overview" | "layout"): void {
   state.viewMode = mode;
   renderViewToggle();
   applyViewMode();
@@ -250,7 +261,46 @@ function switchViewMode(mode: "editor" | "overview"): void {
       return;
     }
     void renderOverview(overviewPanelEl, jumpToEvent);
+  } else if (mode === "layout") {
+    primeAssets();
+    void ensureLayoutLoaded().then(() => renderLayoutView());
   }
+}
+
+/** Callback the layout editor fires after any edit: stage the change as
+ * dirty, mirror to a same-browser display, and refresh the Save button. */
+const layoutEditorCtx: LayoutEditorCtx = {
+  onChange(): void {
+    state.layoutDirty = true;
+    mirrorToLive();
+    updateSaveButtonState();
+  },
+};
+
+function renderLayoutView(): void {
+  renderLayoutEditor(layoutPanelEl, layoutEditorCtx);
+}
+
+/** Loads the current app's layout into state.layout if not already loaded for
+ * that app. Fetched from the published data (unauthenticated), falling back to
+ * the built-in base layout so the editor always has something to show. */
+async function ensureLayoutLoaded(): Promise<void> {
+  const appId = state.currentAppId;
+  if (!appId) return;
+  if (state.layout && state.layout.appId === appId) return;
+  let doc: LayoutDoc | null = null;
+  try {
+    const res = await fetch(`../data/layouts/${appId}.json`, { cache: "no-store" });
+    if (res.ok) {
+      const parsed = (await res.json()) as LayoutDoc;
+      if (Array.isArray(parsed.items)) doc = parsed;
+    }
+  } catch {
+    /* fall back to the base layout below */
+  }
+  state.layout = doc ?? defaultLayoutForApp(appId);
+  state.layoutDirty = false;
+  mirrorToLive();
 }
 
 /** Overview row clicked -> switch to that app's editor with that event
@@ -260,6 +310,8 @@ function jumpToEvent(appId: string, eventId: string): void {
   state.currentAppId = appId;
   state.currentEventId = null;
   state.currentEvent = null;
+  state.layout = null;
+  state.layoutDirty = false;
   applyTheme();
   renderAppSwitcher();
   mirrorToLive();
@@ -370,9 +422,16 @@ function renderAppSwitcher(): void {
     state.currentAppId = newAppId;
     state.currentEventId = null;
     state.currentEvent = null;
+    // The layout is per-app; drop the old app's so the next layout-view entry
+    // (or the immediate re-render below) loads this app's.
+    state.layout = null;
+    state.layoutDirty = false;
     applyTheme();
     renderAppSwitcher();
     mirrorToLive();
+    if (state.viewMode === "layout") {
+      void ensureLayoutLoaded().then(() => renderLayoutView());
+    }
     if (isSignedIn()) {
       loadEventsForCurrentApp();
     } else {
@@ -498,7 +557,7 @@ function mirrorToLive(): void {
   if (prev?.apps?.redFlag) apps.redFlag = prev.apps.redFlag;
   const events: Record<string, EventData> = {};
   if (state.currentEvent) events[state.currentEvent.id] = state.currentEvent;
-  writeLiveSnapshot({ apps, events, ts: Date.now() });
+  writeLiveSnapshot({ apps, events, layout: state.layout ?? undefined, ts: Date.now() });
 }
 
 async function loadEventsForCurrentApp(): Promise<void> {
@@ -837,6 +896,14 @@ async function saveAll(): Promise<void> {
       }
       changes.push({ path: APPS_JSON_PATH, content: JSON.stringify(appsData, null, 2) + "\n" });
       messageParts.push("update display settings");
+    }
+
+    if (state.layoutDirty && state.layout && state.currentAppId) {
+      changes.push({
+        path: `data/layouts/${state.currentAppId}.json`,
+        content: JSON.stringify(state.layout, null, 2) + "\n",
+      });
+      messageParts.push(`Update ${state.currentAppId} layout`);
     }
 
     if (changes.length === 0) {

@@ -6,6 +6,7 @@
 // (Different machines don't share this -- they use the published GitHub data.)
 
 import type { AppsData, EventData } from "./types";
+import type { LayoutDoc } from "./layout";
 
 const SNAPSHOT_KEY = "countdown-scheduler:live-snapshot";
 const SOURCE_KEY = "countdown-scheduler:display-source";
@@ -18,6 +19,9 @@ export interface LiveSnapshot {
   apps: AppsData;
   /** eventId -> event, for the events the admin has touched this session. */
   events: Record<string, EventData>;
+  /** The layout of the app currently being edited, so a drag/resize in the
+   * editor moves the item on a same-browser display instantly. */
+  layout?: LayoutDoc;
   ts: number;
 }
 

@@ -34,43 +34,45 @@ html, body {
   overflow: hidden;
   container-type: size;
   container-name: stage;
-  /* 3-row grid stage: header / body / footer. Grid areas never overlap, so
-     spacing holds across sizes, aspect ratios and text scales. */
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  grid-template-columns: 100%;
+  /* Free canvas: children are absolutely-positioned .layout-item hosts placed
+     by the per-app layout. `position: relative` makes it their containing
+     block (and the red-flag overlay's); `container-type: size` makes every
+     cqw/cqh inside resolve to THIS stage, so items and their fonts scale with
+     the letterboxed stage, not the raw physical viewport. */
+  position: relative;
 }
 
-/* --- header: logos (left) + clock (right) --- */
-.stage-header {
-  position: relative; /* for the red-flag overlay */
+/* A positioned item on the stage. Geometry (left/top/width/height/z-index)
+   and --item-scale are written inline by src/layoutManager.ts from the
+   layout's stage-percent values (as cqw/cqh). Overflow is clipped so a
+   too-large item never spills onto its neighbours. */
+.layout-item {
+  position: absolute;
+  overflow: hidden;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Free text item (dynamic). Fills its host; alignment/justify are written
+   inline from the item's `align` prop. */
+.item-text {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 2cqw;
-  padding: 1.5cqh 2.5cqw 0.5cqh;
-  min-width: 0;
+  font-size: calc(clamp(16px, 3cqw, 60px) * var(--text-scale, 1) * var(--item-scale, 1));
+  font-weight: 700;
+  color: var(--theme-accent, #222);
+  line-height: 1.1;
+  word-break: break-word;
+  white-space: pre-line;
 }
 
-.logo-area {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.4cqh;
-  min-width: 0;
-  flex: 0 1 auto;
-}
-/* Images scale with the stage AND the text-size setting. */
-#top-banner {
-  width: calc(clamp(110px, 20cqw, 300px) * var(--text-scale, 1));
-  max-width: 100%;
-  height: auto;
-}
-#logo {
-  height: calc(clamp(48px, 9cqh, 120px) * var(--text-scale, 1));
-  width: auto;
-  max-width: 100%;
-  object-fit: contain;
+/* Free image item (dynamic). The <img> fills the host, so the image scales
+   with the stage (host sized in cqw/cqh) -- never the old fixed clamp(px). */
+.item-image img {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .label {
@@ -81,10 +83,16 @@ html, body {
   margin-left: 0;
 }
 
+/* Clock: fills its item host; alignment written inline from the clock item's
+   `align` prop. */
 #time-container {
-  flex: 0 0 auto;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   text-align: right;
-  font-size: calc(clamp(22px, min(5cqw, 9cqh), 76px) * var(--text-scale, 1));
+  font-size: calc(clamp(22px, min(5cqw, 9cqh), 76px) * var(--text-scale, 1) * var(--item-scale, 1));
   color: var(--theme-accent, #484848);
   user-select: none;
   white-space: nowrap;
@@ -95,40 +103,12 @@ html, body {
   color: var(--theme-accent, #484848);
 }
 
-/* --- body: holds the countdown view and the schedule view (toggled) --- */
-.stage-body {
-  position: relative;
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* Countdown view: main timer column + next-schedule sidebar. */
-#countdown-view {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 24%);
-  min-height: 0;
-}
-
-/* --- footer: shared announcement bar --- */
-.stage-footer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5cqh 4cqw 1.5cqh;
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* title and countdown block -- raised slightly and with the title pulled
-   close to the countdown (see #title's margin below) so the current-session
-   title reads as one tight unit with its countdown rather than floating
-   loosely above it. */
-/* Main timer column (grid cell in #countdown-view). Flex-centered; a long
-   title/countdown auto-shrinks to fit its cell via --fit-scale (src/fitText.ts)
-   rather than overflowing -- the grid cell gives it a bounded height. */
+/* Main timer block. Fills its item host (a bounded box), flex-centered; a
+   long title/countdown auto-shrinks to fit via --fit-scale (src/fitText.ts)
+   rather than overflowing -- the host gives it a bounded height. */
 #main {
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -149,7 +129,7 @@ html, body {
   /* Sized by the SMALLER of width/height units so it also fits short stages
      (e.g. the 21:9 ultrawide preset, which is much less tall than 16:9 and
      was overflowing into the countdown/announcement below). */
-  font-size: calc(clamp(22px, min(4.5cqw, 8cqh), 58px) * var(--text-scale, 1) * var(--fit-scale, 1));
+  font-size: calc(clamp(22px, min(4.5cqw, 8cqh), 58px) * var(--text-scale, 1) * var(--fit-scale, 1) * var(--item-scale, 1));
   font-weight: 600;
   opacity: 0.85;
   margin: 0;
@@ -171,7 +151,7 @@ html, body {
   /* min(cqw, cqh) so the single biggest element scales with BOTH dimensions;
      --fit-scale shrinks the whole block further if a long title would push it
      past the available height. */
-  font-size: calc(clamp(40px, min(8cqw, 14cqh), 120px) * var(--text-scale, 1) * var(--fit-scale, 1));
+  font-size: calc(clamp(40px, min(8cqw, 14cqh), 120px) * var(--text-scale, 1) * var(--fit-scale, 1) * var(--item-scale, 1));
   font-weight: 800;
   color: var(--theme-primary, #e60000);
   font-feature-settings: "tnum";
@@ -226,14 +206,14 @@ body.red-flag-on .aspect-inner {
   margin-top: 0.6cqh;
 }
 .stoppage-label {
-  font-size: calc(clamp(15px, 1.8cqw, 26px) * var(--text-scale, 1) * var(--fit-scale, 1));
+  font-size: calc(clamp(15px, 1.8cqw, 26px) * var(--text-scale, 1) * var(--fit-scale, 1) * var(--item-scale, 1));
   font-weight: 700;
   letter-spacing: 0.04em;
   opacity: 0.8;
   color: var(--theme-accent, #333);
 }
 #stoppage-timer {
-  font-size: calc(clamp(28px, min(5.5cqw, 10cqh), 80px) * var(--text-scale, 1) * var(--fit-scale, 1));
+  font-size: calc(clamp(28px, min(5.5cqw, 10cqh), 80px) * var(--text-scale, 1) * var(--fit-scale, 1) * var(--item-scale, 1));
   font-weight: 800;
   color: #d40000;
   font-feature-settings: "tnum";
@@ -250,8 +230,11 @@ body.red-flag-on .aspect-inner {
    scroll its content (see src/verticalScroll.ts setScrollingList). */
 /* Next-schedule sidebar: the right column of the countdown-view grid. */
 #schedule-list {
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
+  box-sizing: border-box;
   background: var(--theme-surface, #ffe4c4);
   border-left: 6px solid #696969;
   margin: 0;
@@ -260,11 +243,11 @@ body.red-flag-on .aspect-inner {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  font-size: calc(clamp(14px, 1.5cqw, 24px) * var(--text-scale, 1));
+  font-size: calc(clamp(14px, 1.5cqw, 24px) * var(--text-scale, 1) * var(--item-scale, 1));
 }
 
 #schedule-list h2 {
-  font-size: calc(clamp(18px, 2.3cqw, 36px) * var(--text-scale, 1));
+  font-size: calc(clamp(18px, 2.3cqw, 36px) * var(--text-scale, 1) * var(--item-scale, 1));
   margin: 0;
   padding: 1.2cqh 0.5cqw 0.6cqh;
   flex: 0 0 auto;
@@ -307,7 +290,7 @@ body.red-flag-on .aspect-inner {
 /* relative-day separator inside the list (今日/明日/明後日 or a date) */
 .list-day-header {
   text-align: center;
-  font-size: calc(clamp(24px, 2.3cqw, 36px) * var(--text-scale, 1));
+  font-size: calc(clamp(24px, 2.3cqw, 36px) * var(--text-scale, 1) * var(--item-scale, 1));
   font-weight: bold;
   color: var(--theme-surface-text, #000);
 }
@@ -322,7 +305,7 @@ body.red-flag-on .aspect-inner {
    use opacity for the past/next distinction, and this ID-scoped selector
    would out-specificity a plain class, silently breaking that dimming. */
 #schedule-list ul li {
-  font-size: calc(clamp(16px, 3cqw, 32px) * var(--text-scale, 1));
+  font-size: calc(clamp(16px, 3cqw, 32px) * var(--text-scale, 1) * var(--item-scale, 1));
   padding: 6px 10px;
   font-weight: 600;
   border-bottom: 1px solid #ddd;
@@ -353,13 +336,14 @@ body.red-flag-on .aspect-inner {
   font-weight: bold;
 }
 
-/* Schedule view: fills the body cell (between header + footer), toggled on. */
+/* Schedule view: fills its item host. Visibility (which screen is showing)
+   is controlled by the layout manager toggling the host's display, not here. */
 #schedule-screen {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  width: 100%;
+  height: 100%;
   background: color-mix(in srgb, var(--theme-background, #fff) 80%, var(--theme-primary, #e60000) 20%);
   overflow: hidden;
-  display: none; /* toggled from JS */
 }
 
 /* Up to three upcoming days side by side (built in src/schedule.ts). Fills
@@ -393,14 +377,14 @@ body.red-flag-on .aspect-inner {
 }
 
 .schedule-col-date {
-  font-size: calc(clamp(25px, 3.3cqw, 44px) * var(--text-scale, 1));
+  font-size: calc(clamp(25px, 3.3cqw, 44px) * var(--text-scale, 1) * var(--item-scale, 1));
   font-weight: bold;
   color: var(--theme-surface-text, #333);
 }
 
 .schedule-col-rel {
   margin-top: 0.4cqh;
-  font-size: calc(clamp(18px, 2.2cqw, 30px) * var(--text-scale, 1));
+  font-size: calc(clamp(18px, 2.2cqw, 30px) * var(--text-scale, 1) * var(--item-scale, 1));
   font-weight: bold;
   color: var(--theme-primary, #e60000);
 }
@@ -414,21 +398,21 @@ body.red-flag-on .aspect-inner {
 }
 
 .schedule-item-title {
-  font-size: calc(clamp(22px, 2.6cqw, 36px) * var(--text-scale, 1));
+  font-size: calc(clamp(22px, 2.6cqw, 36px) * var(--text-scale, 1) * var(--item-scale, 1));
   font-weight: bold;
   color: var(--theme-surface-text, #333);
 }
 
 .schedule-item-detail {
   margin-top: 0.2cqh;
-  font-size: calc(clamp(18px, 2.1cqw, 28px) * var(--text-scale, 1));
+  font-size: calc(clamp(18px, 2.1cqw, 28px) * var(--text-scale, 1) * var(--item-scale, 1));
   font-weight: bold;
   color: var(--theme-accent, #484848);
 }
 
 .schedule-col-announcement {
   margin-top: 1.2cqh;
-  font-size: calc(clamp(16px, 1.8cqw, 24px) * var(--text-scale, 1));
+  font-size: calc(clamp(16px, 1.8cqw, 24px) * var(--text-scale, 1) * var(--item-scale, 1));
   font-weight: bold;
   color: var(--theme-primary, #e60000);
 }
@@ -581,13 +565,15 @@ body.red-flag-on .aspect-inner {
    the countdown and schedule views). A fixed label ("お知らせ：") + a content
    viewport that scrolls only when it overflows (see src/marquee.ts). */
 .announcement-bar {
+  width: 100%;
+  height: 100%;
   max-width: 100%;
   box-sizing: border-box;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.4em;
   justify-content: center;
-  font-size: calc(clamp(20px, 2.4cqw, 38px) * var(--text-scale, 1));
+  font-size: calc(clamp(20px, 2.4cqw, 38px) * var(--text-scale, 1) * var(--item-scale, 1));
   color: var(--theme-accent, black);
   font-weight: bold;
   white-space: nowrap;
