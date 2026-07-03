@@ -2,23 +2,24 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="app-build" content="1.0.0+017355f" />
+  <meta name="app-build" content="1.0.0+99c06ab" />
   <title>カウントダウンスケジューラー</title>
-  <link rel="stylesheet" href="assets/main.css?v=dc76da823c" />
+  <link rel="stylesheet" href="assets/main.css?v=2487a10d81" />
 </head>
 <body>
   <div class="aspect-container">
-    <!-- The stage is a 3-row grid: header (logos + clock) / body (the
-         countdown or schedule view) / footer (announcement). Grid areas can't
-         overlap, so spacing is robust across sizes, aspect ratios and text
-         scales -- no absolute magic numbers. -->
-    <div class="aspect-inner">
+    <!-- The stage is a free canvas: every visible piece is a positioned
+         `.layout-item` placed by the per-app layout (data/layouts/<appId>.json,
+         see src/layoutManager.ts). Geometry is stage-percent -> cqw/cqh so
+         items stretch with the stage on any screen or aspect ratio.
+         Singleton items (clock / countdown / schedule / announcement) keep
+         their canonical markup here so the existing controllers can bind to
+         it once at startup; the layout only moves/sizes/shows these hosts.
+         Dynamic text/image items are created into #stage at runtime. -->
+    <div class="aspect-inner" id="stage">
 
-      <header class="stage-header">
-        <div class="logo-area">
-          <img src="media/images/4413.png" id="top-banner" alt="MOTOR SPORTS Garage 4413" />
-          <img src="media/images/ロゴ.png" id="logo" alt="ロゴ" />
-        </div>
+      <!-- Clock -->
+      <div class="layout-item" id="li-clock" data-screen="shared">
         <div id="time-container">
           <div class="time-label" id="time-label">現在時刻</div>
           <div id="current-time-label">
@@ -27,40 +28,48 @@
             <span class="bracket">】</span>
           </div>
         </div>
-        <!-- Red-flag indicator: overlays the top-left only while active. -->
-        <div id="red-flag" class="rf-hidden" aria-hidden="true">
-          <span class="rf-flag"></span>
-          <span id="red-flag-text" class="rf-text">RED FLAG</span>
-        </div>
-      </header>
-
-      <div class="stage-body">
-        <!-- Countdown view: big timer + the next-schedule sidebar. -->
-        <section id="countdown-view">
-          <div id="main">
-            <h1 id="title">タイトル読み込み中...</h1>
-            <div id="countdown">00:00:00.<span class="ms">000</span></div>
-            <!-- Stoppage timer: counts UP from when the red flag was raised. -->
-            <div id="stoppage" class="rf-hidden">
-              <div id="stoppage-label" class="stoppage-label">STOPPAGE</div>
-              <div id="stoppage-timer">00:00:00</div>
-            </div>
-          </div>
-          <aside id="schedule-list">
-            <h2 id="next-schedule-label">次のスケジュール</h2>
-            <div id="list-viewport"></div>
-          </aside>
-        </section>
-
-        <!-- Schedule view: day columns, built in src/schedule.ts. -->
-        <section id="schedule-screen">
-          <div id="schedule-columns"></div>
-        </section>
       </div>
 
-      <footer class="stage-footer">
+      <!-- Countdown: big timer + title + stoppage. -->
+      <div class="layout-item" id="li-countdown" data-screen="countdown">
+        <div id="main">
+          <h1 id="title">タイトル読み込み中...</h1>
+          <div id="countdown">00:00:00.<span class="ms">000</span></div>
+          <!-- Stoppage timer: counts UP from when the red flag was raised. -->
+          <div id="stoppage" class="rf-hidden">
+            <div id="stoppage-label" class="stoppage-label">STOPPAGE</div>
+            <div id="stoppage-timer">00:00:00</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Next-schedule sidebar list. -->
+      <div class="layout-item" id="li-scheduleList" data-screen="countdown">
+        <aside id="schedule-list">
+          <h2 id="next-schedule-label">次のスケジュール</h2>
+          <div id="list-viewport"></div>
+        </aside>
+      </div>
+
+      <!-- Schedule view: day columns, built in src/schedule.ts. Hidden until
+           the layout manager places it (countdown is the default screen), so
+           its coloured panel never flashes over the countdown on first paint. -->
+      <div class="layout-item" id="li-scheduleColumns" data-screen="schedule" style="display:none">
+        <div id="schedule-screen">
+          <div id="schedule-columns"></div>
+        </div>
+      </div>
+
+      <!-- Shared announcement bar. -->
+      <div class="layout-item" id="li-announcement" data-screen="shared">
         <div id="announcement" class="announcement-bar"></div>
-      </footer>
+      </div>
+
+      <!-- Red-flag indicator: fixed safety overlay, not a placeable item. -->
+      <div id="red-flag" class="rf-hidden" aria-hidden="true">
+        <span class="rf-flag"></span>
+        <span id="red-flag-text" class="rf-text">RED FLAG</span>
+      </div>
 
       <img src="media/images/全画面.png" id="fullscreen-btn" alt="全画面" />
 
@@ -81,6 +90,6 @@
     <button id="source-btn" type="button">Source: GitHub</button>
   </div>
 
-  <script src="assets/main.js?v=dc76da823c" defer></script>
+  <script src="assets/main.js?v=2487a10d81" defer></script>
 </body>
 </html>

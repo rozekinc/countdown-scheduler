@@ -17,10 +17,15 @@ export class GithubApiError extends Error {
   }
 }
 
-/** Throws if `path` does not live under data/. No bypass, ever. */
+// The admin may only ever touch these prefixes: all editable content lives
+// under data/, plus media/images/ so the layout editor can upload display
+// image assets (the ONLY binary-writable location). No bypass, ever.
+const WRITABLE_PREFIXES = ["data/", "media/images/"];
+
+/** Throws if `path` is not under one of the writable prefixes. */
 export function assertDataPath(path: string): void {
-  if (!path.startsWith("data/")) {
-    throw new Error(`Refusing to touch path outside data/: "${path}"`);
+  if (!WRITABLE_PREFIXES.some((prefix) => path.startsWith(prefix))) {
+    throw new Error(`Refusing to touch path outside ${WRITABLE_PREFIXES.join(" / ")}: "${path}"`);
   }
 }
 
@@ -142,8 +147,12 @@ export async function getJsonFile<T>(path: string): Promise<{ data: T; sha: stri
 
 export interface FileChange {
   path: string;
-  /** File body, or null to delete the path. */
+  /** File body, or null to delete the path. When `encoding` is "base64" this
+   * is already-base64-encoded binary (image uploads); otherwise it's UTF-8
+   * text that gets base64-encoded here. */
   content: string | null;
+  /** How `content` is encoded. Defaults to "utf8" (text). */
+  encoding?: "utf8" | "base64";
 }
 
 /**
@@ -194,10 +203,11 @@ export async function commitFiles(changes: FileChange[], message: string): Promi
       treeEntries.push({ path: change.path, mode: "100644", type: "blob", sha: null });
       continue;
     }
+    const encoded = change.encoding === "base64" ? change.content : utf8ToBase64(change.content);
     const blobRes = await fetch(repoUrl("git/blobs"), {
       method: "POST",
       headers,
-      body: JSON.stringify({ content: utf8ToBase64(change.content), encoding: "base64" }),
+      body: JSON.stringify({ content: encoded, encoding: "base64" }),
     });
     if (!blobRes.ok) {
       throw new GithubApiError(`Create blob for ${change.path} failed (HTTP ${blobRes.status}).`, blobRes.status);

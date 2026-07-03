@@ -773,3 +773,156 @@ html, body {
   border-top: 1px solid var(--border);
   padding-top: 12px;
 }
+
+/* --- Layout editor (Layout view) ---------------------------------------- */
+.layout-panel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  background: #fff;
+}
+
+.layout-editor {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+
+/* palette (left) + properties (right) rails, stage in the middle */
+.le-palette,
+.le-props {
+  width: 230px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 12px;
+  background: #fafbfc;
+}
+.le-palette { border-right: 1px solid var(--border); }
+.le-props { border-left: 1px solid var(--border); }
+
+.le-palette h3,
+.le-props h3 {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #57606a;
+}
+.le-palette h3:first-child { margin-top: 0; }
+
+.le-palette .btn {
+  display: block;
+  width: 100%;
+  margin-bottom: 5px;
+  text-align: left;
+}
+.le-screen-tabs { display: flex; gap: 4px; }
+.le-screen-tabs .btn { flex: 1; text-align: center; }
+.le-reset { margin-top: 16px; }
+.le-hint { font-size: 11px; line-height: 1.35; margin: 4px 0 8px; }
+
+/* center canvas */
+.le-canvas-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px;
+  background: #eef1f4;
+  overflow: auto;
+}
+
+/* the stage: a real, theme-accurate, aspect-correct preview. Items are
+   positioned in % of THIS box, exactly as they will be on the display. */
+.le-stage {
+  position: relative;
+  width: 100%;
+  max-width: min(100%, calc(72vh * var(--stage-ar, 16 / 9)));
+  max-height: 72vh;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  container-type: size;
+}
+
+.le-item {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px dashed rgba(0, 0, 0, 0.35);
+  background: rgba(0, 120, 255, 0.06);
+  cursor: move;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.le-item.selected {
+  border: 1.5px solid var(--primary);
+  background: rgba(230, 0, 0, 0.08);
+  z-index: 500 !important;
+}
+.le-item-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1f2328;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 1px 5px;
+  border-radius: 3px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* resize handles on the selected item */
+.le-handle {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  background: #fff;
+  border: 1.5px solid var(--primary);
+  border-radius: 2px;
+}
+.le-handle-nw { left: -6px; top: -6px; cursor: nwse-resize; }
+.le-handle-n  { left: 50%; top: -6px; transform: translateX(-50%); cursor: ns-resize; }
+.le-handle-ne { right: -6px; top: -6px; cursor: nesw-resize; }
+.le-handle-e  { right: -6px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+.le-handle-se { right: -6px; bottom: -6px; cursor: nwse-resize; }
+.le-handle-s  { left: 50%; bottom: -6px; transform: translateX(-50%); cursor: ns-resize; }
+.le-handle-sw { left: -6px; bottom: -6px; cursor: nesw-resize; }
+.le-handle-w  { left: -6px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+
+/* properties fields */
+.le-field { margin-bottom: 8px; }
+.le-field > label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #57606a;
+  margin-bottom: 3px;
+}
+.le-field-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.le-field-inline > label { margin-bottom: 0; }
+.le-field-inline .row-input { width: 90px; }
+.le-props-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.le-asset-thumb {
+  display: block;
+  max-width: 100%;
+  max-height: 70px;
+  margin-top: 6px;
+  background: #f0f0f0;
+  border: 1px solid var(--border);
+}
+.le-file { display: none; }

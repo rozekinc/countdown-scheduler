@@ -1,10 +1,12 @@
 import "./styles.css";
-import { loadApps, resolveActiveApp, createEventDataSource, watchDisplaySettings } from "./dataClient";
+import { loadApps, resolveActiveApp, createEventDataSource, watchDisplaySettings, loadLayout } from "./dataClient";
 import { applyTheme, applyAspectRatio } from "./theme";
 import { initCountdown, type CountdownController } from "./countdown";
 import { initSchedule } from "./schedule";
 import { initVersionBadge } from "./versionBadge";
 import { resolveLabel, displayLanguage } from "./labels";
+import { defaultLayoutForApp, type LayoutItem } from "./layout";
+import { applyLayout, setScreen } from "./layoutManager";
 import {
   getDisplaySource,
   setDisplaySource,
@@ -12,6 +14,7 @@ import {
   writeLiveSnapshot,
   onLiveChange,
   type DisplaySource,
+  type LiveSnapshot,
 } from "./liveBridge";
 import type { App, AppsData, EventData, RedFlagState } from "./types";
 
@@ -92,17 +95,14 @@ function enterFullscreen(): void {
  */
 function setupScreenToggle(): void {
   const toggleBtn = document.getElementById("toggle-btn");
-  const countdownView = document.getElementById("countdown-view") as HTMLElement;
-  const scheduleScreen = document.getElementById("schedule-screen") as HTMLElement;
 
   let isScheduleMode = false;
 
-  // The header (logos + clock) and footer (announcement) are shared grid rows
-  // and stay put; only the body swaps between the two views.
+  // Items tagged screen="shared" stay put; the toggle swaps which of the
+  // countdown-only / schedule-only items are shown (see layoutManager.setScreen).
   toggleBtn?.addEventListener("click", () => {
     isScheduleMode = !isScheduleMode;
-    countdownView.style.display = isScheduleMode ? "none" : "grid";
-    scheduleScreen.style.display = isScheduleMode ? "block" : "none";
+    setScreen(isScheduleMode ? "schedule" : "countdown");
   });
 }
 
@@ -203,6 +203,15 @@ async function main(): Promise<void> {
   let activeDataSource: ReturnType<typeof createEventDataSource> | null = null;
   let currentApp: App | null = null;
   let currentModeId: string | null = appsData.displayModeId ?? null;
+  let currentLayout: LayoutItem[] = [];
+
+  // Re-place every item from the current layout. Cheap enough to call on any
+  // live change (no controller re-init -- singleton controllers stay bound to
+  // the stable canonical DOM in index.html). Re-run when labels/language
+  // change too, since text items may render an editable label.
+  function renderCurrentLayout(): void {
+    applyLayout(currentLayout, getApps());
+  }
 
   function applyEvent(data: EventData): void {
     countdownController.setEventData(data);
@@ -216,6 +225,17 @@ async function main(): Promise<void> {
     currentModeId = displayModeId;
     applyTheme(app, displayModeId);
 
+    // Position everything from the base layout synchronously first (no flash of
+    // unplaced items), then refine once the app's saved layout has loaded.
+    currentLayout = defaultLayoutForApp(app.id).items;
+    renderCurrentLayout();
+    void loadLayout(app.id).then((doc) => {
+      currentLayout = doc.items;
+      renderCurrentLayout();
+      countdownController.refresh();
+      scheduleController.refresh();
+    });
+
     const dataSource = createEventDataSource(app);
     activeDataSource = dataSource;
     const cached = dataSource.getCurrent();
@@ -224,9 +244,12 @@ async function main(): Promise<void> {
     dataSource.start();
   }
 
-  // Local mode: apply a whole snapshot (apps + events) from the admin. No
-  // polling -- the admin pushes changes over the live bridge instantly.
-  function applyLocalSnapshot(apps: AppsData, events: Record<string, EventData>): void {
+  // Local mode: apply a whole snapshot (apps + events + layout) from the
+  // admin. No polling -- the admin pushes changes over the live bridge
+  // instantly, so a drag/resize in the editor moves the item here at once.
+  function applyLocalSnapshot(snap: LiveSnapshot): void {
+    const apps = snap.apps;
+    const events = snap.events;
     activeDataSource?.stop();
     activeDataSource = null;
     currentAppsData = apps;
@@ -237,6 +260,11 @@ async function main(): Promise<void> {
     currentApp = app;
     currentModeId = apps.displayModeId ?? null;
     applyTheme(app, apps.displayModeId ?? null);
+    currentLayout =
+      snap.layout && snap.layout.appId === app.id
+        ? snap.layout.items
+        : defaultLayoutForApp(app.id).items;
+    renderCurrentLayout();
     const event = events[app.activeEventId];
     if (event) applyEvent(event);
     countdownController.refresh();
@@ -247,7 +275,7 @@ async function main(): Promise<void> {
 
   if (source === "local") {
     if (localSnap) {
-      applyLocalSnapshot(localSnap.apps, localSnap.events);
+      applyLocalSnapshot(localSnap);
     } else {
       // No snapshot yet (admin not open / hasn't edited) -- show the last
       // published data statically until the admin pushes over the bridge.
@@ -257,7 +285,7 @@ async function main(): Promise<void> {
     }
     onLiveChange(() => {
       const snap = readLiveSnapshot();
-      if (snap) applyLocalSnapshot(snap.apps, snap.events);
+      if (snap) applyLocalSnapshot(snap);
     });
   } else {
     applyAspectRatio(appsData.aspectRatioId ?? null);
@@ -272,11 +300,23 @@ async function main(): Promise<void> {
         if (currentApp) applyTheme(currentApp, displayModeId);
       },
       (aspectRatioId) => applyAspectRatio(aspectRatioId),
-      (data) => updateVersionBadge(data),
+      (data) => {
+        updateVersionBadge(data);
+        // A publish bumps contentVersion; re-pull this app's layout so a
+        // committed layout change appears without a display reload.
+        if (currentApp) {
+          const appId = currentApp.id;
+          void loadLayout(appId).then((doc) => {
+            currentLayout = doc.items;
+            renderCurrentLayout();
+          });
+        }
+      },
       (data) => {
         currentAppsData = data;
         applyChromeLabels(currentAppsData);
         applyTextScale(currentAppsData);
+        renderCurrentLayout();
         countdownController.refresh();
         scheduleController.refresh();
         countdownController.setRedFlag(data.redFlag);

@@ -3,6 +3,7 @@
 // on the same browser in "Local" mode reads it instantly. See src/liveBridge.ts.
 
 import type { AppsFile, EventData } from "./types";
+import type { LayoutDoc } from "./layout";
 
 const SNAPSHOT_KEY = "countdown-scheduler:live-snapshot";
 const SOURCE_KEY = "countdown-scheduler:display-source";
@@ -11,6 +12,9 @@ const CHANNEL = "countdown-scheduler-live";
 export interface LiveSnapshot {
   apps: AppsFile;
   events: Record<string, EventData>;
+  /** The layout of the app currently being edited, so a drag/resize moves
+   * the item on a same-browser display instantly (mirror of src/liveBridge). */
+  layout?: LayoutDoc;
   ts: number;
 }
 
