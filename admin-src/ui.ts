@@ -13,7 +13,7 @@ import {
   clearPendingChanges,
   type EventListEntry,
 } from "./state";
-import type { AppsFile, EventData, ScheduleRow, ScreenMode } from "./types";
+import type { AppsFile, EventData, ScheduleRow } from "./types";
 import { DISPLAY_MODES, DEFAULT_DISPLAY_MODE_ID, getDisplayMode } from "./displayModes";
 import { ASPECT_RATIOS, DEFAULT_ASPECT_RATIO_ID, getAspectRatio } from "./aspectRatios";
 import { applyPreviewTheme } from "./previewTheme";
@@ -26,7 +26,6 @@ const APPS_JSON_PATH = "data/apps.json";
 
 let rootEl: HTMLElement;
 let appSwitcherEl: HTMLElement;
-let screenModeSwitcherEl: HTMLElement;
 let displayModeSwitcherEl: HTMLElement;
 let aspectRatioSwitcherEl: HTMLElement;
 let langSwitcherEl: HTMLElement;
@@ -48,7 +47,6 @@ export function init(root: HTMLElement): void {
   const header = el("header", { class: "app-header" });
   viewToggleEl = el("div", { class: "view-toggle" });
   appSwitcherEl = el("div", { class: "app-switcher" });
-  screenModeSwitcherEl = el("div", { class: "screen-mode-switcher" });
   displayModeSwitcherEl = el("div", { class: "display-mode-switcher" });
   aspectRatioSwitcherEl = el("div", { class: "aspect-ratio-switcher" });
   langSwitcherEl = el("div", { class: "lang-switcher" });
@@ -58,7 +56,6 @@ export function init(root: HTMLElement): void {
   header.append(
     viewToggleEl,
     appSwitcherEl,
-    screenModeSwitcherEl,
     displayModeSwitcherEl,
     aspectRatioSwitcherEl,
     saveBarEl,
@@ -108,7 +105,6 @@ export function init(root: HTMLElement): void {
     renderAuthControls(authControlsEl, onSignedIn);
     renderSettingsControls(settingsControlsEl, onSettingsSaved);
     renderAppSwitcher();
-    renderScreenModeSwitcher();
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
     renderPreviewPanel();
@@ -227,7 +223,6 @@ function jumpToEvent(appId: string, eventId: string): void {
   state.currentEvent = null;
   applyTheme();
   renderAppSwitcher();
-  renderScreenModeSwitcher();
   renderPreviewPanel();
   switchViewMode("editor");
   void loadEventsForCurrentApp().then(() => selectEvent(eventId));
@@ -254,12 +249,10 @@ async function loadApps(): Promise<void> {
     state.selectedAppId = data.selectedAppId ?? (state.apps[0]?.id ?? null);
     state.displayModeId = data.displayModeId ?? null;
     state.aspectRatioId = data.aspectRatioId ?? null;
-    state.screenMode = data.screenMode ?? null;
     if (state.apps.length > 0) {
       state.currentAppId = state.apps[0].id;
     }
     renderAppSwitcher();
-    renderScreenModeSwitcher();
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
     applyTheme();
@@ -321,7 +314,6 @@ function renderAppSwitcher(): void {
     state.currentEvent = null;
     applyTheme();
     renderAppSwitcher();
-    renderScreenModeSwitcher();
     renderPreviewPanel();
     if (isSignedIn()) {
       loadEventsForCurrentApp();
@@ -358,42 +350,6 @@ function stageSelectedAppOnDisplay(): void {
   state.appsPatch.selectedAppId = appId;
   setStatus(t("app.stagedOnDisplay", { appId }));
   renderAppSwitcher();
-  updateSaveButtonState();
-}
-
-function screenModeLabel(mode: ScreenMode): string {
-  return mode === "schedule" ? t("screenMode.schedule") : t("screenMode.countdown");
-}
-
-/**
- * One global "what's on the TV" switch -- the physical setup is a single
- * HDMI-connected display, and this is the one on/off toggle for it,
- * independent of which app's branding (selectedAppId) is currently live.
- * Same treatment as display mode / aspect ratio.
- */
-function renderScreenModeSwitcher(): void {
-  clear(screenModeSwitcherEl);
-  const select = el("select", { class: "screen-mode-select" });
-  const modes: ScreenMode[] = ["countdown", "schedule"];
-  const active = state.screenMode ?? "countdown";
-  for (const mode of modes) {
-    const option = el("option", { value: mode }, [screenModeLabel(mode)]);
-    if (mode === active) option.setAttribute("selected", "selected");
-    select.append(option);
-  }
-  select.addEventListener("change", () => {
-    stageScreenMode((select as HTMLSelectElement).value as ScreenMode);
-  });
-  screenModeSwitcherEl.append(el("label", {}, [t("screenMode.label")]), select);
-}
-
-/** Stages the screen shown on every display. Not written until Save --
- * see stageSelectedAppOnDisplay(). */
-function stageScreenMode(mode: ScreenMode): void {
-  state.screenMode = mode;
-  state.appsPatch.screenMode = mode;
-  setStatus(t("screenMode.staged", { label: screenModeLabel(mode) }));
-  renderScreenModeSwitcher();
   updateSaveButtonState();
 }
 
@@ -753,7 +709,6 @@ async function saveAll(): Promise<void> {
       patch.selectedAppId !== undefined ||
       patch.displayModeId !== undefined ||
       patch.aspectRatioId !== undefined ||
-      patch.screenMode !== undefined ||
       activeEdits.length > 0;
 
     if (hasAppsPatch) {
@@ -766,7 +721,6 @@ async function saveAll(): Promise<void> {
       if (patch.selectedAppId !== undefined) appsData.selectedAppId = patch.selectedAppId;
       if (patch.displayModeId !== undefined) appsData.displayModeId = patch.displayModeId;
       if (patch.aspectRatioId !== undefined) appsData.aspectRatioId = patch.aspectRatioId;
-      if (patch.screenMode !== undefined) appsData.screenMode = patch.screenMode;
       for (const [appId, eventId] of activeEdits) {
         const app = appsData.apps.find((a) => a.id === appId);
         if (app) app.activeEventId = eventId;
@@ -795,7 +749,6 @@ async function saveAll(): Promise<void> {
     setStatus(wasClose ? t("save.closed", { id: savedEventId ?? "" }) : t("save.saved"));
     await loadEventsForCurrentApp();
     renderAppSwitcher();
-    renderScreenModeSwitcher();
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
   } catch (err) {

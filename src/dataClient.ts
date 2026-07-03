@@ -1,4 +1,4 @@
-import type { App, AppsData, EventData, ScreenMode } from "./types";
+import type { App, AppsData, EventData } from "./types";
 
 const APPS_URL = "data/apps.json";
 const EVENTS_DIR = "data/events";
@@ -76,7 +76,7 @@ export function resolveActiveApp(data: AppsData): App {
 }
 
 /**
- * Polls data/apps.json and reports four things the admin can change live,
+ * Polls data/apps.json and reports three things the admin can change live,
  * with no reload needed on the display end:
  *  - onAppSwitch: which app is showing (selectedAppId) -- no-op on a
  *    screen pinned via ?app=, which is meant to stay put regardless.
@@ -86,23 +86,20 @@ export function resolveActiveApp(data: AppsData): App {
  *  - onAspectRatioChange: which aspect-ratio preset the stage is
  *    letterboxed to (aspectRatioId) -- same reasoning as onModeChange,
  *    applies everywhere regardless of pinning.
- *  - onScreenModeChange: which screen (countdown/schedule) is shown
- *    (screenMode) -- a single global on/off switch for the one physical
- *    TV, independent of which app's branding is live. Same "applies
- *    everywhere, pinned or not" reasoning as display mode.
+ * Countdown vs. schedule is NOT here -- it's a local, client-side-only
+ * toggle button on the display itself (see main.ts's setupScreenToggle),
+ * never written to data/apps.json.
  */
 export function watchDisplaySettings(
   initialApps: AppsData,
   onAppSwitch: (app: App) => void,
   onModeChange: (displayModeId: string | null) => void,
   onAspectRatioChange: (aspectRatioId: string | null) => void,
-  onScreenModeChange: (screenMode: ScreenMode) => void,
 ): void {
   const pinned = isPinnedByUrl(initialApps.apps);
   let currentAppId = resolveActiveApp(initialApps).id;
   let currentModeId = initialApps.displayModeId ?? null;
   let currentAspectRatioId = initialApps.aspectRatioId ?? null;
-  let currentScreenMode: ScreenMode = initialApps.screenMode ?? "countdown";
 
   window.setInterval(() => {
     void (async () => {
@@ -119,12 +116,6 @@ export function watchDisplaySettings(
       if (freshAspectRatioId !== currentAspectRatioId) {
         currentAspectRatioId = freshAspectRatioId;
         onAspectRatioChange(currentAspectRatioId);
-      }
-
-      const freshScreenMode: ScreenMode = fresh.screenMode ?? "countdown";
-      if (freshScreenMode !== currentScreenMode) {
-        currentScreenMode = freshScreenMode;
-        onScreenModeChange(currentScreenMode);
       }
 
       if (pinned) return;

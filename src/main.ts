@@ -3,7 +3,7 @@ import { loadApps, resolveActiveApp, createEventDataSource, watchDisplaySettings
 import { applyTheme, applyAspectRatio } from "./theme";
 import { initCountdown } from "./countdown";
 import { initSchedule } from "./schedule";
-import type { App, EventData, ScreenMode } from "./types";
+import type { App, EventData } from "./types";
 
 interface FullscreenDocumentElement extends HTMLElement {
   webkitRequestFullscreen?: () => void;
@@ -42,31 +42,38 @@ function enterFullscreen(): void {
 }
 
 /**
- * Which screen the (single, one-HDMI-cable) TV shows -- a global setting
- * (data/apps.json's screenMode), same treatment as display mode/aspect
- * ratio, independent of which app's branding is currently live. Set from
- * the admin; no runtime toggle button on the display itself anymore.
+ * Countdown vs. schedule is a local, on-screen toggle -- not data written
+ * anywhere. One event, one page; the button just shows/hides which half
+ * of the already-loaded DOM is visible right now. No admin round-trip,
+ * no commit, no sync across screens (there's one screen, one HDMI cable).
  */
-function applyScreenMode(mode: ScreenMode): void {
+function setupScreenToggle(): void {
+  const toggleBtn = document.getElementById("toggle-btn");
   const cdMain = document.getElementById("main") as HTMLElement;
   const cdAnnouncement = document.getElementById("announcement") as HTMLElement;
   const cdList = document.getElementById("schedule-list") as HTMLElement;
   const scheduleScreen = document.getElementById("schedule-screen") as HTMLElement;
   const timeContainer = document.getElementById("time-container") as HTMLElement;
 
-  if (mode === "schedule") {
-    cdMain.style.display = "none";
-    cdAnnouncement.style.display = "none";
-    cdList.style.display = "none";
-    scheduleScreen.style.display = "block";
-    timeContainer.style.left = "82%";
-  } else {
-    cdMain.style.display = "block";
-    cdAnnouncement.style.display = "flex";
-    cdList.style.display = "block";
-    scheduleScreen.style.display = "none";
-    timeContainer.style.left = "58%";
-  }
+  let isScheduleMode = false;
+
+  toggleBtn?.addEventListener("click", () => {
+    isScheduleMode = !isScheduleMode;
+
+    if (isScheduleMode) {
+      cdMain.style.display = "none";
+      cdAnnouncement.style.display = "none";
+      cdList.style.display = "none";
+      scheduleScreen.style.display = "block";
+      timeContainer.style.left = "82%";
+    } else {
+      cdMain.style.display = "block";
+      cdAnnouncement.style.display = "flex";
+      cdList.style.display = "block";
+      scheduleScreen.style.display = "none";
+      timeContainer.style.left = "58%";
+    }
+  });
 }
 
 async function main(): Promise<void> {
@@ -108,7 +115,6 @@ async function main(): Promise<void> {
 
   const initialApp = resolveActiveApp(appsData);
   applyAspectRatio(appsData.aspectRatioId ?? null);
-  applyScreenMode(appsData.screenMode ?? "countdown");
   runApp(initialApp, appsData.displayModeId ?? null);
 
   watchDisplaySettings(
@@ -128,13 +134,11 @@ async function main(): Promise<void> {
     // reasoning as display mode -- it's a physical-TV setting, not an
     // app-identity choice.
     (aspectRatioId) => applyAspectRatio(aspectRatioId),
-    // Screen-mode changes apply on every screen (pinned or not) -- the
-    // single on/off switch for the one physical TV, independent of which
-    // app's branding is live.
-    (screenMode) => applyScreenMode(screenMode),
   );
 
   await fetchAccurateTime();
+
+  setupScreenToggle();
 
   const fullscreenBtn = document.getElementById("fullscreen-btn");
   fullscreenBtn?.addEventListener("click", enterFullscreen);

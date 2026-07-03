@@ -54,11 +54,6 @@ const EN = {
   "aspectRatio.label": "TV shape: ",
   "aspectRatio.staged": 'TV shape staged: "{label}" -- click Save to publish.',
 
-  "screenMode.label": "Screen: ",
-  "screenMode.countdown": "Countdown",
-  "screenMode.schedule": "Schedule",
-  "screenMode.staged": 'Screen staged: "{label}" -- click Save to publish.',
-
   "lang.label": "Language: ",
 
   "preview.title": "Display preview",
@@ -191,11 +186,6 @@ const JA: Record<TranslationKey, string> = {
 
   "aspectRatio.label": "TVの形状: ",
   "aspectRatio.staged": "TVの形状を設定しました: “{label}” -- 保存をクリックして公開してください。",
-
-  "screenMode.label": "画面: ",
-  "screenMode.countdown": "カウントダウン",
-  "screenMode.schedule": "スケジュール",
-  "screenMode.staged": "画面を設定しました: “{label}” -- 保存をクリックして公開してください。",
 
   "lang.label": "言語: ",
 
