@@ -1,9 +1,15 @@
 name: Deploy
 
 on:
+  # Data lives under data/ and is read live from the repo by the display
+  # (raw.githubusercontent.com), so data edits need no rebuild/redeploy. Skip
+  # CI for data-only pushes; code/media changes still deploy.
   push:
     branches:
       - main
+    paths-ignore:
+      - "data/**"
+  workflow_dispatch:
 
 permissions:
   contents: read

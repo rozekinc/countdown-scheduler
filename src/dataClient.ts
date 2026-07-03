@@ -1,15 +1,22 @@
 import type { App, AppsData, EventData } from "./types";
+import { dataBaseUrl } from "./config";
 
-const APPS_URL = "data/apps.json";
-const EVENTS_DIR = "data/events";
-const ARCHIVE_DIR = "data/archive";
+// Prefix for every data fetch. On a github.io deployment this points at
+// raw.githubusercontent.com for the live repo, so admin/assistant data edits
+// show up here WITHOUT a Pages rebuild (data is decoupled from CI). Off
+// github.io it's "" and the relative data/ paths are used (see config.ts).
+// Computed once at load -- the deployment target doesn't change mid-session.
+const BASE = dataBaseUrl();
+const APPS_URL = `${BASE}data/apps.json`;
+const EVENTS_DIR = `${BASE}data/events`;
+const ARCHIVE_DIR = `${BASE}data/archive`;
 const REFRESH_INTERVAL_MS = 30000;
-// This is the "admin picks, the TV updates" latency for a single physical
-// display -- there's no server/websocket to push a change (this is a
-// static GitHub Pages site), so polling is the only mechanism. A plain
-// static-file fetch has no rate limit to worry about, so this is set for
-// a near-immediate feel rather than for request thrift.
-const APPS_POLL_INTERVAL_MS = 2000;
+// "admin picks, the TV updates" latency for a single physical display --
+// there's no server/websocket to push a change, so polling is the only
+// mechanism. Data is read from raw.githubusercontent.com (the live repo), so
+// this is kept modest rather than at a couple seconds, to stay well clear of
+// any anonymous-fetch abuse throttling while still feeling near-immediate.
+const APPS_POLL_INTERVAL_MS = 10000;
 const ARCHIVE_YEAR_LOOKBACK = 6;
 
 function cacheKey(appId: string): string {
