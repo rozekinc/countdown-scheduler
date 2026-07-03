@@ -33,6 +33,5 @@
     }
   ],
   "displayModeId": "standard",
-  "aspectRatioId": "widescreen-16-9",
-  "screenMode": "schedule"
+  "aspectRatioId": "widescreen-16-9"
 }
