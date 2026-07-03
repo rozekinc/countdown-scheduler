@@ -15,6 +15,8 @@ const EN = {
 
   "save.button": "Save changes",
   "save.none": "No unsaved changes",
+  "live.indicator": "● Live — changes show instantly",
+  "live.publish": "Publish to GitHub",
 
   "settings.button": "Settings",
   "settings.title": "Settings",
@@ -189,6 +191,8 @@ const JA: Record<TranslationKey, string> = {
 
   "save.button": "変更を保存",
   "save.none": "未保存の変更はありません",
+  "live.indicator": "● ライブ — 変更は即時反映",
+  "live.publish": "GitHubに公開",
 
   "settings.button": "設定",
   "settings.title": "設定",

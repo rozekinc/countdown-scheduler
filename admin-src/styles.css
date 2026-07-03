@@ -67,6 +67,19 @@ html, body {
 .save-bar {
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+
+/* Live-mode "no save needed" indicator + optional publish. */
+.live-indicator {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a8f3c;
+  white-space: nowrap;
+}
+.btn-publish {
+  font-size: 12px;
+  opacity: 0.85;
 }
 
 /* Read-only content-revision + build stamp, pushed to the far end of the

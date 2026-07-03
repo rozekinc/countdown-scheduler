@@ -28,61 +28,52 @@ html, body {
    mis-sized or clipped when the stage ends up smaller than the screen on
    one axis (e.g. a 16:9 stage pillarboxed on a 4:3 physical screen). */
 .aspect-inner {
-  position: relative;
-  /* min() ties width and height together so they shrink as a pair,
-     preserving the target ratio exactly, whichever axis is the limiting
-     one. The old formula (a fixed width + an independent max-height cap,
-     and vice versa) only happened to look right when the target ratio was
-     close to the physical screen's -- once they diverge (e.g. a 4:3
-     target on a 16:9 screen) the capped axis stopped shrinking its
-     partner, and the box silently stretched to fill the screen instead of
-     pillarboxing. */
   width: min(100vw, 100vh * var(--stage-w, 16) / var(--stage-h, 9));
   height: min(100vh, 100vw * var(--stage-h, 9) / var(--stage-w, 16));
   background-color: var(--theme-background, #fff);
   overflow: hidden;
-  padding: 0;
   container-type: size;
   container-name: stage;
+  /* 3-row grid stage: header / body / footer. Grid areas never overlap, so
+     spacing holds across sizes, aspect ratios and text scales. */
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-columns: 100%;
 }
 
-/* --- logo and top-banner placement --- */
+/* --- header: logos (left) + clock (right) --- */
+.stage-header {
+  position: relative; /* for the red-flag overlay */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2cqw;
+  padding: 1.5cqh 2.5cqw 0.5cqh;
+  min-width: 0;
+}
+
 .logo-area {
-  position: absolute;
-  top: 1cqh;
-  left: 1cqw;
-  width: clamp(200px, 40cqw, 350px);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  /* zero gap between the stacked images */
-  gap: 0;
-  z-index: 15;
-  pointer-events: none;
+  gap: 0.4cqh;
+  min-width: 0;
+  flex: 0 1 auto;
 }
-
+/* Images scale with the stage AND the text-size setting. */
 #top-banner {
-  width: 100%;
+  width: calc(clamp(110px, 20cqw, 300px) * var(--text-scale, 1));
+  max-width: 100%;
   height: auto;
-  /* nudge the top banner down slightly */
-  margin-top: 20px;
-  /* tighten the gap to the logo below; set to 0 or negative if needed */
-  margin-bottom: -75px;
 }
-
 #logo {
-  height: clamp(200px, 40cqh, 350px);
+  height: calc(clamp(48px, 9cqh, 120px) * var(--text-scale, 1));
   width: auto;
-  max-width: 90%;
+  max-width: 100%;
   object-fit: contain;
-  /* no top margin */
-  margin-top: 0;
 }
-/* ---------------------------- */
 
 .label {
-  font-size: clamp(20px, 3.5cqw, 45px);
-  margin-right: 2px;
   white-space: nowrap;
   color: var(--theme-accent, #484848);
 }
@@ -90,50 +81,65 @@ html, body {
   margin-left: 0;
 }
 
-.time-label {
-  font-size: calc(clamp(18px, 3cqw, 40px) * var(--text-scale, 1));
-  text-align: center;
-  color: var(--theme-accent, #484848);
-}
-
-/* current time */
 #time-container {
-  position: absolute;
-  top: 2.5cqh;
-  left: 58%;
-  transform: translateX(-50%);
-  font-size: calc(clamp(25px, 5.5cqw, 80px) * var(--text-scale, 1));
+  flex: 0 0 auto;
+  text-align: right;
+  font-size: calc(clamp(22px, min(5cqw, 9cqh), 76px) * var(--text-scale, 1));
   color: var(--theme-accent, #484848);
   user-select: none;
   white-space: nowrap;
-  z-index: 20;
-  pointer-events: none;
-  transition: left 0.5s ease-in-out;
+  line-height: 1.05;
+}
+.time-label {
+  font-size: 0.5em;
+  color: var(--theme-accent, #484848);
+}
+
+/* --- body: holds the countdown view and the schedule view (toggled) --- */
+.stage-body {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Countdown view: main timer column + next-schedule sidebar. */
+#countdown-view {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 24%);
+  min-height: 0;
+}
+
+/* --- footer: shared announcement bar --- */
+.stage-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5cqh 4cqw 1.5cqh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* title and countdown block -- raised slightly and with the title pulled
    close to the countdown (see #title's margin below) so the current-session
    title reads as one tight unit with its countdown rather than floating
    loosely above it. */
+/* Main timer column (grid cell in #countdown-view). Flex-centered; a long
+   title/countdown auto-shrinks to fit its cell via --fit-scale (src/fitText.ts)
+   rather than overflowing -- the grid cell gives it a bounded height. */
 #main {
-  position: absolute;
-  /* A bounded vertical band between the top chrome (clock/logo) and the
-     announcement bar, spanning the non-sidebar width. Flex-centered, and a
-     long title/countdown auto-shrinks to fit via --fit-scale (set by
-     src/fitText.ts) instead of overflowing into the announcement below. */
-  top: 25cqh;
-  bottom: 13cqh;
-  left: 0;
-  width: 75%; /* the schedule sidebar takes the right 25% */
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   gap: 0.4cqh;
+  padding: 1cqh 2cqw;
   text-align: center;
   user-select: none;
   overflow: hidden;
-  z-index: 10;
 }
 
 /* title -- de-emphasized slightly (size ceiling + opacity) relative to the
@@ -242,12 +248,10 @@ body.red-flag-on .aspect-inner {
 /* schedule list design -- a fixed heading over an auto-scrolling viewport.
    Flex column so #list-viewport takes the remaining height and can clip +
    scroll its content (see src/verticalScroll.ts setScrollingList). */
+/* Next-schedule sidebar: the right column of the countdown-view grid. */
 #schedule-list {
-  position: absolute;
-  top: 0;
-  height: 100cqh;
-  right: 0;
-  width: 25%;
+  min-width: 0;
+  min-height: 0;
   background: var(--theme-surface, #ffe4c4);
   border-left: 6px solid #696969;
   margin: 0;
@@ -256,14 +260,13 @@ body.red-flag-on .aspect-inner {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  font-size: clamp(14px, 1.5cqw, 24px);
-  z-index: 10;
+  font-size: calc(clamp(14px, 1.5cqw, 24px) * var(--text-scale, 1));
 }
 
 #schedule-list h2 {
-  font-size: calc(clamp(20px, 2.3cqw, 36px) * var(--text-scale, 1));
+  font-size: calc(clamp(18px, 2.3cqw, 36px) * var(--text-scale, 1));
   margin: 0;
-  margin-top: 20px;
+  padding: 1.2cqh 0.5cqw 0.6cqh;
   flex: 0 0 auto;
   font-weight: bold;
   text-align: center;
@@ -350,41 +353,26 @@ body.red-flag-on .aspect-inner {
   font-weight: bold;
 }
 
-/* schedule screen (day-by-day rows) */
+/* Schedule view: fills the body cell (between header + footer), toggled on. */
 #schedule-screen {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  /* Tinted relative to the current theme/mode -- a visible cue for which
-     screen you're on. This is on the actually-visible layer; setting this
-     on <body> instead (an earlier attempt) rendered invisible because this
-     element's own background sits on top of it. */
+  inset: 0;
   background: color-mix(in srgb, var(--theme-background, #fff) 80%, var(--theme-primary, #e60000) 20%);
   overflow: hidden;
   display: none; /* toggled from JS */
-  z-index: 5;
 }
 
-/* --- schedule display area (day columns) ---
-   Up to three upcoming days are laid out side by side as columns (built in
-   src/schedule.ts). The columns area sits between the top chrome and the
-   announcement bar; each column has a date header, an optional relative-day
-   sub-label, then that day's items. */
+/* Up to three upcoming days side by side (built in src/schedule.ts). Fills
+   the schedule view -- the header/footer are already separate grid rows, so
+   no manual top/bottom insets are needed. */
 #schedule-columns {
   position: absolute;
-  /* Start below the top chrome (logo top-left, clock top-right) so the
-     outer columns don't render underneath them. */
-  top: 31cqh;
-  left: 0;
-  right: 0;
-  bottom: 10cqh;
+  inset: 0;
   display: flex;
   justify-content: center;
   align-items: flex-start;
   gap: 3cqw;
-  padding: 0 4cqw;
+  padding: 2cqh 4cqw;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -589,30 +577,21 @@ body.red-flag-on .aspect-inner {
    with no width, which is CSS-over-constrained and made it render well
    past its container's right edge. Fixed by using left+right with no
    explicit width, so it's computed from the offsets as intended. */
+/* Shared announcement bar, living in the footer grid row (one bar for both
+   the countdown and schedule views). A fixed label ("お知らせ：") + a content
+   viewport that scrolls only when it overflows (see src/marquee.ts). */
 .announcement-bar {
-  position: absolute;
-  bottom: 2cqh;
-  left: 5cqw;
+  max-width: 100%;
   box-sizing: border-box;
-  padding: 10px 0;
   display: flex;
   align-items: baseline;
   gap: 0.4em;
   justify-content: center;
-  font-size: calc(clamp(24px, 2.4cqw, 38px) * var(--text-scale, 1));
+  font-size: calc(clamp(20px, 2.4cqw, 38px) * var(--text-scale, 1));
   color: var(--theme-accent, black);
   font-weight: bold;
   white-space: nowrap;
   overflow: hidden;
-  z-index: 100;
-}
-
-#announcement {
-  right: calc(25% + 5cqw); /* clears the sidebar, which stays visible on this screen */
-}
-
-#schedule-announcement {
-  right: 5cqw; /* no sidebar on this screen */
 }
 
 .marquee-label {

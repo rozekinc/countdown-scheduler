@@ -17,7 +17,7 @@ import {
 import type { AppsFile, EventData, ScheduleItem } from "./types";
 import { DISPLAY_MODES, DEFAULT_DISPLAY_MODE_ID, getDisplayMode } from "./displayModes";
 import { ASPECT_RATIOS, DEFAULT_ASPECT_RATIO_ID, getAspectRatio } from "./aspectRatios";
-import { readLiveSnapshot, writeLiveSnapshot } from "./liveBridge";
+import { readLiveSnapshot, writeLiveSnapshot, isLiveMode, onSourceChange } from "./liveBridge";
 import { t, getLang, setLang, onLangChange, type Lang } from "./i18n";
 
 // Public data/apps.json is fetched with a plain (unauthenticated) fetch,
@@ -96,6 +96,10 @@ export function init(root: HTMLElement): void {
     }
   });
 
+  // When the display toggles its data source (on the display page), swap the
+  // Save bar between the normal Save button and the "live, no save" indicator.
+  onSourceChange(() => renderSaveBar());
+
   // Re-render every visible piece of chrome on a language switch, so it
   // takes effect immediately without a page reload.
   onLangChange(() => {
@@ -164,6 +168,15 @@ function renderVersionIndicator(): void {
  */
 function renderSaveBar(): void {
   clear(saveBarEl);
+  if (isLiveMode()) {
+    // A same-browser display is reading the live bridge, so every edit already
+    // shows on screen -- no Save needed. Keep a small, secondary "Publish"
+    // for when they want to persist to GitHub (other machines / permanence).
+    const publishBtn = el("button", { class: "btn btn-secondary btn-publish" }, [t("live.publish")]);
+    publishBtn.addEventListener("click", () => void saveAll());
+    saveBarEl.append(el("span", { class: "live-indicator" }, [t("live.indicator")]), publishBtn);
+    return;
+  }
   saveBtnEl = el("button", { class: "btn btn-primary" }, [t("save.button")]) as HTMLButtonElement;
   saveBtnEl.addEventListener("click", () => void saveAll());
   saveBarEl.append(saveBtnEl);
@@ -171,6 +184,7 @@ function renderSaveBar(): void {
 }
 
 function updateSaveButtonState(): void {
+  if (isLiveMode()) return; // no Save button in live mode
   const dirty = hasPendingChanges();
   saveBtnEl.textContent = dirty ? t("save.button") : t("save.none");
   saveBtnEl.className = `btn ${dirty ? "btn-primary" : "btn-secondary"}`;

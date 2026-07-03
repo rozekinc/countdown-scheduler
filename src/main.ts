@@ -92,30 +92,17 @@ function enterFullscreen(): void {
  */
 function setupScreenToggle(): void {
   const toggleBtn = document.getElementById("toggle-btn");
-  const cdMain = document.getElementById("main") as HTMLElement;
-  const cdAnnouncement = document.getElementById("announcement") as HTMLElement;
-  const cdList = document.getElementById("schedule-list") as HTMLElement;
+  const countdownView = document.getElementById("countdown-view") as HTMLElement;
   const scheduleScreen = document.getElementById("schedule-screen") as HTMLElement;
-  const timeContainer = document.getElementById("time-container") as HTMLElement;
 
   let isScheduleMode = false;
 
+  // The header (logos + clock) and footer (announcement) are shared grid rows
+  // and stay put; only the body swaps between the two views.
   toggleBtn?.addEventListener("click", () => {
     isScheduleMode = !isScheduleMode;
-
-    if (isScheduleMode) {
-      cdMain.style.display = "none";
-      cdAnnouncement.style.display = "none";
-      cdList.style.display = "none";
-      scheduleScreen.style.display = "block";
-      timeContainer.style.left = "82%";
-    } else {
-      cdMain.style.display = "block";
-      cdAnnouncement.style.display = "flex";
-      cdList.style.display = "flex";
-      scheduleScreen.style.display = "none";
-      timeContainer.style.left = "58%";
-    }
+    countdownView.style.display = isScheduleMode ? "none" : "grid";
+    scheduleScreen.style.display = isScheduleMode ? "block" : "none";
   });
 }
 

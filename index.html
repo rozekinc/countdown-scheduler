@@ -2,65 +2,65 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="app-build" content="1.0.0+6680c0f" />
+  <meta name="app-build" content="1.0.0+017355f" />
   <title>カウントダウンスケジューラー</title>
-  <link rel="stylesheet" href="assets/main.css?v=6bdc16bf10" />
+  <link rel="stylesheet" href="assets/main.css?v=dc76da823c" />
 </head>
 <body>
   <div class="aspect-container">
+    <!-- The stage is a 3-row grid: header (logos + clock) / body (the
+         countdown or schedule view) / footer (announcement). Grid areas can't
+         overlap, so spacing is robust across sizes, aspect ratios and text
+         scales -- no absolute magic numbers. -->
     <div class="aspect-inner">
 
-      <div class="logo-area">
-        <img src="media/images/4413.png" id="top-banner" alt="上部バナー" />
-        <img src="media/images/ロゴ.png" id="logo" alt="ロゴ" />
-      </div>
-
-      <div id="time-container">
-        <div class="time-label" id="time-label">現在時刻</div>
-        <div id="current-time-label">
-          <span class="bracket">【</span>
-          <span id="current-time">00:00:00</span>
-          <span class="bracket">】</span>
+      <header class="stage-header">
+        <div class="logo-area">
+          <img src="media/images/4413.png" id="top-banner" alt="MOTOR SPORTS Garage 4413" />
+          <img src="media/images/ロゴ.png" id="logo" alt="ロゴ" />
         </div>
-      </div>
-
-      <!-- Red-flag indicator: shown top-left only while a red flag is active
-           (see src/countdown.ts setRedFlag). Hidden otherwise. -->
-      <div id="red-flag" class="rf-hidden" aria-hidden="true">
-        <span class="rf-flag"></span>
-        <span id="red-flag-text" class="rf-text">RED FLAG</span>
-      </div>
-
-      <div id="main">
-        <h1 id="title">タイトル読み込み中...</h1>
-        <div id="countdown">00:00:00.<span class="ms">000</span></div>
-        <!-- Stoppage timer: counts UP from when the red flag was raised.
-             Shown only during a red flag; the main countdown freezes. -->
-        <div id="stoppage" class="rf-hidden">
-          <div id="stoppage-label" class="stoppage-label">STOPPAGE</div>
-          <div id="stoppage-timer">00:00:00</div>
+        <div id="time-container">
+          <div class="time-label" id="time-label">現在時刻</div>
+          <div id="current-time-label">
+            <span class="bracket">【</span>
+            <span id="current-time">00:00:00</span>
+            <span class="bracket">】</span>
+          </div>
         </div>
-      </div>
-      <!-- Sibling of #main, not nested inside it: an announcement bar
-           positioned inside #main compounds #main's own top offset with
-           its own (a real bug in the original app), pushing it much lower
-           than intended. Both announcement bars share one CSS rule
-           (.announcement-bar) so they sit at the same place on either
-           screen. -->
-      <div id="announcement" class="announcement-bar"></div>
+        <!-- Red-flag indicator: overlays the top-left only while active. -->
+        <div id="red-flag" class="rf-hidden" aria-hidden="true">
+          <span class="rf-flag"></span>
+          <span id="red-flag-text" class="rf-text">RED FLAG</span>
+        </div>
+      </header>
 
-      <aside id="schedule-list">
-        <h2 id="next-schedule-label">次のスケジュール</h2>
-        <!-- The list auto-scrolls vertically when its items overflow this
-             viewport; see src/verticalScroll.ts setScrollingList. -->
-        <div id="list-viewport"></div>
-      </aside>
+      <div class="stage-body">
+        <!-- Countdown view: big timer + the next-schedule sidebar. -->
+        <section id="countdown-view">
+          <div id="main">
+            <h1 id="title">タイトル読み込み中...</h1>
+            <div id="countdown">00:00:00.<span class="ms">000</span></div>
+            <!-- Stoppage timer: counts UP from when the red flag was raised. -->
+            <div id="stoppage" class="rf-hidden">
+              <div id="stoppage-label" class="stoppage-label">STOPPAGE</div>
+              <div id="stoppage-timer">00:00:00</div>
+            </div>
+          </div>
+          <aside id="schedule-list">
+            <h2 id="next-schedule-label">次のスケジュール</h2>
+            <div id="list-viewport"></div>
+          </aside>
+        </section>
 
-      <div id="schedule-screen">
-        <!-- Day columns are built in src/schedule.ts from scheduleDays[]. -->
-        <div id="schedule-columns"></div>
-        <div id="schedule-announcement" class="announcement-bar"></div>
+        <!-- Schedule view: day columns, built in src/schedule.ts. -->
+        <section id="schedule-screen">
+          <div id="schedule-columns"></div>
+        </section>
       </div>
+
+      <footer class="stage-footer">
+        <div id="announcement" class="announcement-bar"></div>
+      </footer>
 
       <img src="media/images/全画面.png" id="fullscreen-btn" alt="全画面" />
 
@@ -81,6 +81,6 @@
     <button id="source-btn" type="button">Source: GitHub</button>
   </div>
 
-  <script src="assets/main.js?v=6bdc16bf10" defer></script>
+  <script src="assets/main.js?v=dc76da823c" defer></script>
 </body>
 </html>

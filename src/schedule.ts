@@ -1,7 +1,6 @@
 import type { AppsData, EventData, ScheduleDay } from "./types";
-import { setAnnouncementText } from "./marquee";
 import { colorizeKeywords } from "./keywords";
-import { resolveLabel, relativeDayLabel } from "./labels";
+import { relativeDayLabel } from "./labels";
 
 export interface ScheduleController {
   setEventData(data: EventData): void;
@@ -82,7 +81,6 @@ function renderColumn(
 
 export function initSchedule(getNow: () => Date, getApps: () => AppsData): ScheduleController {
   const columnsElem = document.getElementById("schedule-columns") as HTMLElement;
-  const announcementElem = document.getElementById("schedule-announcement") as HTMLElement;
 
   let currentData: EventData | null = null;
 
@@ -91,11 +89,8 @@ export function initSchedule(getNow: () => Date, getApps: () => AppsData): Sched
     const now = getNow();
     const data = currentData;
 
-    setAnnouncementText(
-      announcementElem,
-      `<span class="announcement-label">${resolveLabel(apps, "noticePrefix")}</span>`,
-      data?.announcement ?? "",
-    );
+    // The announcement bar lives in the shared footer and is owned by the
+    // countdown controller; the schedule view doesn't render its own.
 
     if (!data) {
       columnsElem.innerHTML = "";
