@@ -9,8 +9,7 @@
         "accent": "#484848",
         "background": "#ffffff"
       },
-      "activeEventId": "sample-event",
-      "screenMode": "countdown"
+      "activeEventId": "sample-event"
     },
     {
       "id": "web2",
@@ -20,8 +19,7 @@
         "accent": "#2f2f2f",
         "background": "#f4f8ff"
       },
-      "activeEventId": "sample-event",
-      "screenMode": "schedule"
+      "activeEventId": "sample-event"
     },
     {
       "id": "web3",
@@ -31,10 +29,10 @@
         "accent": "#333333",
         "background": "#f5fff7"
       },
-      "activeEventId": "sample-event",
-      "screenMode": "countdown"
+      "activeEventId": "sample-event"
     }
   ],
   "displayModeId": "standard",
-  "aspectRatioId": "widescreen-16-9"
+  "aspectRatioId": "widescreen-16-9",
+  "screenMode": "schedule"
 }

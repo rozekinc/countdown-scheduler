@@ -42,10 +42,10 @@ function enterFullscreen(): void {
 }
 
 /**
- * Which screen this app shows -- set once per app.screenMode, not toggled
- * at runtime. Each app is dedicated to one screen (e.g. one app for the
- * countdown, another for the full schedule); switching which app shows on
- * a given display is done from the admin, not a button on the TV itself.
+ * Which screen the (single, one-HDMI-cable) TV shows -- a global setting
+ * (data/apps.json's screenMode), same treatment as display mode/aspect
+ * ratio, independent of which app's branding is currently live. Set from
+ * the admin; no runtime toggle button on the display itself anymore.
  */
 function applyScreenMode(mode: ScreenMode): void {
   const cdMain = document.getElementById("main") as HTMLElement;
@@ -88,7 +88,6 @@ async function main(): Promise<void> {
     currentApp = app;
     currentModeId = displayModeId;
     applyTheme(app, displayModeId);
-    applyScreenMode(app.screenMode ?? "countdown");
 
     const dataSource = createEventDataSource(app);
     activeDataSource = dataSource;
@@ -109,6 +108,7 @@ async function main(): Promise<void> {
 
   const initialApp = resolveActiveApp(appsData);
   applyAspectRatio(appsData.aspectRatioId ?? null);
+  applyScreenMode(appsData.screenMode ?? "countdown");
   runApp(initialApp, appsData.displayModeId ?? null);
 
   watchDisplaySettings(
@@ -128,6 +128,10 @@ async function main(): Promise<void> {
     // reasoning as display mode -- it's a physical-TV setting, not an
     // app-identity choice.
     (aspectRatioId) => applyAspectRatio(aspectRatioId),
+    // Screen-mode changes apply on every screen (pinned or not) -- the
+    // single on/off switch for the one physical TV, independent of which
+    // app's branding is live.
+    (screenMode) => applyScreenMode(screenMode),
   );
 
   await fetchAccurateTime();

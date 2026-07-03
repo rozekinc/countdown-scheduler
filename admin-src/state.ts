@@ -12,12 +12,10 @@ export interface AppsPatch {
   selectedAppId?: string;
   displayModeId?: string | null;
   aspectRatioId?: string | null;
+  screenMode?: ScreenMode | null;
   /** appId -> new activeEventId (null clears it), staged by "Set active" /
    * "Close event" for whichever app(s) were touched this session. */
   activeEventIdByApp?: Record<string, string | null>;
-  /** appId -> new screenMode, staged by the "Screen" dropdown for
-   * whichever app(s) were touched this session. */
-  screenModeByApp?: Record<string, ScreenMode>;
 }
 
 export interface AppState {
@@ -36,6 +34,10 @@ export interface AppState {
   /** Which aspect-ratio preset (data/apps.json's aspectRatioId) the stage
    * is letterboxed to on every screen. Null means 16:9. */
   aspectRatioId: string | null;
+  /** Which screen every display shows (data/apps.json's screenMode) -- a
+   * single global switch, independent of which app's branding is live.
+   * Null means "countdown". */
+  screenMode: ScreenMode | null;
 
   eventsForApp: EventListEntry[];
   currentEventId: string | null;
@@ -67,6 +69,7 @@ export const state: AppState = {
   selectedAppId: null,
   displayModeId: null,
   aspectRatioId: null,
+  screenMode: null,
   eventsForApp: [],
   currentEventId: null,
   currentEvent: null,
@@ -95,8 +98,8 @@ export function hasPendingChanges(): boolean {
     patch.selectedAppId !== undefined ||
     patch.displayModeId !== undefined ||
     patch.aspectRatioId !== undefined ||
-    Object.keys(patch.activeEventIdByApp ?? {}).length > 0 ||
-    Object.keys(patch.screenModeByApp ?? {}).length > 0
+    patch.screenMode !== undefined ||
+    Object.keys(patch.activeEventIdByApp ?? {}).length > 0
   );
 }
 

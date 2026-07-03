@@ -1,10 +1,15 @@
-import type { App, AppsData, EventData } from "./types";
+import type { App, AppsData, EventData, ScreenMode } from "./types";
 
 const APPS_URL = "data/apps.json";
 const EVENTS_DIR = "data/events";
 const ARCHIVE_DIR = "data/archive";
 const REFRESH_INTERVAL_MS = 30000;
-const APPS_POLL_INTERVAL_MS = 15000;
+// This is the "admin picks, the TV updates" latency for a single physical
+// display -- there's no server/websocket to push a change (this is a
+// static GitHub Pages site), so polling is the only mechanism. A plain
+// static-file fetch has no rate limit to worry about, so this is set for
+// a near-immediate feel rather than for request thrift.
+const APPS_POLL_INTERVAL_MS = 2000;
 const ARCHIVE_YEAR_LOOKBACK = 6;
 
 function cacheKey(appId: string): string {
@@ -71,7 +76,7 @@ export function resolveActiveApp(data: AppsData): App {
 }
 
 /**
- * Polls data/apps.json and reports three things the admin can change live,
+ * Polls data/apps.json and reports four things the admin can change live,
  * with no reload needed on the display end:
  *  - onAppSwitch: which app is showing (selectedAppId) -- no-op on a
  *    screen pinned via ?app=, which is meant to stay put regardless.
@@ -81,17 +86,23 @@ export function resolveActiveApp(data: AppsData): App {
  *  - onAspectRatioChange: which aspect-ratio preset the stage is
  *    letterboxed to (aspectRatioId) -- same reasoning as onModeChange,
  *    applies everywhere regardless of pinning.
+ *  - onScreenModeChange: which screen (countdown/schedule) is shown
+ *    (screenMode) -- a single global on/off switch for the one physical
+ *    TV, independent of which app's branding is live. Same "applies
+ *    everywhere, pinned or not" reasoning as display mode.
  */
 export function watchDisplaySettings(
   initialApps: AppsData,
   onAppSwitch: (app: App) => void,
   onModeChange: (displayModeId: string | null) => void,
   onAspectRatioChange: (aspectRatioId: string | null) => void,
+  onScreenModeChange: (screenMode: ScreenMode) => void,
 ): void {
   const pinned = isPinnedByUrl(initialApps.apps);
   let currentAppId = resolveActiveApp(initialApps).id;
   let currentModeId = initialApps.displayModeId ?? null;
   let currentAspectRatioId = initialApps.aspectRatioId ?? null;
+  let currentScreenMode: ScreenMode = initialApps.screenMode ?? "countdown";
 
   window.setInterval(() => {
     void (async () => {
@@ -108,6 +119,12 @@ export function watchDisplaySettings(
       if (freshAspectRatioId !== currentAspectRatioId) {
         currentAspectRatioId = freshAspectRatioId;
         onAspectRatioChange(currentAspectRatioId);
+      }
+
+      const freshScreenMode: ScreenMode = fresh.screenMode ?? "countdown";
+      if (freshScreenMode !== currentScreenMode) {
+        currentScreenMode = freshScreenMode;
+        onScreenModeChange(currentScreenMode);
       }
 
       if (pinned) return;

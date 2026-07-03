@@ -57,7 +57,7 @@ const EN = {
   "screenMode.label": "Screen: ",
   "screenMode.countdown": "Countdown",
   "screenMode.schedule": "Schedule",
-  "screenMode.staged": '{appId} screen staged: "{label}" -- click Save to publish.',
+  "screenMode.staged": 'Screen staged: "{label}" -- click Save to publish.',
 
   "lang.label": "Language: ",
 
@@ -195,7 +195,7 @@ const JA: Record<TranslationKey, string> = {
   "screenMode.label": "画面: ",
   "screenMode.countdown": "カウントダウン",
   "screenMode.schedule": "スケジュール",
-  "screenMode.staged": "{appId} の画面を設定しました: “{label}” -- 保存をクリックして公開してください。",
+  "screenMode.staged": "画面を設定しました: “{label}” -- 保存をクリックして公開してください。",
 
   "lang.label": "言語: ",
 
