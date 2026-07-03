@@ -273,7 +273,14 @@ html, body {
   align-items: center;
 }
 
-.schedule-rows-viewport {
+/* #schedule-rows-viewport (an ID, not a class -- see index.html/schedule.ts)
+   is the actual element these rules need to target. It only ever gets
+   the .schedule-rows-active class toggled onto it (see below), never
+   .schedule-rows-viewport itself, so a class selector here silently
+   matched nothing: no overflow:hidden, no flex sizing, and the rows just
+   rendered at full unclipped height, spilling into the announcement bar
+   below. */
+#schedule-rows-viewport {
   width: 100%;
   flex: 1 1 auto;
   min-height: 0;
