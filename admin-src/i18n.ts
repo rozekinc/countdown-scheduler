@@ -40,6 +40,9 @@ const EN = {
   "auth.signIn": "Sign in",
   "auth.cancel": "Cancel",
   "auth.signInFailed": "Sign-in failed.",
+  "auth.readOnlyWarning":
+    "This token looks read-only. Saving changes needs a token with Contents: read AND write. Update the token's permissions in GitHub, or you won't be able to save.",
+  "auth.continueAnyway": "Continue anyway",
 
   "app.label": "App: ",
   "app.liveOnDisplay": "Live on display ✓",
@@ -56,16 +59,22 @@ const EN = {
 
   "lang.label": "Language: ",
 
+  "version.label": "Version: ",
+
   "preview.title": "Display preview",
   "preview.noApp": "No app selected",
   "preview.nextUp": "Next up: ",
   "preview.then": " then ",
   "preview.summary": "{mode} · {ratio}",
+  "preview.sampleKeywordA": "Sample A",
+  "preview.sampleKeywordB": "Sample B",
 
   "events.loading": "Loading events…",
   "events.title": "Events",
   "events.signInToLoad": "Sign in to load events.",
   "events.newDraft": "New draft event",
+  "events.newIdTitle": "New draft event",
+  "events.newIdCreate": "Create",
   "events.newIdPrompt": "New event id (lowercase letters, digits, dashes):",
   "events.invalidId": "Invalid event id: use only lowercase letters, digits, and dashes.",
   "events.alreadyExists": "Event {id} already exists.",
@@ -173,6 +182,9 @@ const JA: Record<TranslationKey, string> = {
   "auth.signIn": "サインイン",
   "auth.cancel": "キャンセル",
   "auth.signInFailed": "サインインに失敗しました。",
+  "auth.readOnlyWarning":
+    "このトークンは読み取り専用のようです。変更を保存するには Contents: read/write 権限のトークンが必要です。GitHub でトークンの権限を更新してください。そうしないと保存できません。",
+  "auth.continueAnyway": "このまま続行",
 
   "app.label": "アプリ: ",
   "app.liveOnDisplay": "表示中 ✓",
@@ -189,16 +201,22 @@ const JA: Record<TranslationKey, string> = {
 
   "lang.label": "言語: ",
 
+  "version.label": "バージョン: ",
+
   "preview.title": "表示プレビュー",
   "preview.noApp": "アプリが選択されていません",
   "preview.nextUp": "次は: ",
   "preview.then": " → ",
   "preview.summary": "{mode} · {ratio}",
+  "preview.sampleKeywordA": "サンプルA",
+  "preview.sampleKeywordB": "サンプルB",
 
   "events.loading": "イベントを読み込み中…",
   "events.title": "イベント",
   "events.signInToLoad": "イベントを読み込むにはサインインしてください。",
   "events.newDraft": "新規下書きイベント",
+  "events.newIdTitle": "新規下書きイベント",
+  "events.newIdCreate": "作成",
   "events.newIdPrompt": "新しいイベントID (小文字・数字・ハイフンのみ):",
   "events.invalidId": "無効なイベントIDです: 小文字・数字・ハイフンのみ使用できます。",
   "events.alreadyExists": "イベント {id} は既に存在します。",

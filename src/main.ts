@@ -3,6 +3,7 @@ import { loadApps, resolveActiveApp, createEventDataSource, watchDisplaySettings
 import { applyTheme, applyAspectRatio } from "./theme";
 import { initCountdown } from "./countdown";
 import { initSchedule } from "./schedule";
+import { initVersionBadge } from "./versionBadge";
 import type { App, EventData } from "./types";
 
 interface FullscreenDocumentElement extends HTMLElement {
@@ -12,18 +13,51 @@ interface FullscreenDocumentElement extends HTMLElement {
 
 let serverTimeOffset = 0;
 
+const TIME_RESYNC_INTERVAL_MS = 30 * 60 * 1000;
+const TIME_FETCH_ATTEMPTS = 3;
+const TIME_FETCH_BACKOFF_MS = 1000;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+// One shot: fetch the server time and update serverTimeOffset. Throws on
+// failure so callers can decide whether to retry or keep the last-known-good
+// offset; it never mutates the offset unless it succeeds.
+async function fetchServerOffsetOnce(): Promise<void> {
+  const localBefore = Date.now();
+  const res = await fetch("https://worldtimeapi.org/api/timezone/Asia/Tokyo");
+  const localAfter = Date.now();
+  const data = (await res.json()) as { datetime: string };
+  const serverTime = new Date(data.datetime).getTime();
+  if (Number.isNaN(serverTime)) throw new Error("invalid datetime");
+  const localMidpoint = (localBefore + localAfter) / 2;
+  serverTimeOffset = serverTime - localMidpoint;
+}
+
+// Initial sync: retry a few times with a small backoff. If every attempt
+// fails we leave serverTimeOffset at 0 (local clock) -- non-fatal, startup
+// continues -- and rely on the periodic resync to recover later.
 async function fetchAccurateTime(): Promise<void> {
-  try {
-    const localBefore = Date.now();
-    const res = await fetch("https://worldtimeapi.org/api/timezone/Asia/Tokyo");
-    const localAfter = Date.now();
-    const data = (await res.json()) as { datetime: string };
-    const serverTime = new Date(data.datetime).getTime();
-    const localMidpoint = (localBefore + localAfter) / 2;
-    serverTimeOffset = serverTime - localMidpoint;
-  } catch (err) {
-    console.error("時刻取得失敗:", err);
+  for (let attempt = 1; attempt <= TIME_FETCH_ATTEMPTS; attempt++) {
+    try {
+      await fetchServerOffsetOnce();
+      return;
+    } catch (err) {
+      console.error(`時刻取得失敗 (${attempt}/${TIME_FETCH_ATTEMPTS}):`, err);
+      if (attempt < TIME_FETCH_ATTEMPTS) await delay(TIME_FETCH_BACKOFF_MS * attempt);
+    }
   }
+}
+
+// Periodic resync so long-running screens don't drift. On success the offset
+// updates; on failure we keep the last-known-good value rather than resetting.
+function startTimeResync(): void {
+  window.setInterval(() => {
+    void fetchServerOffsetOnce().catch((err) => {
+      console.error("時刻再同期失敗:", err);
+    });
+  }, TIME_RESYNC_INTERVAL_MS);
 }
 
 function getNow(): Date {
@@ -117,6 +151,11 @@ async function main(): Promise<void> {
   applyAspectRatio(appsData.aspectRatioId ?? null);
   runApp(initialApp, appsData.displayModeId ?? null);
 
+  // Subtle corner badge showing which content version + code build this
+  // screen is running; updateVersionBadge is called from the apps.json
+  // poll below so a publish is reflected live without a reload.
+  const updateVersionBadge = initVersionBadge(appsData);
+
   watchDisplaySettings(
     appsData,
     // On a screen pinned via ?app=, this is never called -- see isPinnedByUrl.
@@ -134,9 +173,13 @@ async function main(): Promise<void> {
     // reasoning as display mode -- it's a physical-TV setting, not an
     // app-identity choice.
     (aspectRatioId) => applyAspectRatio(aspectRatioId),
+    // Content-version changes (a publish) refresh the corner badge in
+    // place, so the screen shows which data it's currently looking at.
+    (data) => updateVersionBadge(data),
   );
 
   await fetchAccurateTime();
+  startTimeResync();
 
   setupScreenToggle();
 

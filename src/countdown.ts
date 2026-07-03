@@ -38,6 +38,7 @@ export function initCountdown(getNow: () => Date): CountdownController {
   const soundFun = document.getElementById("sound-fun") as HTMLAudioElement;
 
   let parsedSchedule: ParsedRow[] = [];
+  let keywords: string[] | undefined;
   let currentIndex = 0;
   let countdownInterval: number | undefined;
   // These flags intentionally never reset once tripped, matching the
@@ -68,7 +69,7 @@ export function initCountdown(getNow: () => Date): CountdownController {
       // the first entry here is the one coming up right after it.
       if (position === 0) li.classList.add("row-next");
       li.innerHTML =
-        `<div class="title"><span class="bullet">▶</span>${colorizeKeywords(item.title).replace(/\n/g, "<br>")}</div>` +
+        `<div class="title"><span class="bullet">▶</span>${colorizeKeywords(item.title, keywords).replace(/\n/g, "<br>")}</div>` +
         `<div class="time">${String(item.time.getHours()).padStart(2, "0")}:${String(item.time.getMinutes()).padStart(2, "0")}:${String(item.time.getSeconds()).padStart(2, "0")}</div>`;
       listElem.appendChild(li);
     });
@@ -91,7 +92,7 @@ export function initCountdown(getNow: () => Date): CountdownController {
     }
 
     const { title, time } = parsedSchedule[currentIndex];
-    titleElem.innerHTML = `${colorizeKeywords(title).replace(/\n/g, "<br>")}<br><span class="countdown-time">${time
+    titleElem.innerHTML = `${colorizeKeywords(title, keywords).replace(/\n/g, "<br>")}<br><span class="countdown-time">${time
       .toTimeString()
       .slice(0, 8)}まで</span>`;
 
@@ -127,6 +128,8 @@ export function initCountdown(getNow: () => Date): CountdownController {
 
   return {
     setEventData(data: EventData): void {
+      keywords = data.highlightKeywords;
+
       setAnnouncementText(
         announcementElem,
         `<span class="announcement-label">お知らせ：</span>`,

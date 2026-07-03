@@ -2,6 +2,7 @@
   "id": "sample-event",
   "appId": "web1",
   "status": "active",
+  "highlightKeywords": ["JSB1000", "ST1000"],
   "announcement": "Doors open at 12:30. Please have your ticket ready.",
   "countdownRows": [
     {

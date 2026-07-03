@@ -31,6 +31,7 @@ let aspectRatioSwitcherEl: HTMLElement;
 let langSwitcherEl: HTMLElement;
 let authControlsEl: HTMLElement;
 let settingsControlsEl: HTMLElement;
+let versionIndicatorEl: HTMLElement;
 let viewToggleEl: HTMLElement;
 let leftPanelEl: HTMLElement;
 let mainPanelEl: HTMLElement;
@@ -52,6 +53,7 @@ export function init(root: HTMLElement): void {
   langSwitcherEl = el("div", { class: "lang-switcher" });
   settingsControlsEl = el("div", { class: "settings-controls" });
   authControlsEl = el("div", { class: "auth-controls" });
+  versionIndicatorEl = el("div", { class: "version-indicator" });
   saveBarEl = el("div", { class: "save-bar" });
   header.append(
     viewToggleEl,
@@ -62,6 +64,7 @@ export function init(root: HTMLElement): void {
     langSwitcherEl,
     settingsControlsEl,
     authControlsEl,
+    versionIndicatorEl,
   );
 
   const body = el("div", { class: "app-body" });
@@ -80,6 +83,7 @@ export function init(root: HTMLElement): void {
 
   renderSaveBar();
   renderLangSwitcher();
+  renderVersionIndicator();
   renderAuthControls(authControlsEl, onSignedIn);
   renderSettingsControls(settingsControlsEl, onSettingsSaved);
   renderViewToggle();
@@ -102,6 +106,7 @@ export function init(root: HTMLElement): void {
     renderViewToggle();
     renderSaveBar();
     renderLangSwitcher();
+    renderVersionIndicator();
     renderAuthControls(authControlsEl, onSignedIn);
     renderSettingsControls(settingsControlsEl, onSettingsSaved);
     renderAppSwitcher();
@@ -129,6 +134,30 @@ function renderLangSwitcher(): void {
     setLang((select as HTMLSelectElement).value as Lang);
   });
   langSwitcherEl.append(el("label", {}, [t("lang.label")]), select);
+}
+
+/**
+ * Small read-only chrome showing which content revision the admin is
+ * looking at (contentVersion/contentUpdatedAt from data/apps.json) plus the
+ * build stamp baked into admin/index.html at build time. Any part that's
+ * absent (or the placeholder "dev" build) is simply omitted; if nothing is
+ * available the whole indicator stays empty. The content parts refresh
+ * whenever apps.json is (re)loaded via loadApps().
+ */
+function renderVersionIndicator(): void {
+  clear(versionIndicatorEl);
+  const parts: string[] = [];
+  if (state.contentVersion !== null) parts.push(`v${state.contentVersion}`);
+  if (state.contentUpdatedAt) parts.push(state.contentUpdatedAt);
+  const build = document
+    .querySelector('meta[name="app-build"]')
+    ?.getAttribute("content");
+  if (build && build !== "dev") parts.push(`build ${build}`);
+  if (parts.length === 0) return;
+  versionIndicatorEl.append(
+    el("span", { class: "version-label" }, [t("version.label")]),
+    el("span", { class: "version-value" }, [parts.join(" · ")]),
+  );
 }
 
 /**
@@ -249,9 +278,12 @@ async function loadApps(): Promise<void> {
     state.selectedAppId = data.selectedAppId ?? (state.apps[0]?.id ?? null);
     state.displayModeId = data.displayModeId ?? null;
     state.aspectRatioId = data.aspectRatioId ?? null;
+    state.contentVersion = data.contentVersion ?? null;
+    state.contentUpdatedAt = data.contentUpdatedAt ?? null;
     if (state.apps.length > 0) {
       state.currentAppId = state.apps[0].id;
     }
+    renderVersionIndicator();
     renderAppSwitcher();
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
@@ -438,9 +470,9 @@ function renderPreviewPanel(): void {
     el("div", { class: "preview-mock-countdown" }, ["12:34:56"]),
     el("div", { class: "preview-mock-announcement" }, [
       t("preview.nextUp"),
-      el("span", { class: "keyword keyword-a" }, ["JSB1000"]),
+      el("span", { class: "keyword keyword-a" }, [t("preview.sampleKeywordA")]),
       t("preview.then"),
-      el("span", { class: "keyword keyword-b" }, ["ST1000"]),
+      el("span", { class: "keyword keyword-b" }, [t("preview.sampleKeywordB")]),
     ]),
     el("div", { class: "preview-mock-rows" }, [
       el("div", { class: "preview-mock-row" }, [
@@ -589,16 +621,73 @@ async function selectEvent(id: string): Promise<void> {
 function newDraftEvent(): void {
   const appId = state.currentAppId;
   if (!appId) return;
-  const id = window.prompt(t("events.newIdPrompt"), "");
-  if (!id) return;
-  if (!/^[a-z0-9-]+$/.test(id)) {
-    setStatus(t("events.invalidId"), true);
-    return;
+  openNewEventModal(appId);
+}
+
+/** In-page modal for the new-event id, mirroring the auth token modal
+ * (authPanel.ts). Validation runs inside the modal and errors show inline,
+ * so an invalid/duplicate id never gets accepted or leaks to the status
+ * bar. */
+function openNewEventModal(appId: string): void {
+  const backdrop = el("div", { class: "modal-backdrop" });
+
+  const idInput = el("input", {
+    type: "text",
+    class: "row-input",
+    placeholder: "event-id",
+    autocomplete: "off",
+    spellcheck: "false",
+  }) as HTMLInputElement;
+
+  const errorEl = el("p", { class: "error" }, []);
+  errorEl.style.display = "none";
+
+  const submitBtn = el("button", { class: "btn btn-primary" }, [t("events.newIdCreate")]);
+  const cancelBtn = el("button", { class: "btn btn-secondary" }, [t("auth.cancel")]);
+
+  function showError(message: string): void {
+    errorEl.textContent = message;
+    errorEl.style.display = "";
   }
-  if (state.eventsForApp.some((e) => e.id === id)) {
-    setStatus(t("events.alreadyExists", { id }), true);
-    return;
+
+  function submit(): void {
+    const id = idInput.value.trim();
+    if (!id) return;
+    if (!/^[a-z0-9-]+$/.test(id)) {
+      showError(t("events.invalidId"));
+      return;
+    }
+    if (state.eventsForApp.some((e) => e.id === id)) {
+      showError(t("events.alreadyExists", { id }));
+      return;
+    }
+    backdrop.remove();
+    stageNewDraftEvent(appId, id);
   }
+
+  submitBtn.addEventListener("click", submit);
+  idInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submit();
+  });
+  idInput.addEventListener("input", () => {
+    errorEl.style.display = "none";
+  });
+  cancelBtn.addEventListener("click", () => backdrop.remove());
+
+  const body = el("div", { class: "modal-body" }, [
+    el("h3", {}, [t("events.newIdTitle")]),
+    el("label", { class: "field" }, [t("events.newIdPrompt"), idInput]),
+    errorEl,
+    el("div", { class: "actions-row" }, [submitBtn, cancelBtn]),
+  ]);
+  const modal = el("div", { class: "modal" }, [body]);
+  backdrop.append(modal);
+  document.body.append(backdrop);
+  idInput.focus();
+}
+
+/** Stages a validated new draft event locally; written on the next Save. */
+function stageNewDraftEvent(appId: string, id: string): void {
   const newEvent: EventData = {
     id,
     appId,

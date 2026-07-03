@@ -33,5 +33,7 @@
     }
   ],
   "displayModeId": "standard",
-  "aspectRatioId": "ultrawide-21-9"
+  "aspectRatioId": "ultrawide-21-9",
+  "contentVersion": 1,
+  "contentUpdatedAt": "2026-07-03"
 }

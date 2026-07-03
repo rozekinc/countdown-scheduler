@@ -51,12 +51,29 @@ function openTokenModal(onSuccess: () => void): void {
   const submitBtn = el("button", { class: "btn btn-primary" }, [t("auth.signIn")]);
   const cancelBtn = el("button", { class: "btn btn-secondary" }, [t("auth.cancel")]);
 
+  // Set once the read-only warning has been shown: the token is already
+  // stored, so the next click just proceeds ("Continue anyway").
+  let acknowledgedWarning = false;
+
   function submit(): void {
+    if (acknowledgedWarning) {
+      backdrop.remove();
+      onSuccess();
+      return;
+    }
     submitBtn.setAttribute("disabled", "true");
     submitBtn.textContent = t("auth.checking");
     errorEl.style.display = "none";
     signInWithToken(tokenInput.value)
-      .then(() => {
+      .then((result) => {
+        if (result.writeWarning) {
+          acknowledgedWarning = true;
+          submitBtn.removeAttribute("disabled");
+          submitBtn.textContent = t("auth.continueAnyway");
+          errorEl.textContent = t("auth.readOnlyWarning");
+          errorEl.style.display = "";
+          return;
+        }
         backdrop.remove();
         onSuccess();
       })

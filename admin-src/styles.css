@@ -69,6 +69,30 @@ html, body {
   align-items: center;
 }
 
+/* Read-only content-revision + build stamp, pushed to the far end of the
+   header so it reads as passive chrome rather than an interactive control. */
+.version-indicator {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0.8;
+}
+
+.version-indicator:empty {
+  margin-left: 0;
+}
+
+.version-indicator .version-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.version-indicator .version-value {
+  font-variant-numeric: tabular-nums;
+}
+
 .auth-status {
   font-size: 12px;
   opacity: 0.85;

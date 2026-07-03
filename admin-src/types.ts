@@ -26,6 +26,12 @@ export interface AppsFile {
   /** Which aspect-ratio preset (see aspectRatios.ts) the stage is
    * letterboxed/pillarboxed to on every screen. Null/absent = 16:9. */
   aspectRatioId?: string | null;
+  /** Monotonic content revision, bumped when the published data set
+   * changes. Surfaced read-only in the admin's version indicator. */
+  contentVersion?: number;
+  /** Date (YYYY-MM-DD) the content was last updated, shown alongside
+   * contentVersion in the admin's version indicator. */
+  contentUpdatedAt?: string;
 }
 
 export type EventStatus = "draft" | "active" | "ended";
