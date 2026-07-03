@@ -31,6 +31,7 @@ let appSwitcherEl: HTMLElement;
 let displayModeSwitcherEl: HTMLElement;
 let aspectRatioSwitcherEl: HTMLElement;
 let langSwitcherEl: HTMLElement;
+let redFlagControlEl: HTMLElement;
 let authControlsEl: HTMLElement;
 let settingsControlsEl: HTMLElement;
 let versionIndicatorEl: HTMLElement;
@@ -53,6 +54,7 @@ export function init(root: HTMLElement): void {
   displayModeSwitcherEl = el("div", { class: "display-mode-switcher" });
   aspectRatioSwitcherEl = el("div", { class: "aspect-ratio-switcher" });
   langSwitcherEl = el("div", { class: "lang-switcher" });
+  redFlagControlEl = el("div", { class: "red-flag-control" });
   settingsControlsEl = el("div", { class: "settings-controls" });
   authControlsEl = el("div", { class: "auth-controls" });
   versionIndicatorEl = el("div", { class: "version-indicator" });
@@ -63,6 +65,7 @@ export function init(root: HTMLElement): void {
     displayModeSwitcherEl,
     aspectRatioSwitcherEl,
     saveBarEl,
+    redFlagControlEl,
     langSwitcherEl,
     settingsControlsEl,
     authControlsEl,
@@ -85,6 +88,7 @@ export function init(root: HTMLElement): void {
 
   renderSaveBar();
   renderLangSwitcher();
+  renderRedFlagControl();
   renderVersionIndicator();
   renderAuthControls(authControlsEl, onSignedIn);
   renderSettingsControls(settingsControlsEl, onSettingsSaved, onDisplaySettingsChanged);
@@ -108,6 +112,7 @@ export function init(root: HTMLElement): void {
     renderViewToggle();
     renderSaveBar();
     renderLangSwitcher();
+    renderRedFlagControl();
     renderVersionIndicator();
     renderAuthControls(authControlsEl, onSignedIn);
     renderSettingsControls(settingsControlsEl, onSettingsSaved, onDisplaySettingsChanged);
@@ -136,6 +141,38 @@ function renderLangSwitcher(): void {
     setLang((select as HTMLSelectElement).value as Lang);
   });
   langSwitcherEl.append(el("label", {}, [t("lang.label")]), select);
+}
+
+// Header red-flag toggle. Committed IMMEDIATELY (not staged for a later Save)
+// because it's an operational, time-critical control: one click raises or
+// clears the flag on the live display. Raising it stamps `since` (used by the
+// display's count-up stoppage timer).
+function renderRedFlagControl(): void {
+  clear(redFlagControlEl);
+  const on = state.redFlag.active;
+  const btn = el(
+    "button",
+    { class: on ? "btn red-flag-btn is-on" : "btn red-flag-btn", type: "button" },
+    [on ? t("redFlag.clear") : t("redFlag.raise")],
+  );
+  btn.addEventListener("click", () => void toggleRedFlag());
+  redFlagControlEl.append(btn);
+}
+
+async function toggleRedFlag(): Promise<void> {
+  if (!isSignedIn()) {
+    setStatus(t("redFlag.signInFirst"), true);
+    return;
+  }
+  const on = !state.redFlag.active;
+  const next = on
+    ? { active: true, since: new Date().toISOString() }
+    : { active: false, since: null };
+  state.redFlag = next;
+  state.appsPatch.redFlag = next;
+  renderRedFlagControl();
+  setStatus(on ? t("redFlag.raising") : t("redFlag.clearing"));
+  await saveAll();
 }
 
 /**
@@ -293,12 +330,16 @@ async function loadApps(): Promise<void> {
     state.displayLanguage = data.displayLanguage === "en" ? "en" : "ja";
     state.textScale = typeof data.textScale === "number" ? data.textScale : 1;
     state.labels = seedLabels(data.labels);
+    state.redFlag = data.redFlag?.active
+      ? { active: true, since: data.redFlag.since ?? null }
+      : { active: false, since: null };
     state.contentVersion = data.contentVersion ?? null;
     state.contentUpdatedAt = data.contentUpdatedAt ?? null;
     if (state.apps.length > 0) {
       state.currentAppId = state.apps[0].id;
     }
     renderVersionIndicator();
+    renderRedFlagControl();
     renderAppSwitcher();
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
@@ -945,6 +986,7 @@ async function saveAll(): Promise<void> {
       patch.displayLanguage !== undefined ||
       patch.textScale !== undefined ||
       patch.labels !== undefined ||
+      patch.redFlag !== undefined ||
       activeEdits.length > 0;
 
     if (hasAppsPatch) {
@@ -960,6 +1002,7 @@ async function saveAll(): Promise<void> {
       if (patch.displayLanguage !== undefined) appsData.displayLanguage = patch.displayLanguage;
       if (patch.textScale !== undefined) appsData.textScale = patch.textScale;
       if (patch.labels !== undefined) appsData.labels = patch.labels;
+      if (patch.redFlag !== undefined) appsData.redFlag = patch.redFlag;
       for (const [appId, eventId] of activeEdits) {
         const app = appsData.apps.find((a) => a.id === appId);
         if (app) app.activeEventId = eventId;

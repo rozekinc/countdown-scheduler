@@ -328,6 +328,25 @@ html, body {
   filter: brightness(0.88);
 }
 
+/* Red-flag header toggle: a clear red action; "on" state is filled + pulses
+   so an operator can see at a glance the flag is currently up. */
+.red-flag-btn {
+  background: #fff;
+  color: #c40000;
+  border: 2px solid #d40000;
+  font-weight: 700;
+}
+.red-flag-btn.is-on {
+  background: #d40000;
+  color: #fff;
+  border-color: #d40000;
+  animation: red-flag-pulse 1.2s ease-in-out infinite;
+}
+@keyframes red-flag-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 0, 0, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(212, 0, 0, 0); }
+}
+
 .btn:disabled {
   cursor: default;
   opacity: 0.6;

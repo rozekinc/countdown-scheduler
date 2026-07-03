@@ -2,9 +2,9 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="app-build" content="1.0.0+d3025f8" />
+  <meta name="app-build" content="1.0.0+196af2f" />
   <title>カウントダウンスケジューラー</title>
-  <link rel="stylesheet" href="assets/main.css?v=4b5ff85a11" />
+  <link rel="stylesheet" href="assets/main.css?v=1c534d523d" />
 </head>
 <body>
   <div class="aspect-container">
@@ -24,9 +24,22 @@
         </div>
       </div>
 
+      <!-- Red-flag indicator: shown top-left only while a red flag is active
+           (see src/countdown.ts setRedFlag). Hidden otherwise. -->
+      <div id="red-flag" class="rf-hidden" aria-hidden="true">
+        <span class="rf-flag"></span>
+        <span id="red-flag-text" class="rf-text">RED FLAG</span>
+      </div>
+
       <div id="main">
         <h1 id="title">タイトル読み込み中...</h1>
         <div id="countdown">00:00:00.<span class="ms">000</span></div>
+        <!-- Stoppage timer: counts UP from when the red flag was raised.
+             Shown only during a red flag; the main countdown freezes. -->
+        <div id="stoppage" class="rf-hidden">
+          <div id="stoppage-label" class="stoppage-label">STOPPAGE</div>
+          <div id="stoppage-timer">00:00:00</div>
+        </div>
       </div>
       <!-- Sibling of #main, not nested inside it: an announcement bar
            positioned inside #main compounds #main's own top offset with
@@ -61,6 +74,6 @@
 
   <button id="toggle-btn" type="button">切替</button>
 
-  <script src="assets/main.js?v=4b5ff85a11" defer></script>
+  <script src="assets/main.js?v=1c534d523d" defer></script>
 </body>
 </html>
