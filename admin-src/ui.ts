@@ -14,11 +14,10 @@ import {
   seedLabels,
   type EventListEntry,
 } from "./state";
-import type { AppsFile, EventData, ScheduleItem, DisplayLanguage, LabelKey } from "./types";
-import { DEFAULT_LABELS } from "./labels";
+import type { AppsFile, EventData, ScheduleItem } from "./types";
 import { DISPLAY_MODES, DEFAULT_DISPLAY_MODE_ID, getDisplayMode } from "./displayModes";
 import { ASPECT_RATIOS, DEFAULT_ASPECT_RATIO_ID, getAspectRatio } from "./aspectRatios";
-import { applyPreviewTheme } from "./previewTheme";
+import { readLiveSnapshot, writeLiveSnapshot } from "./liveBridge";
 import { t, getLang, setLang, onLangChange, type Lang } from "./i18n";
 
 // Public data/apps.json is fetched with a plain (unauthenticated) fetch,
@@ -31,7 +30,6 @@ let appSwitcherEl: HTMLElement;
 let displayModeSwitcherEl: HTMLElement;
 let aspectRatioSwitcherEl: HTMLElement;
 let langSwitcherEl: HTMLElement;
-let redFlagControlEl: HTMLElement;
 let authControlsEl: HTMLElement;
 let settingsControlsEl: HTMLElement;
 let versionIndicatorEl: HTMLElement;
@@ -39,7 +37,6 @@ let viewToggleEl: HTMLElement;
 let leftPanelEl: HTMLElement;
 let mainPanelEl: HTMLElement;
 let overviewPanelEl: HTMLElement;
-let previewPanelEl: HTMLElement;
 let statusBarEl: HTMLElement;
 let saveBarEl: HTMLElement;
 let saveBtnEl: HTMLButtonElement;
@@ -54,7 +51,6 @@ export function init(root: HTMLElement): void {
   displayModeSwitcherEl = el("div", { class: "display-mode-switcher" });
   aspectRatioSwitcherEl = el("div", { class: "aspect-ratio-switcher" });
   langSwitcherEl = el("div", { class: "lang-switcher" });
-  redFlagControlEl = el("div", { class: "red-flag-control" });
   settingsControlsEl = el("div", { class: "settings-controls" });
   authControlsEl = el("div", { class: "auth-controls" });
   versionIndicatorEl = el("div", { class: "version-indicator" });
@@ -65,7 +61,6 @@ export function init(root: HTMLElement): void {
     displayModeSwitcherEl,
     aspectRatioSwitcherEl,
     saveBarEl,
-    redFlagControlEl,
     langSwitcherEl,
     settingsControlsEl,
     authControlsEl,
@@ -76,11 +71,7 @@ export function init(root: HTMLElement): void {
   leftPanelEl = el("aside", { class: "left-panel" });
   mainPanelEl = el("main", { class: "main-panel" });
   overviewPanelEl = el("div", { class: "overview-panel" });
-  // Always visible regardless of editor/overview view mode -- an operator
-  // comparing display-mode presets shouldn't have to leave whatever they're
-  // doing to see the effect.
-  previewPanelEl = el("aside", { class: "preview-panel" });
-  body.append(leftPanelEl, mainPanelEl, overviewPanelEl, previewPanelEl);
+  body.append(leftPanelEl, mainPanelEl, overviewPanelEl);
 
   statusBarEl = el("div", { class: "status-bar" });
 
@@ -88,7 +79,6 @@ export function init(root: HTMLElement): void {
 
   renderSaveBar();
   renderLangSwitcher();
-  renderRedFlagControl();
   renderVersionIndicator();
   renderAuthControls(authControlsEl, onSignedIn);
   renderSettingsControls(settingsControlsEl, onSettingsSaved, onDisplaySettingsChanged);
@@ -112,14 +102,13 @@ export function init(root: HTMLElement): void {
     renderViewToggle();
     renderSaveBar();
     renderLangSwitcher();
-    renderRedFlagControl();
     renderVersionIndicator();
     renderAuthControls(authControlsEl, onSignedIn);
     renderSettingsControls(settingsControlsEl, onSettingsSaved, onDisplaySettingsChanged);
     renderAppSwitcher();
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
-    renderPreviewPanel();
+    mirrorToLive();
     renderLeftPanel();
     renderMainPanel();
     if (state.viewMode === "overview" && isSignedIn()) {
@@ -141,38 +130,6 @@ function renderLangSwitcher(): void {
     setLang((select as HTMLSelectElement).value as Lang);
   });
   langSwitcherEl.append(el("label", {}, [t("lang.label")]), select);
-}
-
-// Header red-flag toggle. Committed IMMEDIATELY (not staged for a later Save)
-// because it's an operational, time-critical control: one click raises or
-// clears the flag on the live display. Raising it stamps `since` (used by the
-// display's count-up stoppage timer).
-function renderRedFlagControl(): void {
-  clear(redFlagControlEl);
-  const on = state.redFlag.active;
-  const btn = el(
-    "button",
-    { class: on ? "btn red-flag-btn is-on" : "btn red-flag-btn", type: "button" },
-    [on ? t("redFlag.clear") : t("redFlag.raise")],
-  );
-  btn.addEventListener("click", () => void toggleRedFlag());
-  redFlagControlEl.append(btn);
-}
-
-async function toggleRedFlag(): Promise<void> {
-  if (!isSignedIn()) {
-    setStatus(t("redFlag.signInFirst"), true);
-    return;
-  }
-  const on = !state.redFlag.active;
-  const next = on
-    ? { active: true, since: new Date().toISOString() }
-    : { active: false, since: null };
-  state.redFlag = next;
-  state.appsPatch.redFlag = next;
-  renderRedFlagControl();
-  setStatus(on ? t("redFlag.raising") : t("redFlag.clearing"));
-  await saveAll();
 }
 
 /**
@@ -291,7 +248,7 @@ function jumpToEvent(appId: string, eventId: string): void {
   state.currentEvent = null;
   applyTheme();
   renderAppSwitcher();
-  renderPreviewPanel();
+  mirrorToLive();
   switchViewMode("editor");
   void loadEventsForCurrentApp().then(() => selectEvent(eventId));
 }
@@ -309,7 +266,7 @@ function onSettingsSaved(): void {
  * button so the effect is visible immediately and Save picks it up. */
 function onDisplaySettingsChanged(): void {
   setStatus(t("settings.displaySettingsStaged"));
-  renderPreviewPanel();
+  mirrorToLive();
   updateSaveButtonState();
 }
 
@@ -339,12 +296,11 @@ async function loadApps(): Promise<void> {
       state.currentAppId = state.apps[0].id;
     }
     renderVersionIndicator();
-    renderRedFlagControl();
     renderAppSwitcher();
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
     applyTheme();
-    renderPreviewPanel();
+    mirrorToLive();
     if (isSignedIn()) {
       await loadEventsForCurrentApp();
     } else {
@@ -402,7 +358,7 @@ function renderAppSwitcher(): void {
     state.currentEvent = null;
     applyTheme();
     renderAppSwitcher();
-    renderPreviewPanel();
+    mirrorToLive();
     if (isSignedIn()) {
       loadEventsForCurrentApp();
     } else {
@@ -472,7 +428,7 @@ function stageDisplayMode(modeId: string): void {
   state.appsPatch.displayModeId = modeId;
   setStatus(t("displayMode.staged", { label: getDisplayMode(modeId).label }));
   renderDisplayModeSwitcher();
-  renderPreviewPanel();
+  mirrorToLive();
   updateSaveButtonState();
 }
 
@@ -499,178 +455,36 @@ function stageAspectRatio(aspectRatioId: string): void {
   state.appsPatch.aspectRatioId = aspectRatioId;
   setStatus(t("aspectRatio.staged", { label: getAspectRatio(aspectRatioId).label }));
   renderAspectRatioSwitcher();
-  renderPreviewPanel();
+  mirrorToLive();
   updateSaveButtonState();
 }
 
-/** The active display language for the DISPLAY labels (not the admin UI). */
-function displayLang(): DisplayLanguage {
-  return state.displayLanguage === "en" ? "en" : "ja";
+// Real-time mirror: on every working-state change, push a snapshot of the
+// display-relevant state to localStorage so a same-browser display in "Local"
+// mode updates INSTANTLY (no GitHub round-trip). The red flag is controlled
+// from the display now, so an existing snapshot's redFlag is preserved rather
+// than overwritten by the admin.
+function buildAppsData(): AppsFile {
+  return {
+    apps: state.apps,
+    selectedAppId: state.selectedAppId,
+    displayModeId: state.displayModeId,
+    aspectRatioId: state.aspectRatioId,
+    displayLanguage: state.displayLanguage,
+    textScale: state.textScale,
+    labels: state.labels,
+    contentVersion: state.contentVersion ?? undefined,
+    contentUpdatedAt: state.contentUpdatedAt ?? undefined,
+  };
 }
 
-/** A display label resolved from the working labels state (edited live via
- * the settings panel), falling back to the built-in default -- mirrors
- * resolveLabel() in src/labels.ts so the preview matches the real site. */
-function resolveDisplayLabel(key: LabelKey): string {
-  const lang = displayLang();
-  const chosen = state.labels?.[key] ?? DEFAULT_LABELS[key];
-  return chosen[lang] || DEFAULT_LABELS[key][lang] || DEFAULT_LABELS[key].ja;
-}
-
-/**
- * A miniature, representative mockup of BOTH display screens (the countdown
- * page and the schedule page), styled with the same --theme-* CSS custom
- * properties the real site uses. It renders the editable display labels in
- * the currently-selected display language, scaled by the text-size setting,
- * so switching the app, display mode, language, text size, or editing a
- * label updates it instantly. Not a live embed -- just enough to see where
- * each label lands on each screen without walking over to the actual TV.
- */
-function renderPreviewPanel(): void {
-  clear(previewPanelEl);
-  const app = currentApp();
-  applyPreviewTheme(previewPanelEl, app, state.displayModeId);
-
-  const modeLabel = getDisplayMode(state.displayModeId).label;
-  const ratio = getAspectRatio(state.aspectRatioId);
-  previewPanelEl.append(el("h3", { class: "preview-panel-title" }, [t("preview.title")]));
-  previewPanelEl.append(el("p", { class: "preview-mode-label" }, [t("preview.summary", { mode: modeLabel, ratio: ratio.label })]));
-
-  // Text size is a font-size multiplier on the real display; scale the mock
-  // root font-size so every em-based label inside scales with it.
-  const scale = typeof state.textScale === "number" && state.textScale > 0 ? state.textScale : 1;
-  const rootFontStyle = `font-size: ${(12 * scale).toFixed(2)}px;`;
-
-  previewPanelEl.append(
-    renderCountdownScreenMock(app, state.currentEvent, rootFontStyle),
-    renderScheduleScreenMock(state.currentEvent, rootFontStyle),
-  );
-}
-
-function hhmm(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-/** Relative-day label (today/tomorrow/day-after) for a YYYY-MM-DD date vs
- * today, or "" -- mirrors relativeDayLabel() in src/labels.ts so the preview
- * matches the real schedule screen. */
-function previewRelDay(isoDate: string): string {
-  const parsed = new Date(`${isoDate}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return "";
-  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const delta = Math.round((startOf(parsed) - startOf(new Date())) / 86400000);
-  if (delta === 0) return resolveDisplayLabel("today");
-  if (delta === 1) return resolveDisplayLabel("tomorrow");
-  if (delta === 2) return resolveDisplayLabel("dayAfter");
-  return "";
-}
-
-function fmtMonthDay(isoDate: string): string {
-  const d = new Date(`${isoDate}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return isoDate;
-  return `${d.getMonth() + 1}/${d.getDate()}`;
-}
-
-/** Countdown-page mock: current-time label + clock, a countdown target with
- * the "until" suffix, the next-schedule list, an announcement, and the
- * screen-toggle label. */
-function renderCountdownScreenMock(
-  app: ReturnType<typeof currentApp>,
-  event: EventData | null,
-  rootFontStyle: string,
-): HTMLElement {
-  const wrap = el("div", { class: "preview-screen-wrap" });
-  wrap.append(el("p", { class: "preview-screen-label" }, [t("preview.countdownScreen")]));
-
-  // Real upcoming countdown targets from the loaded event, sorted by time.
-  const now = Date.now();
-  const upcoming = (event?.countdownRows ?? [])
-    .map((r) => ({ title: r.title, t: new Date(r.time).getTime() }))
-    .filter((r) => !Number.isNaN(r.t))
-    .sort((a, b) => a.t - b.t);
-  const future = upcoming.filter((r) => r.t >= now);
-  const target = future[0] ?? upcoming[upcoming.length - 1];
-  const nextTwo = (future[0] ? future.slice(1, 3) : []);
-
-  const countdownEl = target
-    ? el("div", { class: "preview-mock-countdown" }, [
-        el("span", {}, [target.title.replace(/\n/g, " ")]),
-        el("span", { class: "preview-cd-until" }, [` ${hhmm(new Date(target.t).toISOString())} ${resolveDisplayLabel("until")}`]),
-      ])
-    : el("div", { class: "preview-mock-countdown preview-empty" }, [t("preview.noEvent")]);
-
-  const nextRows = nextTwo.length
-    ? nextTwo.map((r) =>
-        el("div", { class: "preview-mock-row" }, [
-          el("span", {}, [r.title.replace(/\n/g, " ")]),
-          el("span", {}, [hhmm(new Date(r.t).toISOString())]),
-        ]),
-      )
-    : [el("div", { class: "preview-mock-row preview-empty" }, ["—"])];
-
-  const screen = el("div", { class: "preview-mock preview-screen", style: rootFontStyle }, [
-    el("div", { class: "preview-mock-title" }, [app ? app.name : t("preview.noApp")]),
-    el("div", { class: "preview-cd-top" }, [
-      el("span", { class: "preview-cd-clock-label" }, [resolveDisplayLabel("currentTime")]),
-      el("span", { class: "preview-cd-clock" }, ["12:34:56"]),
-    ]),
-    countdownEl,
-    el("div", { class: "preview-cd-next" }, [
-      el("div", { class: "preview-cd-next-head" }, [resolveDisplayLabel("nextSchedule")]),
-      el("div", { class: "preview-mock-rows" }, nextRows),
-    ]),
-    el("div", { class: "preview-mock-announcement" }, [
-      el("span", { class: "preview-notice-prefix" }, [resolveDisplayLabel("noticePrefix")]),
-      event?.announcement ?? "",
-    ]),
-    el("div", { class: "preview-toggle-chip" }, [resolveDisplayLabel("toggle")]),
-  ]);
-  wrap.append(screen);
-  return wrap;
-}
-
-/** Schedule-page mock: two day columns (today / tomorrow) with the relative
- * day labels and a couple of schedule items each, plus the announcement. */
-function renderScheduleScreenMock(event: EventData | null, rootFontStyle: string): HTMLElement {
-  const wrap = el("div", { class: "preview-screen-wrap" });
-  wrap.append(el("p", { class: "preview-screen-label" }, [t("preview.scheduleScreen")]));
-
-  // Real day-columns: up to 3 upcoming days (date >= today, sorted), matching
-  // the display's schedule screen. Falls back to the last day(s) if none are
-  // upcoming so the preview is never empty when there IS schedule data.
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const days = [...(event?.scheduleDays ?? [])].sort((a, b) => a.date.localeCompare(b.date));
-  let shown = days.filter((d) => new Date(`${d.date}T00:00:00`).getTime() >= startOfToday.getTime()).slice(0, 3);
-  if (shown.length === 0 && days.length > 0) shown = days.slice(-3);
-
-  const column = (day: (typeof shown)[number]) =>
-    el("div", { class: "preview-sched-col" }, [
-      el("div", { class: "preview-sched-date" }, [fmtMonthDay(day.date)]),
-      el("div", { class: "preview-sched-rel" }, [previewRelDay(day.date)]),
-      ...day.items.map((it) =>
-        el("div", { class: "preview-mock-row" }, [
-          el("span", {}, [it.title.replace(/\n/g, " ")]),
-          el("span", {}, [it.detail]),
-        ]),
-      ),
-    ]);
-
-  const cols = shown.length
-    ? shown.map(column)
-    : [el("div", { class: "preview-sched-col preview-empty" }, [t("preview.noEvent")])];
-
-  const screen = el("div", { class: "preview-mock preview-screen", style: rootFontStyle }, [
-    el("div", { class: "preview-mock-announcement" }, [
-      el("span", { class: "preview-notice-prefix" }, [resolveDisplayLabel("noticePrefix")]),
-      event?.announcement ?? "",
-    ]),
-    el("div", { class: "preview-sched-cols" }, cols),
-  ]);
-  wrap.append(screen);
-  return wrap;
+function mirrorToLive(): void {
+  const apps = buildAppsData();
+  const prev = readLiveSnapshot();
+  if (prev?.apps?.redFlag) apps.redFlag = prev.apps.redFlag;
+  const events: Record<string, EventData> = {};
+  if (state.currentEvent) events[state.currentEvent.id] = state.currentEvent;
+  writeLiveSnapshot({ apps, events, ts: Date.now() });
 }
 
 async function loadEventsForCurrentApp(): Promise<void> {

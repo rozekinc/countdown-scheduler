@@ -681,24 +681,47 @@ body.red-flag-on .aspect-inner {
 /* Local, client-side-only countdown/schedule toggle -- smaller than the
    original version of this button. No data written anywhere; see
    main.ts's setupScreenToggle(). */
-#toggle-btn {
+/* Operator control cluster (bottom-left): screen toggle, red flag, marquee
+   start/stop, data source. Dimmed on a venue screen, full opacity on hover. */
+#op-controls {
   position: fixed;
   left: 12px;
   bottom: 12px;
   z-index: 9999;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  opacity: 0.22;
+  transition: opacity 0.2s ease;
+}
+#op-controls:hover {
+  opacity: 1;
+}
+#op-controls button {
   background: #000;
   color: #fff;
   border: none;
-  padding: 8px 16px;
+  padding: 8px 14px;
   font-size: 13px;
   font-weight: bold;
   border-radius: 6px;
   cursor: pointer;
-  opacity: 0.75;
+}
+#op-controls button:hover {
+  filter: brightness(1.35);
+}
+#redflag-btn.on {
+  background: #d40000;
+  animation: red-flag-pulse-btn 1.2s ease-in-out infinite;
+}
+@keyframes red-flag-pulse-btn {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 0, 0, 0.6); }
+  50% { box-shadow: 0 0 0 7px rgba(212, 0, 0, 0); }
 }
 
-#toggle-btn:hover {
-  opacity: 1;
+/* Marquee start/stop pauses the next-schedule auto-scroll. */
+body.marquee-paused .list-scroll-inner {
+  animation-play-state: paused !important;
 }
 
 /* Subtle "which data/build am I?" badge for a venue monitor -- small,

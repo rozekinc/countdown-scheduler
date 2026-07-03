@@ -75,8 +75,8 @@
     }
   },
   "redFlag": {
-    "active": true,
-    "since": "2026-07-03T10:49:21.017Z"
+    "active": false,
+    "since": null
   },
   "contentVersion": 3,
   "contentUpdatedAt": "2026-07-03"
