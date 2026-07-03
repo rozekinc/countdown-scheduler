@@ -1,21 +1,39 @@
 {
   "id": "sample-event-draft",
   "appId": "web3",
-  "status": "draft",
+  "status": "active",
   "announcement": "Details to be confirmed before this event goes live.",
   "countdownRows": [
-    { "title": "Opening Ceremony", "time": "2026-09-05T13:00:00+09:00" },
-    { "title": "Closing Ceremony", "time": "2026-09-05T18:00:00+09:00" }
+    {
+      "title": "Opening Ceremony",
+      "time": "2026-09-05T13:00:00+09:00"
+    },
+    {
+      "title": "Closing Ceremony",
+      "time": "2026-09-05T18:00:00+09:00"
+    }
   ],
   "scheduleDays": [
     {
       "date": "2026-09-05",
       "announcement": "Schedule is provisional and subject to change.",
       "rows": [
-        { "A": "Opening Ceremony", "B": "Welcome remarks" },
-        { "A": "13:00 - 13:30", "B": "Main Stage" },
-        { "A": "Closing Ceremony", "B": "Wrap-up" },
-        { "A": "18:00 - 18:30", "B": "Main Stage" }
+        {
+          "A": "Opening Ceremony",
+          "B": "Welcome remarks"
+        },
+        {
+          "A": "13:00 - 13:30",
+          "B": "Main Stage"
+        },
+        {
+          "A": "Closing Ceremony",
+          "B": "Wrap-up"
+        },
+        {
+          "A": "18:00 - 18:30",
+          "B": "Main Stage"
+        }
       ]
     }
   ]
