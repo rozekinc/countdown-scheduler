@@ -2,40 +2,104 @@
   "id": "race-weekend",
   "appId": "web1",
   "status": "active",
-  "highlightKeywords": ["JSB1000", "ST1000"],
-  "announcement": "安全に作業しよう！！",
+  "highlightKeywords": [
+    "JSB1000",
+    "ST1000"
+  ],
+  "announcement": "安全に作業しよう！！ / Drive safely!",
   "countdownRows": [
-    { "title": "FP\nwork complete", "time": "2026-07-03T08:00:00+09:00" },
-    { "title": "FP restart", "time": "2026-07-03T09:55:00+09:00" },
-    { "title": "QP Blue\nstart", "time": "2026-07-03T12:00:00+09:00" },
-    { "title": "QP Blue\nfinish", "time": "2026-07-03T12:20:00+09:00" },
-    { "title": "QP Yellow\nrestart", "time": "2026-07-03T12:50:00+09:00" },
-    { "title": "QP Yellow\nfinish", "time": "2026-07-03T13:05:06+09:00" },
-    { "title": "QP Red\nstart", "time": "2026-07-03T13:20:00+09:00" },
-    { "title": "QP Red\nfinish", "time": "2026-07-03T13:40:00+09:00" },
-    { "title": "Pitwalk start", "time": "2026-07-03T13:50:00+09:00" },
-    { "title": "Pitwalk start", "time": "2026-07-03T14:40:00+09:00" },
-    { "title": "QP Red\nstart", "time": "2026-07-03T16:40:00+09:00" },
-    { "title": "QP Red\nfinish", "time": "2026-07-03T17:00:00+09:00" },
-    { "title": "Night FP\nwork complete", "time": "2026-07-03T18:00:00+09:00" },
-    { "title": "Night FP\nstart", "time": "2026-07-03T18:30:00+09:00" },
-    { "title": "Night FP\nfinish", "time": "2026-07-03T19:30:00+09:00" }
+    {
+      "title": "JSB1000 Warm Up\nstart",
+      "time": "2026-07-03T19:46:00+09:00"
+    },
+    {
+      "title": "JSB1000 Warm Up\nfinish",
+      "time": "2026-07-03T20:01:00+09:00"
+    },
+    {
+      "title": "ST1000 Warm Up\nstart",
+      "time": "2026-07-03T20:21:00+09:00"
+    },
+    {
+      "title": "ST1000 Warm Up\nfinish",
+      "time": "2026-07-03T20:36:00+09:00"
+    },
+    {
+      "title": "Pitwalk start",
+      "time": "2026-07-03T21:01:00+09:00"
+    },
+    {
+      "title": "Track parade\nstart",
+      "time": "2026-07-03T21:31:00+09:00"
+    },
+    {
+      "title": "Day 1\nclose",
+      "time": "2026-07-03T22:01:00+09:00"
+    }
   ],
   "scheduleDays": [
     {
       "date": "2026-07-03",
-      "items": [{ "title": "ダンロップ会議", "detail": "10:30~" }]
+      "items": [
+        {
+          "title": "JSB1000 Warm Up",
+          "detail": "19:46~"
+        },
+        {
+          "title": "ST1000 Warm Up",
+          "detail": "20:21~"
+        },
+        {
+          "title": "Pitwalk",
+          "detail": "21:01~"
+        },
+        {
+          "title": "Day 1 Close",
+          "detail": "22:01"
+        }
+      ]
     },
     {
       "date": "2026-07-04",
       "items": [
-        { "title": "選手受付", "detail": "7:30~" },
-        { "title": "アームバンド受取", "detail": "10:00~18:00" }
+        {
+          "title": "Gates Open",
+          "detail": "07:00~"
+        },
+        {
+          "title": "JSB1000 Race 1",
+          "detail": "11:00~"
+        },
+        {
+          "title": "ST1000 Race 1",
+          "detail": "13:30~"
+        },
+        {
+          "title": "Pitwalk",
+          "detail": "15:00~"
+        }
       ]
     },
     {
       "date": "2026-07-05",
-      "items": [{ "title": "撤収", "detail": "9:00~12:00" }]
+      "items": [
+        {
+          "title": "Gates Open",
+          "detail": "07:30~"
+        },
+        {
+          "title": "JSB1000 Final",
+          "detail": "12:00~"
+        },
+        {
+          "title": "表彰式 / Podium",
+          "detail": "14:00~"
+        },
+        {
+          "title": "撤収",
+          "detail": "15:00~17:00"
+        }
+      ]
     }
   ]
 }
