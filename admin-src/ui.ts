@@ -501,17 +501,73 @@ function renderPreviewPanel(): void {
   const rootFontStyle = `font-size: ${(12 * scale).toFixed(2)}px;`;
 
   previewPanelEl.append(
-    renderCountdownScreenMock(app, rootFontStyle),
-    renderScheduleScreenMock(rootFontStyle),
+    renderCountdownScreenMock(app, state.currentEvent, rootFontStyle),
+    renderScheduleScreenMock(state.currentEvent, rootFontStyle),
   );
+}
+
+function hhmm(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/** Relative-day label (today/tomorrow/day-after) for a YYYY-MM-DD date vs
+ * today, or "" -- mirrors relativeDayLabel() in src/labels.ts so the preview
+ * matches the real schedule screen. */
+function previewRelDay(isoDate: string): string {
+  const parsed = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const delta = Math.round((startOf(parsed) - startOf(new Date())) / 86400000);
+  if (delta === 0) return resolveDisplayLabel("today");
+  if (delta === 1) return resolveDisplayLabel("tomorrow");
+  if (delta === 2) return resolveDisplayLabel("dayAfter");
+  return "";
+}
+
+function fmtMonthDay(isoDate: string): string {
+  const d = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return isoDate;
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
 /** Countdown-page mock: current-time label + clock, a countdown target with
  * the "until" suffix, the next-schedule list, an announcement, and the
  * screen-toggle label. */
-function renderCountdownScreenMock(app: ReturnType<typeof currentApp>, rootFontStyle: string): HTMLElement {
+function renderCountdownScreenMock(
+  app: ReturnType<typeof currentApp>,
+  event: EventData | null,
+  rootFontStyle: string,
+): HTMLElement {
   const wrap = el("div", { class: "preview-screen-wrap" });
   wrap.append(el("p", { class: "preview-screen-label" }, [t("preview.countdownScreen")]));
+
+  // Real upcoming countdown targets from the loaded event, sorted by time.
+  const now = Date.now();
+  const upcoming = (event?.countdownRows ?? [])
+    .map((r) => ({ title: r.title, t: new Date(r.time).getTime() }))
+    .filter((r) => !Number.isNaN(r.t))
+    .sort((a, b) => a.t - b.t);
+  const future = upcoming.filter((r) => r.t >= now);
+  const target = future[0] ?? upcoming[upcoming.length - 1];
+  const nextTwo = (future[0] ? future.slice(1, 3) : []);
+
+  const countdownEl = target
+    ? el("div", { class: "preview-mock-countdown" }, [
+        el("span", {}, [target.title.replace(/\n/g, " ")]),
+        el("span", { class: "preview-cd-until" }, [` ${hhmm(new Date(target.t).toISOString())} ${resolveDisplayLabel("until")}`]),
+      ])
+    : el("div", { class: "preview-mock-countdown preview-empty" }, [t("preview.noEvent")]);
+
+  const nextRows = nextTwo.length
+    ? nextTwo.map((r) =>
+        el("div", { class: "preview-mock-row" }, [
+          el("span", {}, [r.title.replace(/\n/g, " ")]),
+          el("span", {}, [hhmm(new Date(r.t).toISOString())]),
+        ]),
+      )
+    : [el("div", { class: "preview-mock-row preview-empty" }, ["—"])];
 
   const screen = el("div", { class: "preview-mock preview-screen", style: rootFontStyle }, [
     el("div", { class: "preview-mock-title" }, [app ? app.name : t("preview.noApp")]),
@@ -519,26 +575,14 @@ function renderCountdownScreenMock(app: ReturnType<typeof currentApp>, rootFontS
       el("span", { class: "preview-cd-clock-label" }, [resolveDisplayLabel("currentTime")]),
       el("span", { class: "preview-cd-clock" }, ["12:34:56"]),
     ]),
-    el("div", { class: "preview-mock-countdown" }, [
-      el("span", {}, [t("preview.sampleCountdownTitle")]),
-      el("span", { class: "preview-cd-until" }, [` 13:30 ${resolveDisplayLabel("until")}`]),
-    ]),
+    countdownEl,
     el("div", { class: "preview-cd-next" }, [
       el("div", { class: "preview-cd-next-head" }, [resolveDisplayLabel("nextSchedule")]),
-      el("div", { class: "preview-mock-rows" }, [
-        el("div", { class: "preview-mock-row" }, [
-          el("span", {}, [t("preview.sampleNext1")]),
-          el("span", {}, ["09:00"]),
-        ]),
-        el("div", { class: "preview-mock-row" }, [
-          el("span", {}, [t("preview.sampleNext2")]),
-          el("span", {}, ["13:50"]),
-        ]),
-      ]),
+      el("div", { class: "preview-mock-rows" }, nextRows),
     ]),
     el("div", { class: "preview-mock-announcement" }, [
       el("span", { class: "preview-notice-prefix" }, [resolveDisplayLabel("noticePrefix")]),
-      t("preview.sampleAnnouncement"),
+      event?.announcement ?? "",
     ]),
     el("div", { class: "preview-toggle-chip" }, [resolveDisplayLabel("toggle")]),
   ]);
@@ -548,41 +592,41 @@ function renderCountdownScreenMock(app: ReturnType<typeof currentApp>, rootFontS
 
 /** Schedule-page mock: two day columns (today / tomorrow) with the relative
  * day labels and a couple of schedule items each, plus the announcement. */
-function renderScheduleScreenMock(rootFontStyle: string): HTMLElement {
+function renderScheduleScreenMock(event: EventData | null, rootFontStyle: string): HTMLElement {
   const wrap = el("div", { class: "preview-screen-wrap" });
   wrap.append(el("p", { class: "preview-screen-label" }, [t("preview.scheduleScreen")]));
 
-  const today = new Date();
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const fmt = (d: Date) =>
-    `${d.getMonth() + 1}/${d.getDate()}`;
+  // Real day-columns: up to 3 upcoming days (date >= today, sorted), matching
+  // the display's schedule screen. Falls back to the last day(s) if none are
+  // upcoming so the preview is never empty when there IS schedule data.
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const days = [...(event?.scheduleDays ?? [])].sort((a, b) => a.date.localeCompare(b.date));
+  let shown = days.filter((d) => new Date(`${d.date}T00:00:00`).getTime() >= startOfToday.getTime()).slice(0, 3);
+  if (shown.length === 0 && days.length > 0) shown = days.slice(-3);
 
-  const column = (dateLabel: string, relLabel: string, items: Array<[string, string]>) =>
+  const column = (day: (typeof shown)[number]) =>
     el("div", { class: "preview-sched-col" }, [
-      el("div", { class: "preview-sched-date" }, [dateLabel]),
-      el("div", { class: "preview-sched-rel" }, [relLabel]),
-      ...items.map(([title, detail]) =>
+      el("div", { class: "preview-sched-date" }, [fmtMonthDay(day.date)]),
+      el("div", { class: "preview-sched-rel" }, [previewRelDay(day.date)]),
+      ...day.items.map((it) =>
         el("div", { class: "preview-mock-row" }, [
-          el("span", {}, [title]),
-          el("span", {}, [detail]),
+          el("span", {}, [it.title.replace(/\n/g, " ")]),
+          el("span", {}, [it.detail]),
         ]),
       ),
     ]);
 
+  const cols = shown.length
+    ? shown.map(column)
+    : [el("div", { class: "preview-sched-col preview-empty" }, [t("preview.noEvent")])];
+
   const screen = el("div", { class: "preview-mock preview-screen", style: rootFontStyle }, [
     el("div", { class: "preview-mock-announcement" }, [
       el("span", { class: "preview-notice-prefix" }, [resolveDisplayLabel("noticePrefix")]),
-      t("preview.sampleAnnouncement"),
+      event?.announcement ?? "",
     ]),
-    el("div", { class: "preview-sched-cols" }, [
-      column(fmt(today), resolveDisplayLabel("today"), [
-        [t("preview.sampleItem1Title"), t("preview.sampleItem1Detail")],
-      ]),
-      column(fmt(tomorrow), resolveDisplayLabel("tomorrow"), [
-        [t("preview.sampleItem2Title"), t("preview.sampleItem2Detail")],
-      ]),
-    ]),
+    el("div", { class: "preview-sched-cols" }, cols),
   ]);
   wrap.append(screen);
   return wrap;

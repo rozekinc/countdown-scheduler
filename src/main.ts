@@ -218,9 +218,11 @@ async function main(): Promise<void> {
     },
   );
 
-  await fetchAccurateTime();
-  startTimeResync();
-
+  // Wire up interaction and start the clock IMMEDIATELY -- do NOT block the
+  // whole UI on the time sync. worldtimeapi can be slow or unreachable (it
+  // retries with backoff), and awaiting it here froze the toggle and clock
+  // for several seconds on load. The countdown/clock run on the local clock
+  // (offset 0) until the sync lands and the periodic resync corrects drift.
   setupScreenToggle();
 
   const fullscreenBtn = document.getElementById("fullscreen-btn");
@@ -231,6 +233,9 @@ async function main(): Promise<void> {
     window.setTimeout(tick, 1000 - (Date.now() % 1000));
   }
   tick();
+
+  void fetchAccurateTime();
+  startTimeResync();
 }
 
 void main();

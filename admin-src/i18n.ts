@@ -79,6 +79,7 @@ const EN = {
 
   "preview.title": "Display preview",
   "preview.noApp": "No app selected",
+  "preview.noEvent": "Sign in and load an event to preview it here.",
   "preview.nextUp": "Next up: ",
   "preview.then": " then ",
   "preview.summary": "{mode} · {ratio}",
@@ -247,6 +248,7 @@ const JA: Record<TranslationKey, string> = {
 
   "preview.title": "表示プレビュー",
   "preview.noApp": "アプリが選択されていません",
+  "preview.noEvent": "サインインしてイベントを読み込むとここにプレビューされます。",
   "preview.nextUp": "次は: ",
   "preview.then": " → ",
   "preview.summary": "{mode} · {ratio}",

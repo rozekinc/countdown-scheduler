@@ -117,7 +117,7 @@ html, body {
    loosely above it. */
 #main {
   position: absolute;
-  top: 30cqh;
+  top: 26cqh;
   left: 40%;
   transform: translateX(-50%);
   width: 55%;
@@ -130,7 +130,10 @@ html, body {
    countdown below it, so the countdown reads as the dominant, first-glance
    value rather than competing with it. */
 #title {
-  font-size: calc(clamp(25px, 5cqw, 70px) * var(--text-scale, 1));
+  /* Sized by the SMALLER of width/height units so it also fits short stages
+     (e.g. the 21:9 ultrawide preset, which is much less tall than 16:9 and
+     was overflowing into the countdown/announcement below). */
+  font-size: calc(clamp(22px, min(4.5cqw, 8cqh), 58px) * var(--text-scale, 1));
   font-weight: 600;
   opacity: 0.85;
   /* tight gap to the countdown below -- was a loose 1.33cqh offset */
@@ -150,7 +153,9 @@ html, body {
    weight is pushed past a plain bold to hold up against the surrounding
    chrome. */
 #countdown {
-  font-size: calc(clamp(56px, 8.5cqw, 130px) * var(--text-scale, 1));
+  /* min(cqw, cqh) so the single biggest element still fits the short 21:9
+     stage instead of overflowing past the announcement bar. */
+  font-size: calc(clamp(44px, min(8cqw, 15cqh), 120px) * var(--text-scale, 1));
   font-weight: 800;
   color: var(--theme-primary, #e60000);
   font-feature-settings: "tnum";
@@ -302,10 +307,12 @@ html, body {
    sub-label, then that day's items. */
 #schedule-columns {
   position: absolute;
-  top: 22cqh;
+  /* Start below the top chrome (logo top-left, clock top-right) so the
+     outer columns don't render underneath them. */
+  top: 31cqh;
   left: 0;
   right: 0;
-  bottom: 12cqh;
+  bottom: 10cqh;
   display: flex;
   justify-content: center;
   align-items: flex-start;
