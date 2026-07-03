@@ -1,11 +1,19 @@
 import "./styles.css";
 import { loadApps, resolveActiveApp, createEventDataSource, watchDisplaySettings } from "./dataClient";
 import { applyTheme, applyAspectRatio } from "./theme";
-import { initCountdown } from "./countdown";
+import { initCountdown, type CountdownController } from "./countdown";
 import { initSchedule } from "./schedule";
 import { initVersionBadge } from "./versionBadge";
 import { resolveLabel, displayLanguage } from "./labels";
-import type { App, AppsData, EventData } from "./types";
+import {
+  getDisplaySource,
+  setDisplaySource,
+  readLiveSnapshot,
+  writeLiveSnapshot,
+  onLiveChange,
+  type DisplaySource,
+} from "./liveBridge";
+import type { App, AppsData, EventData, RedFlagState } from "./types";
 
 interface FullscreenDocumentElement extends HTMLElement {
   webkitRequestFullscreen?: () => void;
@@ -131,13 +139,70 @@ function applyTextScale(apps: AppsData): void {
   document.documentElement.style.setProperty("--text-scale", String(scale));
 }
 
+// On-display operator controls: red flag, marquee start/stop, and the
+// data-source toggle. These live on the display itself so an operator at the
+// screen can drive it without opening the admin.
+function setupOperatorControls(
+  source: DisplaySource,
+  countdownController: CountdownController,
+  getApps: () => AppsData,
+): void {
+  const rfBtn = document.getElementById("redflag-btn");
+  let redFlagOn = !!getApps().redFlag?.active;
+  const renderRf = (): void => {
+    if (!rfBtn) return;
+    rfBtn.textContent = redFlagOn ? "🚩 Red flag ON" : "🚩 Red flag";
+    rfBtn.classList.toggle("on", redFlagOn);
+  };
+  renderRf();
+  rfBtn?.addEventListener("click", () => {
+    redFlagOn = !redFlagOn;
+    const state: RedFlagState = redFlagOn
+      ? { active: true, since: new Date().toISOString() }
+      : { active: false, since: null };
+    countdownController.setRedFlag(state);
+    renderRf();
+    // Propagate into the live snapshot so a same-browser admin reflects it.
+    const snap = readLiveSnapshot();
+    if (snap) {
+      snap.apps = { ...snap.apps, redFlag: state };
+      snap.ts = Date.now();
+      writeLiveSnapshot(snap);
+    }
+  });
+
+  const mqBtn = document.getElementById("marquee-btn");
+  let marqueePaused = false;
+  const renderMq = (): void => {
+    if (mqBtn) mqBtn.textContent = marqueePaused ? "▶ Scroll" : "⏸ Scroll";
+  };
+  renderMq();
+  mqBtn?.addEventListener("click", () => {
+    marqueePaused = !marqueePaused;
+    document.body.classList.toggle("marquee-paused", marqueePaused);
+    renderMq();
+  });
+
+  const srcBtn = document.getElementById("source-btn");
+  if (srcBtn) {
+    srcBtn.textContent = `Source: ${source === "local" ? "Local" : "GitHub"}`;
+    srcBtn.addEventListener("click", () => {
+      setDisplaySource(source === "local" ? "github" : "local");
+      window.location.reload();
+    });
+  }
+}
+
 async function main(): Promise<void> {
   const currentTimeElem = document.getElementById("current-time") as HTMLElement;
 
-  const appsData = await loadApps();
-  // The latest apps-level presentation settings (labels/language/textScale).
-  // Swapped in when apps.json changes so the controllers resolve labels
-  // against current values (see onDisplaySettingsChange below).
+  // Data source: "local" reads the admin's real-time localStorage snapshot
+  // (same browser, instant); "github" reads the published data from raw
+  // (works across machines, ~5-min cache). See src/liveBridge.ts.
+  const source = getDisplaySource();
+  const localSnap = source === "local" ? readLiveSnapshot() : null;
+
+  const appsData: AppsData = localSnap?.apps ?? (await loadApps());
   let currentAppsData: AppsData = appsData;
   const getApps = (): AppsData => currentAppsData;
 
@@ -146,14 +211,18 @@ async function main(): Promise<void> {
 
   const countdownController = initCountdown(getNow, getApps);
   const scheduleController = initSchedule(getNow, getApps);
+  const updateVersionBadge = initVersionBadge(appsData);
 
-  // Holds whichever app's data source is currently feeding the two
-  // controllers above. Swapped out (never run concurrently) whenever the
-  // admin changes which app is live -- see watchDisplaySettings below.
   let activeDataSource: ReturnType<typeof createEventDataSource> | null = null;
   let currentApp: App | null = null;
   let currentModeId: string | null = appsData.displayModeId ?? null;
 
+  function applyEvent(data: EventData): void {
+    countdownController.setEventData(data);
+    scheduleController.setEventData(data);
+  }
+
+  // GitHub mode: poll raw for this app's event and feed the controllers.
   function runApp(app: App, displayModeId: string | null): void {
     activeDataSource?.stop();
     currentApp = app;
@@ -162,63 +231,73 @@ async function main(): Promise<void> {
 
     const dataSource = createEventDataSource(app);
     activeDataSource = dataSource;
-
-    // Hydrate synchronously from the cache so the screen is never blank,
-    // then let dataSource.start() replace it with fresh data.
     const cached = dataSource.getCurrent();
-    if (cached) {
-      countdownController.setEventData(cached);
-      scheduleController.setEventData(cached);
-    }
-    dataSource.onUpdate((data: EventData) => {
-      countdownController.setEventData(data);
-      scheduleController.setEventData(data);
-    });
+    if (cached) applyEvent(cached);
+    dataSource.onUpdate((data: EventData) => applyEvent(data));
     dataSource.start();
   }
 
-  const initialApp = resolveActiveApp(appsData);
-  applyAspectRatio(appsData.aspectRatioId ?? null);
-  runApp(initialApp, appsData.displayModeId ?? null);
-  countdownController.setRedFlag(appsData.redFlag);
+  // Local mode: apply a whole snapshot (apps + events) from the admin. No
+  // polling -- the admin pushes changes over the live bridge instantly.
+  function applyLocalSnapshot(apps: AppsData, events: Record<string, EventData>): void {
+    activeDataSource?.stop();
+    activeDataSource = null;
+    currentAppsData = apps;
+    applyChromeLabels(apps);
+    applyTextScale(apps);
+    applyAspectRatio(apps.aspectRatioId ?? null);
+    const app = resolveActiveApp(apps);
+    currentApp = app;
+    currentModeId = apps.displayModeId ?? null;
+    applyTheme(app, apps.displayModeId ?? null);
+    const event = events[app.activeEventId];
+    if (event) applyEvent(event);
+    countdownController.refresh();
+    scheduleController.refresh();
+    countdownController.setRedFlag(apps.redFlag);
+    updateVersionBadge(apps);
+  }
 
-  // Subtle corner badge showing which content version + code build this
-  // screen is running; updateVersionBadge is called from the apps.json
-  // poll below so a publish is reflected live without a reload.
-  const updateVersionBadge = initVersionBadge(appsData);
+  if (source === "local") {
+    if (localSnap) {
+      applyLocalSnapshot(localSnap.apps, localSnap.events);
+    } else {
+      // No snapshot yet (admin not open / hasn't edited) -- show the last
+      // published data statically until the admin pushes over the bridge.
+      applyAspectRatio(appsData.aspectRatioId ?? null);
+      runApp(resolveActiveApp(appsData), appsData.displayModeId ?? null);
+      countdownController.setRedFlag(appsData.redFlag);
+    }
+    onLiveChange(() => {
+      const snap = readLiveSnapshot();
+      if (snap) applyLocalSnapshot(snap.apps, snap.events);
+    });
+  } else {
+    applyAspectRatio(appsData.aspectRatioId ?? null);
+    runApp(resolveActiveApp(appsData), appsData.displayModeId ?? null);
+    countdownController.setRedFlag(appsData.redFlag);
 
-  watchDisplaySettings(
-    appsData,
-    // On a screen pinned via ?app=, this is never called -- see isPinnedByUrl.
-    // Otherwise, whenever the admin swaps which app is live, this screen
-    // follows without needing a reload. Keeps whatever display mode is
-    // currently applied rather than reverting to the page's initial one.
-    (app) => runApp(app, currentModeId),
-    // Display-mode changes apply on every screen (pinned or not) without
-    // touching which app/event is showing -- just re-theme in place.
-    (displayModeId) => {
-      currentModeId = displayModeId;
-      if (currentApp) applyTheme(currentApp, displayModeId);
-    },
-    // Aspect-ratio changes apply on every screen (pinned or not), same
-    // reasoning as display mode -- it's a physical-TV setting, not an
-    // app-identity choice.
-    (aspectRatioId) => applyAspectRatio(aspectRatioId),
-    // Content-version changes (a publish) refresh the corner badge in
-    // place, so the screen shows which data it's currently looking at.
-    (data) => updateVersionBadge(data),
-    // Chrome-level presentation changes (displayLanguage / textScale /
-    // labels) re-apply the static chrome, the text scale, and re-render the
-    // controllers' label-bearing text in place -- no reload.
-    (data) => {
-      currentAppsData = data;
-      applyChromeLabels(currentAppsData);
-      applyTextScale(currentAppsData);
-      countdownController.refresh();
-      scheduleController.refresh();
-      countdownController.setRedFlag(data.redFlag);
-    },
-  );
+    watchDisplaySettings(
+      appsData,
+      (app) => runApp(app, currentModeId),
+      (displayModeId) => {
+        currentModeId = displayModeId;
+        if (currentApp) applyTheme(currentApp, displayModeId);
+      },
+      (aspectRatioId) => applyAspectRatio(aspectRatioId),
+      (data) => updateVersionBadge(data),
+      (data) => {
+        currentAppsData = data;
+        applyChromeLabels(currentAppsData);
+        applyTextScale(currentAppsData);
+        countdownController.refresh();
+        scheduleController.refresh();
+        countdownController.setRedFlag(data.redFlag);
+      },
+    );
+  }
+
+  setupOperatorControls(source, countdownController, () => currentAppsData);
 
   // Re-fit the countdown block when the window/stage size changes (the fit is
   // height-bounded, so a resize can change how much the title needs to shrink).

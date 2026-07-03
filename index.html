@@ -2,9 +2,9 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="app-build" content="1.0.0+196af2f" />
+  <meta name="app-build" content="1.0.0+6680c0f" />
   <title>カウントダウンスケジューラー</title>
-  <link rel="stylesheet" href="assets/main.css?v=1c534d523d" />
+  <link rel="stylesheet" href="assets/main.css?v=6bdc16bf10" />
 </head>
 <body>
   <div class="aspect-container">
@@ -72,8 +72,15 @@
     </div>
   </div>
 
-  <button id="toggle-btn" type="button">切替</button>
+  <!-- Operator controls. Dimmed until the pointer moves so they stay out of
+       the way on a venue screen; see #op-controls in styles.css. -->
+  <div id="op-controls">
+    <button id="toggle-btn" type="button">切替</button>
+    <button id="redflag-btn" type="button">🚩 Red flag</button>
+    <button id="marquee-btn" type="button">⏸ Scroll</button>
+    <button id="source-btn" type="button">Source: GitHub</button>
+  </div>
 
-  <script src="assets/main.js?v=1c534d523d" defer></script>
+  <script src="assets/main.js?v=6bdc16bf10" defer></script>
 </body>
 </html>
