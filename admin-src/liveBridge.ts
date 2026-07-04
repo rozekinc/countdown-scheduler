@@ -12,6 +12,9 @@ const CHANNEL = "countdown-scheduler-live";
 export interface LiveSnapshot {
   config: DisplayConfig;
   events: Record<string, EventData>;
+  /** Which event the display should preview in Local mode (the one being
+   * edited), falling back to config.activeEventId. */
+  previewEventId?: string | null;
   /** The single layout, so a drag/resize moves the item on a same-browser
    * display instantly (mirror of src/liveBridge). */
   layout?: LayoutDoc;
