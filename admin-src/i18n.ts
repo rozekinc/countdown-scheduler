@@ -147,6 +147,13 @@ const EN = {
   "editor.deleteStaged": "{id} staged for deletion -- click Save to publish.",
   "editor.announcement": "Countdown-screen announcement:",
 
+  "redflag.title": "Red flag",
+  "redflag.prompt": "Add a red-flag stoppage. Leave the finish time blank to count UP in blue; set it to count DOWN in red to the restart. It clears itself once the finish time passes.",
+  "redflag.finishTime": "Finish time (optional): ",
+  "redflag.add": "Raise red flag",
+  "redflag.update": "Update",
+  "redflag.clear": "Clear red flag",
+
   "countdown.title": "Countdown rows",
   "countdown.addRow": "+ Add countdown row",
   "countdown.remove": "Remove",
@@ -331,6 +338,13 @@ const JA: Record<TranslationKey, string> = {
   "editor.deleteConfirm": "{id} を完全に削除しますか？アーカイブせず完全に削除されます（保存後）。元に戻せません。",
   "editor.deleteStaged": "{id} を削除するよう設定しました -- 保存をクリックして公開してください。",
   "editor.announcement": "カウントダウン画面のお知らせ:",
+
+  "redflag.title": "赤旗",
+  "redflag.prompt": "赤旗（中断）を追加します。終了時刻を空欄にすると青で経過時間をカウントアップ、設定すると赤で再開までカウントダウンします。終了時刻を過ぎると自動的に解除されます。",
+  "redflag.finishTime": "終了時刻（任意）: ",
+  "redflag.add": "赤旗を掲示",
+  "redflag.update": "更新",
+  "redflag.clear": "赤旗を解除",
 
   "countdown.title": "カウントダウン行",
   "countdown.addRow": "+ カウントダウン行を追加",

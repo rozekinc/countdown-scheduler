@@ -53,12 +53,6 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
   const announcementElem = document.getElementById("announcement") as HTMLElement;
   const listElem = document.getElementById("list-viewport") as HTMLElement;
   const pinnedElem = document.getElementById("list-next-pinned") as HTMLElement | null;
-  // Red-flag mode overlay: a big central flag + a prominent count-up timer
-  // that replaces the countdown while a red flag is up.
-  const rfOverlayElem = document.getElementById("red-flag-overlay") as HTMLElement;
-  const rfOverlayTitleElem = document.getElementById("rf-overlay-title") as HTMLElement;
-  const rfOverlayLabelElem = document.getElementById("rf-overlay-stoppage-label") as HTMLElement;
-  const rfOverlayTimerElem = document.getElementById("rf-overlay-timer") as HTMLElement;
 
   const soundAto = document.getElementById("sound-ato") as HTMLAudioElement;
   const sound20 = document.getElementById("sound-20") as HTMLAudioElement;
@@ -103,8 +97,13 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
   let played10 = false;
   let played20 = false;
 
+  // Red-flag stoppage state. When active, the main countdown shows the stoppage
+  // instead of the normal timer: it counts UP (blue) with no finish time, or
+  // DOWN (red) to redFlagFinishMs when one is set; once the finish time passes
+  // the display resumes normal operation.
   let redFlagActive = false;
   let redFlagSinceMs = 0;
+  let redFlagFinishMs: number | null = null;
   let stoppageInterval: number | undefined;
 
   // Re-fit the title and the countdown/timer block, each to its OWN bounded
@@ -118,59 +117,94 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
     });
   }
 
-  // Freeze the main countdown at the time remaining when the flag was raised
-  // (target - since). Used both when the flag is applied and when schedule
-  // data arrives after the flag was already up (async load), so the frozen
-  // value is always shown -- never a blank "::".
-  function freezeCountdown(): void {
-    if (currentIndex >= parsedSchedule.length) {
-      setCountdownText("--", "--", "--", "---");
+  // --- red-flag stoppage --------------------------------------------------
+
+  function redFlagName(): string {
+    return displayLanguage(getApps()) === "en" ? "RED FLAG" : "赤旗";
+  }
+
+  // Drive the MAIN countdown as the stoppage timer: DOWN (red) to the finish
+  // time, or UP (blue) when none is set. When a set finish time passes, the red
+  // flag ends and normal operation resumes ("moves to the next thing").
+  function updateRedFlag(): void {
+    const now = getNow().getTime();
+    if (redFlagFinishMs !== null && now >= redFlagFinishMs) {
+      teardownRedFlag(true);
       return;
     }
-    const frozen = Math.max(0, parsedSchedule[currentIndex].time.getTime() - redFlagSinceMs);
+    const countingDown = redFlagFinishMs !== null;
+    const ms = countingDown
+      ? Math.max(0, (redFlagFinishMs as number) - now)
+      : Math.max(0, now - redFlagSinceMs);
+    countdownElem.classList.add("rf-stoppage");
+    countdownElem.classList.toggle("rf-countdown", countingDown);
+    countdownElem.classList.toggle("rf-countup", !countingDown);
     setCountdownText(
-      pad2(Math.floor(frozen / 3600000)),
-      pad2(Math.floor((frozen % 3600000) / 60000)),
-      pad2(Math.floor((frozen % 60000) / 1000)),
-      String(frozen % 1000).padStart(3, "0"),
+      pad2(Math.floor(ms / 3600000)),
+      pad2(Math.floor((ms % 3600000) / 60000)),
+      pad2(Math.floor((ms % 60000) / 1000)),
+      String(ms % 1000).padStart(3, "0"),
     );
   }
 
-  function updateStoppage(): void {
-    const elapsed = Math.max(0, getNow().getTime() - redFlagSinceMs);
-    rfOverlayTimerElem.textContent =
-      `${pad2(Math.floor(elapsed / 3600000))}:` +
-      `${pad2(Math.floor((elapsed % 3600000) / 60000))}:` +
-      `${pad2(Math.floor((elapsed % 60000) / 1000))}`;
+  // The title becomes the RED FLAG banner while a flag is up: the flag label
+  // plus (when counting down to a finish time) a blue up / red down arrow pair.
+  function renderRedFlagTitle(): void {
+    const en = displayLanguage(getApps()) === "en";
+    const label = en ? "STOPPAGE" : "中断時間";
+    const arrows =
+      redFlagFinishMs !== null
+        ? `<span class="rf-arrows"><span class="rf-arrow-up">▲</span><span class="rf-arrow-down">▼</span></span>`
+        : "";
+    titleElem.innerHTML =
+      `<span class="rf-flag-badge">🚩 ${redFlagName()}</span>${arrows}<br>` +
+      `<span class="countdown-time">${label}</span>`;
+    fitMain();
   }
 
-  function applyRedFlag(state: RedFlagState | null | undefined): void {
-    const active = !!state?.active;
-    const sinceMs = state?.since ? new Date(state.since).getTime() : NaN;
-    redFlagActive = active;
-    redFlagSinceMs = Number.isNaN(sinceMs) ? getNow().getTime() : sinceMs;
-
-    const en = displayLanguage(getApps()) === "en";
-    rfOverlayTitleElem.textContent = en ? "RED FLAG" : "赤旗";
-    rfOverlayLabelElem.textContent = en ? "STOPPAGE" : "中断時間";
-
-    document.body.classList.toggle("red-flag-on", active);
-    rfOverlayElem.classList.toggle("rf-hidden", !active);
-
-    if (active) {
-      // Freeze the (now-hidden) countdown so it holds the right value if the
-      // overlay is ever dismissed, and drive the prominent count-up timer.
-      freezeCountdown();
-      updateStoppage();
-      if (stoppageInterval === undefined) {
-        // 100ms keeps the seconds tick crisp and the display in step with the
-        // real elapsed time (the previous 200ms could visibly lag the second).
-        stoppageInterval = window.setInterval(updateStoppage, 100);
-      }
-    } else if (stoppageInterval !== undefined) {
+  function teardownRedFlag(resume: boolean): void {
+    redFlagActive = false;
+    redFlagFinishMs = null;
+    document.body.classList.remove("red-flag-on");
+    countdownElem.classList.remove("rf-stoppage", "rf-countup", "rf-countdown");
+    if (stoppageInterval !== undefined) {
       window.clearInterval(stoppageInterval);
       stoppageInterval = undefined;
     }
+    // Re-scan to the correct current target for now (an interrupted item whose
+    // time has since passed is skipped), then re-render title + list.
+    if (resume) startNextCountdown();
+    else {
+      renderTitle();
+      updateScheduleList();
+    }
+  }
+
+  function applyRedFlag(state: RedFlagState | null | undefined): void {
+    const nowMs = getNow().getTime();
+    const finishMs = state?.finishTime ? new Date(state.finishTime).getTime() : NaN;
+    const hasFinish = !Number.isNaN(finishMs);
+    // Auto-resume: a set finish time that has already passed reads as inactive,
+    // so a stale still-active config doesn't re-trigger the stoppage.
+    const active = !!state?.active && !(hasFinish && finishMs <= nowMs);
+
+    if (!active) {
+      if (redFlagActive) teardownRedFlag(true);
+      return;
+    }
+
+    const sinceMs = state?.since ? new Date(state.since).getTime() : NaN;
+    redFlagActive = true;
+    redFlagSinceMs = Number.isNaN(sinceMs) ? nowMs : sinceMs;
+    redFlagFinishMs = hasFinish ? finishMs : null;
+
+    document.body.classList.add("red-flag-on");
+    renderRedFlagTitle();
+    updateRedFlag();
+    if (stoppageInterval === undefined) {
+      stoppageInterval = window.setInterval(updateRedFlag, 100);
+    }
+    updateScheduleList();
     fitMain();
   }
 
@@ -186,6 +220,11 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
   // The title is rewritten ONLY when the target item changes (or on a live
   // label change) -- never inside the 50ms tick.
   function renderTitle(): void {
+    // While a red flag is up the title is the RED FLAG banner, not the item.
+    if (redFlagActive) {
+      renderRedFlagTitle();
+      return;
+    }
     const apps = getApps();
     if (currentIndex >= parsedSchedule.length) {
       titleElem.textContent = resolveLabel(apps, "finished");
@@ -227,12 +266,25 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
 
     // The immediately-next item stays PINNED static at the top of the side
     // list; only the items after it scroll. (The item currently counting down
-    // is shown separately in #main.)
+    // is shown separately in #main.) While a red flag is up, a special
+    // red-flag line sits at the very top -- the stoppage, standing in line.
     const pinned = upcoming[0];
     if (pinnedElem) {
-      pinnedElem.innerHTML = pinned
-        ? `<ul class="list-pinned-ul">${rowHtml(pinned, ' class="row-next"')}</ul>`
-        : "";
+      let rfLine = "";
+      if (redFlagActive) {
+        const suffix =
+          redFlagFinishMs !== null
+            ? `<div class="time">${hhmmss(new Date(redFlagFinishMs))}</div>`
+            : "";
+        rfLine =
+          `<li class="row-redflag">` +
+          `<div class="title"><span class="bullet">🚩</span>${redFlagName()}</div>` +
+          suffix +
+          `</li>`;
+      }
+      const pinnedRow = pinned ? rowHtml(pinned, ' class="row-next"') : "";
+      pinnedElem.innerHTML =
+        rfLine || pinnedRow ? `<ul class="list-pinned-ul">${rfLine}${pinnedRow}</ul>` : "";
     }
 
     // Seed the day key from the pinned item (else the item in #main), so a day
@@ -275,13 +327,10 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
     renderTitle();
 
     if (currentIndex >= parsedSchedule.length) {
-      setCountdownText("--", "--", "--", "---");
+      // The stoppage owns #countdown while a red flag is up -- don't clobber it.
+      if (!redFlagActive) setCountdownText("--", "--", "--", "---");
       return;
     }
-
-    // If a red flag is up when fresh schedule data arrives, show the frozen
-    // remaining time (the tick below will no-op while the flag is up).
-    if (redFlagActive) freezeCountdown();
 
     const { time } = parsedSchedule[currentIndex];
 
@@ -348,12 +397,8 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
       renderAnnouncement();
       renderTitle();
       updateScheduleList();
-      // Re-apply red-flag overlay labels in the (possibly changed) language.
-      if (redFlagActive) {
-        const en = displayLanguage(getApps()) === "en";
-        rfOverlayTitleElem.textContent = en ? "RED FLAG" : "赤旗";
-        rfOverlayLabelElem.textContent = en ? "STOPPAGE" : "中断時間";
-      }
+      // renderTitle already re-renders the RED FLAG banner in the current
+      // language when a flag is up (see its redFlagActive guard).
     },
     setRedFlag(state: RedFlagState | null | undefined): void {
       applyRedFlag(state);

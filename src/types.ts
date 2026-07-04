@@ -72,6 +72,10 @@ export interface RedFlagState {
   /** ISO timestamp of when the red flag was raised; the stoppage timer counts
    * up from here. Null/absent when not active. */
   since?: string | null;
+  /** ISO timestamp of the red-flag FINISH time (when the stoppage ends). When
+   * set, the stoppage counts DOWN to it (red); when null/absent it counts UP
+   * (blue, open-ended). Once this time passes, the display resumes normally. */
+  finishTime?: string | null;
 }
 
 export interface CountdownRow {

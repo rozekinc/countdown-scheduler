@@ -2,9 +2,9 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="app-build" content="1.0.0+87add86" />
+  <meta name="app-build" content="1.0.0+fb6c725" />
   <title>カウントダウンスケジューラー</title>
-  <link rel="stylesheet" href="assets/main.css?v=9d648120ac" />
+  <link rel="stylesheet" href="assets/main.css?v=0fd5b239a2" />
 </head>
 <body>
   <div class="aspect-container">
@@ -37,8 +37,8 @@
         <h1 id="title">タイトル読み込み中...</h1>
       </div>
 
-      <!-- Countdown: big timer. Hidden behind the red-flag overlay when a red
-           flag is up (see #red-flag-overlay + body.red-flag-on). -->
+      <!-- Countdown: big timer. Becomes the stoppage count-up/down timer while
+           a red flag is up (see src/countdown.ts, #countdown.rf-stoppage). -->
       <div class="layout-item" id="li-countdown" data-screen="countdown">
         <div id="main">
           <div id="countdown">00:00:00.<span class="ms">000</span></div>
@@ -70,16 +70,10 @@
         <div id="announcement" class="announcement-bar"></div>
       </div>
 
-      <!-- Red-flag mode: a full-stage safety overlay that replaces the
-           countdown with a big central flag + a prominent count-up of the
-           stoppage duration. Shown only while a red flag is up; driven from the
-           admin (config.redFlag). Not a placeable layout item. -->
-      <div id="red-flag-overlay" class="rf-hidden" aria-hidden="true">
-        <div class="rf-overlay-flag"></div>
-        <div class="rf-overlay-title" id="rf-overlay-title">RED FLAG</div>
-        <div class="rf-overlay-stoppage-label" id="rf-overlay-stoppage-label">STOPPAGE</div>
-        <div class="rf-overlay-timer" id="rf-overlay-timer">00:00:00</div>
-      </div>
+      <!-- Red-flag stoppage is shown inline: the main countdown becomes the
+           count-up/down stoppage timer and the title becomes the RED FLAG
+           banner (see src/countdown.ts). The stage also gets a red border via
+           body.red-flag-on. Driven from the admin (config.redFlag). -->
 
       <img src="media/images/全画面.png" id="fullscreen-btn" alt="全画面" />
 
@@ -95,6 +89,6 @@
        display config + live snapshot); the display carries no operator buttons
        apart from fullscreen. -->
 
-  <script src="assets/main.js?v=9d648120ac" defer></script>
+  <script src="assets/main.js?v=0fd5b239a2" defer></script>
 </body>
 </html>
