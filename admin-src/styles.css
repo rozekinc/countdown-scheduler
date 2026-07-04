@@ -305,22 +305,38 @@ html, body {
 
 .row-editor {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: auto 1fr 1fr auto;
   gap: 6px;
   align-items: start;
   padding: 6px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  transition: border-color 0.12s ease;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
 }
 
 .row-editor:hover {
   border-color: var(--border-strong);
 }
 
+/* Import-preview rows aren't reorderable (no grip) -> 2 columns. */
 .row-editor.readonly {
   grid-template-columns: 1fr 1fr;
   background: #fafbfc;
+}
+
+/* Drag handle + reorder feedback. */
+.drag-handle {
+  cursor: grab;
+  color: #b0b6bd;
+  align-self: center;
+  padding: 2px;
+}
+.drag-handle:hover { color: #6b7280; }
+.drag-handle:active { cursor: grabbing; }
+.row-editor.dragging { opacity: 0.5; }
+.row-editor.drag-over {
+  box-shadow: 0 -2px 0 0 var(--primary);
+  border-color: var(--primary);
 }
 
 .btn {

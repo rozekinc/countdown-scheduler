@@ -213,6 +213,62 @@ function markEventDirty(): void {
   mirrorToLive();
 }
 
+// --- drag-and-drop row reordering ----------------------------------------
+// The item currently being dragged: its backing array + index. Kept module-
+// level so dragover/drop on sibling rows can see it. The array identity is
+// checked so a row can only be dropped within its own list.
+let dragArr: unknown[] | null = null;
+let dragIndex = -1;
+
+/** Make a row reorderable by dragging `handle`. Reorders `arr` in place and
+ * calls `after` (typically markEventDirty + renderMainPanel). */
+function makeReorderable<T>(
+  rowEl: HTMLElement,
+  handle: HTMLElement,
+  index: number,
+  arr: T[],
+  after: () => void,
+): void {
+  handle.setAttribute("draggable", "true");
+  handle.classList.add("drag-handle");
+  handle.title = "Drag to reorder";
+
+  handle.addEventListener("dragstart", (e) => {
+    dragArr = arr as unknown[];
+    dragIndex = index;
+    rowEl.classList.add("dragging");
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(index));
+      e.dataTransfer.setDragImage(rowEl, 12, 12);
+    }
+  });
+  handle.addEventListener("dragend", () => {
+    rowEl.classList.remove("dragging");
+    dragArr = null;
+    dragIndex = -1;
+  });
+
+  const sameList = (): boolean => dragArr === (arr as unknown[]);
+  rowEl.addEventListener("dragover", (e) => {
+    if (!sameList()) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    rowEl.classList.add("drag-over");
+  });
+  rowEl.addEventListener("dragleave", () => rowEl.classList.remove("drag-over"));
+  rowEl.addEventListener("drop", (e) => {
+    rowEl.classList.remove("drag-over");
+    if (!sameList() || dragIndex === index || dragIndex < 0) return;
+    e.preventDefault();
+    const [moved] = arr.splice(dragIndex, 1);
+    arr.splice(index, 0, moved);
+    dragArr = null;
+    dragIndex = -1;
+    after();
+  });
+}
+
 function confirmDiscardEventIfDirty(action: string): boolean {
   if (!state.eventDirty) return true;
   const ok = window.confirm(
@@ -986,7 +1042,12 @@ function renderCountdownRows(event: EventData): HTMLElement {
       renderMainPanel();
     });
 
-    rowEl.append(titleInput, dateTimeInputs, removeBtn);
+    const handle = icon("grip");
+    rowEl.append(handle, titleInput, dateTimeInputs, removeBtn);
+    makeReorderable(rowEl, handle, index, event.countdownRows, () => {
+      markEventDirty();
+      renderMainPanel();
+    });
     table.append(rowEl);
   });
   section.append(table);
@@ -1133,7 +1194,12 @@ function renderDayEditor(): HTMLElement {
       renderMainPanel();
     });
 
-    rowEl.append(titleInput, detailInput, removeBtn);
+    const handle = icon("grip");
+    rowEl.append(handle, titleInput, detailInput, removeBtn);
+    makeReorderable(rowEl, handle, index, day.items, () => {
+      markEventDirty();
+      renderMainPanel();
+    });
     table.append(rowEl);
   });
   section.append(table);
