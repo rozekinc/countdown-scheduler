@@ -210,15 +210,10 @@ function renderDisplayControls(): void {
   const rfOn = !!state.redFlag.active;
   const rfBtn = iconButton(
     "flag",
-    rfOn ? "Red flag is UP — clear it" : "Raise red flag (stoppage)",
+    rfOn ? "Red flag is UP — edit or clear it" : "Raise red flag (stoppage)",
     `btn btn-small icon-btn ${rfOn ? "btn-danger" : "btn-secondary"}`,
   );
-  rfBtn.addEventListener("click", () => {
-    state.redFlag = rfOn
-      ? { active: false, since: null }
-      : { active: true, since: new Date().toISOString() };
-    onDisplayControlChanged();
-  });
+  rfBtn.addEventListener("click", () => openRedFlagDialog());
 
   const paused = state.scrollPaused;
   const scrollBtn = iconButton(
@@ -263,6 +258,72 @@ function onDisplayControlChanged(): void {
   mirrorToLive();
   updateSaveButtonState();
   renderDisplayControls();
+}
+
+/** Build an ISO finish timestamp for TODAY at the given HH:MM (local), or null
+ * when blank. The display treats an already-passed finish time as "resume". */
+function redFlagFinishToIso(hhmm: string): string | null {
+  if (!hhmm) return null;
+  const [h, m] = hhmm.split(":");
+  const hh = Number(h);
+  const mm = Number(m);
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+  const d = new Date();
+  d.setHours(hh, mm, 0, 0);
+  return d.toISOString();
+}
+
+/** The red-flag dialog: raise / update the stoppage with an optional finish
+ * time (blank = count up in blue; set = count down in red), or clear it. */
+function openRedFlagDialog(): void {
+  const active = !!state.redFlag.active;
+  const backdrop = el("div", { class: "modal-backdrop" });
+  const timeInput = el("input", {
+    type: "time",
+    class: "row-input",
+    value: isoToTimePart(state.redFlag.finishTime ?? ""),
+  }) as HTMLInputElement;
+
+  const apply = (): void => {
+    state.redFlag = {
+      active: true,
+      since: state.redFlag.since ?? new Date().toISOString(),
+      finishTime: redFlagFinishToIso(timeInput.value),
+    };
+    backdrop.remove();
+    onDisplayControlChanged();
+  };
+  const clearRf = (): void => {
+    state.redFlag = { active: false, since: null, finishTime: null };
+    backdrop.remove();
+    onDisplayControlChanged();
+  };
+
+  const applyBtn = el("button", { class: "btn btn-danger" }, [active ? t("redflag.update") : t("redflag.add")]);
+  applyBtn.addEventListener("click", apply);
+  const cancelBtn = el("button", { class: "btn btn-secondary" }, [t("auth.cancel")]);
+  cancelBtn.addEventListener("click", () => backdrop.remove());
+  timeInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") apply();
+  });
+
+  const actions = el("div", { class: "actions-row" }, [applyBtn]);
+  if (active) {
+    const clearBtn = el("button", { class: "btn btn-secondary" }, [t("redflag.clear")]);
+    clearBtn.addEventListener("click", clearRf);
+    actions.append(clearBtn);
+  }
+  actions.append(cancelBtn);
+
+  const body = el("div", { class: "modal-body" }, [
+    el("h3", {}, [t("redflag.title")]),
+    el("p", { class: "muted" }, [t("redflag.prompt")]),
+    el("label", { class: "field" }, [t("redflag.finishTime"), timeInput]),
+    actions,
+  ]);
+  backdrop.append(el("div", { class: "modal" }, [body]));
+  document.body.append(backdrop);
+  timeInput.focus();
 }
 
 /** Marks the current event dirty and refreshes just the Save button --

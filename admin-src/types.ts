@@ -9,6 +9,8 @@ export type { DisplayLanguage, Label, LabelKey } from "./labels";
 export interface RedFlagState {
   active: boolean;
   since?: string | null;
+  /** ISO finish time; when set the stoppage counts DOWN (red), else UP (blue). */
+  finishTime?: string | null;
 }
 
 /** Persisted admin-editor UI state (which events are expanded, what was last
