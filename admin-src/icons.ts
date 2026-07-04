@@ -11,6 +11,8 @@ const PATHS: Record<string, string> = {
   save: '<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h8"/><rect x="8" y="13" width="8" height="6"/>',
   // publish / upload cloud
   publish: '<path d="M12 16V7"/><path d="M8 11l4-4 4 4"/><path d="M5 19h14"/>',
+  // pull / download (remote -> local)
+  pull: '<path d="M12 4v11"/><path d="M8 11l4 4 4-4"/><path d="M5 20h14"/>',
   // settings (gear)
   settings: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.5 4.5l2.1 2.1M17.4 17.4l2.1 2.1M19.5 4.5l-2.1 2.1M6.6 17.4l-2.1 2.1"/>',
   // sign in (key)
