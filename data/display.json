@@ -1,6 +1,6 @@
 {
   "activeEventId": "race-weekend",
-  "displayModeId": "standard",
+  "displayModeId": "daylight-contrast",
   "aspectRatioId": "widescreen-16-9",
   "displayLanguage": "ja",
   "textScale": 1.05,
@@ -40,13 +40,21 @@
     "dayAfter": {
       "ja": "明後日",
       "en": "Day After"
+    },
+    "redFlag": {
+      "ja": "赤旗",
+      "en": "RED FLAG"
+    },
+    "stoppage": {
+      "ja": "中断時間",
+      "en": "STOPPAGE"
     }
   },
   "redFlag": {
     "active": false,
     "since": null
   },
-  "currentPage": "countdown",
+  "currentPage": "schedule",
   "scrollPaused": false,
   "showOutline": false,
   "editorState": {
@@ -54,9 +62,9 @@
       "race-weekend",
       "2026-motegi"
     ],
-    "selectedEventId": "race-weekend",
-    "selectedDayIndex": 2
+    "selectedEventId": "2026-motegi",
+    "selectedDayIndex": 0
   },
-  "contentVersion": 14,
+  "contentVersion": 11,
   "contentUpdatedAt": "2026-07-04"
 }
