@@ -49,6 +49,12 @@ export interface ItemProps {
   fit?: "contain" | "cover";
   opacity?: number;
   showLabel?: boolean;
+  /** Auto-scroll the item's text horizontally (marquee) when it overflows.
+   * Applies to announcement + text items. Undefined = per-type default. */
+  scrollH?: boolean;
+  /** Auto-scroll the item's text vertically when it overflows. Applies to the
+   * schedule list, schedule columns, and text items. Undefined = default. */
+  scrollV?: boolean;
 }
 
 export interface LayoutItem {

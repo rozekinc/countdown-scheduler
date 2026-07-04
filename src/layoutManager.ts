@@ -22,7 +22,24 @@ import {
   type Placement,
 } from "./layout";
 import { resolveLabel } from "./labels";
+import { setScrollingContent } from "./verticalScroll";
+import { setAnnouncementText } from "./marquee";
 import type { DisplayConfig, LabelKey } from "./types";
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string);
+}
+
+/** Reflect the item's scroll toggles onto the host as data-scroll-* attributes.
+ * The CSS disables the relevant animation when set to "off"; singletons that
+ * scroll by default (announcement=horizontal, schedule list/columns=vertical)
+ * just omit the attribute (= on). Text items handle scroll in renderTextItem. */
+function applyScrollPrefs(host: HTMLElement, item: LayoutItem): void {
+  if (item.props.scrollH === false) host.dataset.scrollH = "off";
+  else delete host.dataset.scrollH;
+  if (item.props.scrollV === false) host.dataset.scrollV = "off";
+  else delete host.dataset.scrollV;
+}
 
 function stageEl(): HTMLElement {
   return document.getElementById("stage") as HTMLElement;
@@ -68,10 +85,22 @@ function renderTextItem(host: HTMLElement, item: LayoutItem, config: DisplayConf
     p.source === "literal"
       ? p.text ?? ""
       : resolveLabel(config, (p.labelKey ?? "currentTime") as LabelKey);
-  host.textContent = value;
   host.style.textAlign = p.align ?? "center";
   host.style.justifyContent =
     p.align === "left" ? "flex-start" : p.align === "right" ? "flex-end" : "center";
+
+  // Optional auto-scroll: vertical (multi-line overflow) or horizontal
+  // (single-line marquee). Otherwise plain static text.
+  if (p.scrollV) {
+    host.classList.add("item-text-scrolls");
+    setScrollingContent(host, `<div class="item-text-body">${escapeHtml(value).replace(/\n/g, "<br>")}</div>`);
+  } else if (p.scrollH) {
+    host.classList.add("item-text-scrolls");
+    setAnnouncementText(host, "", escapeHtml(value));
+  } else {
+    host.classList.remove("item-text-scrolls");
+    host.textContent = value;
+  }
 }
 
 function renderImageItem(host: HTMLElement, item: LayoutItem): void {
@@ -130,6 +159,7 @@ export function applyLayout(items: LayoutItem[], config: DisplayConfig): void {
       host.style.zIndex = String(item.z ?? 0);
       host.style.setProperty("--item-scale", String(item.props.fontScale ?? 1));
       host.dataset.baseOpacity = host.dataset.baseOpacity ?? "1";
+      applyScrollPrefs(host, item);
 
       if (item.type === "text") renderTextItem(host, item, config);
       else if (item.type === "image") renderImageItem(host, item);
