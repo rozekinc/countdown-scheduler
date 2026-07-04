@@ -1,7 +1,7 @@
 {
   "activeEventId": "race-weekend",
   "displayModeId": "daylight-contrast",
-  "aspectRatioId": "ultrawide-21-9",
+  "aspectRatioId": "widescreen-16-9",
   "displayLanguage": "ja",
   "textScale": 1.05,
   "labels": {
@@ -44,12 +44,12 @@
   },
   "editorState": {
     "expandedEventIds": [
-      "2026-motegi",
-      "race-weekend"
+      "race-weekend",
+      "2026-motegi"
     ],
     "selectedEventId": "race-weekend",
     "selectedDayIndex": 1
   },
-  "contentVersion": 9,
+  "contentVersion": 6,
   "contentUpdatedAt": "2026-07-04"
 }
