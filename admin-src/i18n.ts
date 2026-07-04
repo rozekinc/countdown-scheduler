@@ -11,6 +11,7 @@ type Vars = Record<string, string | number>;
 
 const EN = {
   "nav.editor": "Editor",
+  "nav.layout": "Layout",
   "nav.allEvents": "All events",
 
   "save.button": "Save changes",
@@ -110,6 +111,8 @@ const EN = {
   "events.newIdTitle": "New draft event",
   "events.newIdCreate": "Create",
   "events.newIdPrompt": "New event id (lowercase letters, digits, dashes):",
+  "events.nameLabel": "Event name:",
+  "events.namePlaceholder": "e.g. Spring Race Weekend",
   "events.invalidId": "Invalid event id: use only lowercase letters, digits, and dashes.",
   "events.alreadyExists": "Event {id} already exists.",
   "events.newDraftStaged": "New draft {id} staged -- click Save to publish.",
@@ -166,10 +169,10 @@ const EN = {
   "save.closed": "Closed {id}.",
   "save.failed": "Failed to save: {message}",
 
-  "load.failedTitle": "Couldn't load data/apps.json",
+  "load.failedTitle": "Couldn't load data/display.json",
   "load.failedHint":
-    "Most likely cause: this page needs to be served from the repository's root directory (not from inside admin/), so the relative path ../data/apps.json actually resolves. If you're using \"npx serve\", run it from the repo root and open the /admin/ path, rather than running it from inside the admin folder.",
-  "load.failed": "Failed to load data/apps.json: {message}",
+    "Most likely cause: this page needs to be served from the repository's root directory (not from inside admin/), so the relative path ../data/display.json actually resolves. If you're using \"npx serve\", run it from the repo root and open the /admin/ path, rather than running it from inside the admin folder.",
+  "load.failed": "Failed to load data/display.json: {message}",
 
   "overview.loading": "Loading all events…",
   "overview.empty": "No events yet.",
@@ -187,6 +190,7 @@ export type TranslationKey = keyof typeof EN;
 
 const JA: Record<TranslationKey, string> = {
   "nav.editor": "エディター",
+  "nav.layout": "レイアウト",
   "nav.allEvents": "すべてのイベント",
 
   "save.button": "変更を保存",
@@ -286,6 +290,8 @@ const JA: Record<TranslationKey, string> = {
   "events.newIdTitle": "新規下書きイベント",
   "events.newIdCreate": "作成",
   "events.newIdPrompt": "新しいイベントID (小文字・数字・ハイフンのみ):",
+  "events.nameLabel": "イベント名:",
+  "events.namePlaceholder": "例: 春のレースウィークエンド",
   "events.invalidId": "無効なイベントIDです: 小文字・数字・ハイフンのみ使用できます。",
   "events.alreadyExists": "イベント {id} は既に存在します。",
   "events.newDraftStaged": "新規下書き {id} を設定しました -- 保存をクリックして公開してください。",
@@ -342,10 +348,10 @@ const JA: Record<TranslationKey, string> = {
   "save.closed": "{id} を終了しました。",
   "save.failed": "保存に失敗しました: {message}",
 
-  "load.failedTitle": "data/apps.json を読み込めませんでした",
+  "load.failedTitle": "data/display.json を読み込めませんでした",
   "load.failedHint":
-    "考えられる原因: このページはリポジトリのルートディレクトリから配信する必要があります (admin/ の中からではなく)。相対パス ../data/apps.json が解決できるようにしてください。\"npx serve\" を使う場合は、admin フォルダの中ではなくリポジトリのルートから実行し、/admin/ パスを開いてください。",
-  "load.failed": "data/apps.json の読み込みに失敗しました: {message}",
+    "考えられる原因: このページはリポジトリのルートディレクトリから配信する必要があります (admin/ の中からではなく)。相対パス ../data/display.json が解決できるようにしてください。\"npx serve\" を使う場合は、admin フォルダの中ではなくリポジトリのルートから実行し、/admin/ パスを開いてください。",
+  "load.failed": "data/display.json の読み込みに失敗しました: {message}",
 
   "overview.loading": "すべてのイベントを読み込み中…",
   "overview.empty": "イベントはまだありません。",

@@ -1,37 +1,5 @@
 {
-  "selectedAppId": "web1",
-  "apps": [
-    {
-      "id": "web1",
-      "name": "Web1",
-      "theme": {
-        "primary": "#e60000",
-        "accent": "#484848",
-        "background": "#ffffff"
-      },
-      "activeEventId": "race-weekend"
-    },
-    {
-      "id": "web2",
-      "name": "Web2",
-      "theme": {
-        "primary": "#0057b8",
-        "accent": "#2f2f2f",
-        "background": "#f4f8ff"
-      },
-      "activeEventId": "race-weekend"
-    },
-    {
-      "id": "web3",
-      "name": "Web3",
-      "theme": {
-        "primary": "#1b8a4c",
-        "accent": "#333333",
-        "background": "#f5fff7"
-      },
-      "activeEventId": "race-weekend"
-    }
-  ],
+  "activeEventId": "race-weekend",
   "displayModeId": "standard",
   "aspectRatioId": "standard-4-3",
   "displayLanguage": "ja",
@@ -78,6 +46,13 @@
     "active": false,
     "since": null
   },
-  "contentVersion": 3,
-  "contentUpdatedAt": "2026-07-03"
+  "editorState": {
+    "expandedEventIds": [
+      "race-weekend"
+    ],
+    "selectedEventId": "race-weekend",
+    "selectedDayIndex": 0
+  },
+  "contentVersion": 4,
+  "contentUpdatedAt": "2026-07-04"
 }

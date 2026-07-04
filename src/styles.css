@@ -52,6 +52,14 @@ html, body {
   box-sizing: border-box;
   min-width: 0;
   min-height: 0;
+  /* An item placed differently on the countdown vs schedule page animates
+     between the two positions on 切替 (see src/layoutManager.ts setPage).
+     Suppressed by #stage.no-anim for the first placement + on resize. */
+  transition: left 0.5s ease, top 0.5s ease, width 0.5s ease, height 0.5s ease,
+    opacity 0.35s ease;
+}
+#stage.no-anim .layout-item {
+  transition: none;
 }
 
 /* Free text item (dynamic). Fills its host; alignment/justify are written

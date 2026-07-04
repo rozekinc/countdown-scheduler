@@ -1,11 +1,7 @@
 {
   "id": "race-weekend",
-  "appId": "web1",
+  "name": "Race Weekend",
   "status": "active",
-  "highlightKeywords": [
-    "JSB1000",
-    "ST1000"
-  ],
   "announcement": "安全に作業しよう！！ / Drive safely!",
   "countdownRows": [
     {
@@ -101,5 +97,9 @@
         }
       ]
     }
+  ],
+  "highlightKeywords": [
+    "JSB1000",
+    "ST1000"
   ]
 }

@@ -1,5 +1,6 @@
 import { el } from "./dom";
 import { getRepoIdentity, setRepoIdentityOverride } from "./config";
+import { iconButton } from "./icons";
 import { t } from "./i18n";
 import { state } from "./state";
 import { DEFAULT_LABELS, LABEL_EDITOR_FIELDS } from "./labels";
@@ -9,7 +10,7 @@ import type { DisplayLanguage, Label, LabelKey } from "./types";
  * The "Settings" modal covers two unrelated things:
  *  - The DISPLAY settings (display language, text size, and the editable
  *    display labels) -- data that lives in data/apps.json and is published
- *    with the main Save button. These mutate `state` + `state.appsPatch`
+ *    with the main Save button. These mutate `state` + `state.configPatch`
  *    directly and call `onDisplaySettingsChanged` so the live preview and
  *    Save button update immediately (see onDisplaySettingsChanged in ui.ts).
  *  - An owner/repo override, only needed for local testing off a
@@ -23,7 +24,7 @@ export function renderSettingsControls(
 ): void {
   container.innerHTML = "";
 
-  const btn = el("button", { class: "btn btn-secondary" }, [t("settings.button")]);
+  const btn = iconButton("settings", t("settings.button"), "btn btn-secondary");
   btn.addEventListener("click", () => openSettingsModal(onSaved, onDisplaySettingsChanged));
   container.append(btn);
 }
@@ -51,7 +52,7 @@ function renderDisplaySettings(onChange: () => void): HTMLElement {
     b.addEventListener("click", () => {
       if (state.displayLanguage === lang) return;
       state.displayLanguage = lang;
-      state.appsPatch.displayLanguage = lang;
+      state.configPatch.displayLanguage = lang;
       onChange();
       // Re-render the toggle so the active button flips.
       renderSettingsModalBody(onChange);
@@ -79,7 +80,7 @@ function renderDisplaySettings(onChange: () => void): HTMLElement {
   slider.addEventListener("input", () => {
     const v = Number(slider.value);
     state.textScale = v;
-    state.appsPatch.textScale = v;
+    state.configPatch.textScale = v;
     valueEl.textContent = `${v.toFixed(2)}×`;
     onChange();
   });
@@ -98,7 +99,7 @@ function renderDisplaySettings(onChange: () => void): HTMLElement {
   const stageLabel = (key: LabelKey, side: DisplayLanguage, value: string) => {
     const current = state.labels[key] ?? { ...DEFAULT_LABELS[key] };
     state.labels[key] = { ...current, [side]: value };
-    state.appsPatch.labels = cloneLabels(state.labels);
+    state.configPatch.labels = cloneLabels(state.labels);
     onChange();
   };
 

@@ -1,12 +1,12 @@
 import "./styles.css";
-import { loadApps, resolveActiveApp, createEventDataSource, watchDisplaySettings, loadLayout } from "./dataClient";
+import { loadConfig, createEventDataSource, watchDisplaySettings, loadLayout } from "./dataClient";
 import { applyTheme, applyAspectRatio } from "./theme";
 import { initCountdown, type CountdownController } from "./countdown";
 import { initSchedule } from "./schedule";
 import { initVersionBadge } from "./versionBadge";
 import { resolveLabel, displayLanguage } from "./labels";
-import { defaultLayoutForApp, type LayoutItem } from "./layout";
-import { applyLayout, setScreen } from "./layoutManager";
+import { defaultLayout, type LayoutItem } from "./layout";
+import { applyLayout, setPage } from "./layoutManager";
 import {
   getDisplaySource,
   setDisplaySource,
@@ -16,7 +16,7 @@ import {
   type DisplaySource,
   type LiveSnapshot,
 } from "./liveBridge";
-import type { App, AppsData, EventData, RedFlagState } from "./types";
+import type { DisplayConfig, EventData, RedFlagState } from "./types";
 
 interface FullscreenDocumentElement extends HTMLElement {
   webkitRequestFullscreen?: () => void;
@@ -89,40 +89,36 @@ function enterFullscreen(): void {
 
 /**
  * Countdown vs. schedule is a local, on-screen toggle -- not data written
- * anywhere. One event, one page; the button just shows/hides which half
- * of the already-loaded DOM is visible right now. No admin round-trip,
- * no commit, no sync across screens (there's one screen, one HDMI cable).
+ * anywhere. The button re-targets each item to its per-page placement; items
+ * placed differently on the two pages animate between them (see
+ * layoutManager.setPage).
  */
 function setupScreenToggle(): void {
   const toggleBtn = document.getElementById("toggle-btn");
-
   let isScheduleMode = false;
-
-  // Items tagged screen="shared" stay put; the toggle swaps which of the
-  // countdown-only / schedule-only items are shown (see layoutManager.setScreen).
   toggleBtn?.addEventListener("click", () => {
     isScheduleMode = !isScheduleMode;
-    setScreen(isScheduleMode ? "schedule" : "countdown");
+    setPage(isScheduleMode ? "schedule" : "countdown");
   });
 }
 
 // Populates the static chrome text (current-time label, next-schedule
 // heading, toggle button) from the editable labels, and sets the document
-// language. Re-run live when apps.json's labels/language change.
-function applyChromeLabels(apps: AppsData): void {
-  document.documentElement.lang = displayLanguage(apps);
+// language. Re-run live when display.json's labels/language change.
+function applyChromeLabels(config: DisplayConfig): void {
+  document.documentElement.lang = displayLanguage(config);
   const timeLabel = document.getElementById("time-label");
-  if (timeLabel) timeLabel.textContent = resolveLabel(apps, "currentTime");
+  if (timeLabel) timeLabel.textContent = resolveLabel(config, "currentTime");
   const nextScheduleLabel = document.getElementById("next-schedule-label");
-  if (nextScheduleLabel) nextScheduleLabel.textContent = resolveLabel(apps, "nextSchedule");
+  if (nextScheduleLabel) nextScheduleLabel.textContent = resolveLabel(config, "nextSchedule");
   const toggleBtn = document.getElementById("toggle-btn");
-  if (toggleBtn) toggleBtn.textContent = resolveLabel(apps, "toggle");
+  if (toggleBtn) toggleBtn.textContent = resolveLabel(config, "toggle");
 }
 
 // Global font-size multiplier exposed as a CSS var the display's font-size
 // declarations multiply by (see --text-scale in styles.css). Default 1.
-function applyTextScale(apps: AppsData): void {
-  const scale = typeof apps.textScale === "number" && apps.textScale > 0 ? apps.textScale : 1;
+function applyTextScale(config: DisplayConfig): void {
+  const scale = typeof config.textScale === "number" && config.textScale > 0 ? config.textScale : 1;
   document.documentElement.style.setProperty("--text-scale", String(scale));
 }
 
@@ -132,10 +128,10 @@ function applyTextScale(apps: AppsData): void {
 function setupOperatorControls(
   source: DisplaySource,
   countdownController: CountdownController,
-  getApps: () => AppsData,
+  getConfig: () => DisplayConfig,
 ): void {
   const rfBtn = document.getElementById("redflag-btn");
-  let redFlagOn = !!getApps().redFlag?.active;
+  let redFlagOn = !!getConfig().redFlag?.active;
   const renderRf = (): void => {
     if (!rfBtn) return;
     rfBtn.textContent = redFlagOn ? "🚩 Red flag ON" : "🚩 Red flag";
@@ -152,7 +148,7 @@ function setupOperatorControls(
     // Propagate into the live snapshot so a same-browser admin reflects it.
     const snap = readLiveSnapshot();
     if (snap) {
-      snap.apps = { ...snap.apps, redFlag: state };
+      snap.config = { ...snap.config, redFlag: state };
       snap.ts = Date.now();
       writeLiveSnapshot(snap);
     }
@@ -189,20 +185,18 @@ async function main(): Promise<void> {
   const source = getDisplaySource();
   const localSnap = source === "local" ? readLiveSnapshot() : null;
 
-  const appsData: AppsData = localSnap?.apps ?? (await loadApps());
-  let currentAppsData: AppsData = appsData;
-  const getApps = (): AppsData => currentAppsData;
+  const config: DisplayConfig = localSnap?.config ?? (await loadConfig());
+  let currentConfig: DisplayConfig = config;
+  const getConfig = (): DisplayConfig => currentConfig;
 
-  applyChromeLabels(currentAppsData);
-  applyTextScale(currentAppsData);
+  applyChromeLabels(currentConfig);
+  applyTextScale(currentConfig);
 
-  const countdownController = initCountdown(getNow, getApps);
-  const scheduleController = initSchedule(getNow, getApps);
-  const updateVersionBadge = initVersionBadge(appsData);
+  const countdownController = initCountdown(getNow, getConfig);
+  const scheduleController = initSchedule(getNow, getConfig);
+  const updateVersionBadge = initVersionBadge(config);
 
   let activeDataSource: ReturnType<typeof createEventDataSource> | null = null;
-  let currentApp: App | null = null;
-  let currentModeId: string | null = appsData.displayModeId ?? null;
   let currentLayout: LayoutItem[] = [];
 
   // Re-place every item from the current layout. Cheap enough to call on any
@@ -210,7 +204,7 @@ async function main(): Promise<void> {
   // the stable canonical DOM in index.html). Re-run when labels/language
   // change too, since text items may render an editable label.
   function renderCurrentLayout(): void {
-    applyLayout(currentLayout, getApps());
+    applyLayout(currentLayout, getConfig());
   }
 
   function applyEvent(data: EventData): void {
@@ -218,25 +212,12 @@ async function main(): Promise<void> {
     scheduleController.setEventData(data);
   }
 
-  // GitHub mode: poll raw for this app's event and feed the controllers.
-  function runApp(app: App, displayModeId: string | null): void {
+  // GitHub mode: poll raw for the active event and feed the controllers.
+  function runEvent(eventId: string | null): void {
     activeDataSource?.stop();
-    currentApp = app;
-    currentModeId = displayModeId;
-    applyTheme(app, displayModeId);
-
-    // Position everything from the base layout synchronously first (no flash of
-    // unplaced items), then refine once the app's saved layout has loaded.
-    currentLayout = defaultLayoutForApp(app.id).items;
-    renderCurrentLayout();
-    void loadLayout(app.id).then((doc) => {
-      currentLayout = doc.items;
-      renderCurrentLayout();
-      countdownController.refresh();
-      scheduleController.refresh();
-    });
-
-    const dataSource = createEventDataSource(app);
+    activeDataSource = null;
+    if (!eventId) return;
+    const dataSource = createEventDataSource(eventId);
     activeDataSource = dataSource;
     const cached = dataSource.getCurrent();
     if (cached) applyEvent(cached);
@@ -244,33 +225,40 @@ async function main(): Promise<void> {
     dataSource.start();
   }
 
-  // Local mode: apply a whole snapshot (apps + events + layout) from the
+  // Load the single layout, positioning from the base layout synchronously
+  // first (no flash of unplaced items), then refining once the file arrives.
+  function loadAndRenderLayout(): void {
+    currentLayout = defaultLayout().items;
+    renderCurrentLayout();
+    void loadLayout().then((doc) => {
+      currentLayout = doc.items;
+      renderCurrentLayout();
+      countdownController.refresh();
+      scheduleController.refresh();
+    });
+  }
+
+  // Local mode: apply a whole snapshot (config + events + layout) from the
   // admin. No polling -- the admin pushes changes over the live bridge
   // instantly, so a drag/resize in the editor moves the item here at once.
   function applyLocalSnapshot(snap: LiveSnapshot): void {
-    const apps = snap.apps;
-    const events = snap.events;
+    const cfg = snap.config;
     activeDataSource?.stop();
     activeDataSource = null;
-    currentAppsData = apps;
-    applyChromeLabels(apps);
-    applyTextScale(apps);
-    applyAspectRatio(apps.aspectRatioId ?? null);
-    const app = resolveActiveApp(apps);
-    currentApp = app;
-    currentModeId = apps.displayModeId ?? null;
-    applyTheme(app, apps.displayModeId ?? null);
-    currentLayout =
-      snap.layout && snap.layout.appId === app.id
-        ? snap.layout.items
-        : defaultLayoutForApp(app.id).items;
+    currentConfig = cfg;
+    applyChromeLabels(cfg);
+    applyTextScale(cfg);
+    applyAspectRatio(cfg.aspectRatioId ?? null);
+    applyTheme(cfg.displayModeId ?? null);
+    currentLayout = snap.layout?.items ?? defaultLayout().items;
     renderCurrentLayout();
-    const event = events[app.activeEventId];
+    const eventId = cfg.activeEventId ?? null;
+    const event = eventId ? snap.events[eventId] : undefined;
     if (event) applyEvent(event);
     countdownController.refresh();
     scheduleController.refresh();
-    countdownController.setRedFlag(apps.redFlag);
-    updateVersionBadge(apps);
+    countdownController.setRedFlag(cfg.redFlag);
+    updateVersionBadge(cfg);
   }
 
   if (source === "local") {
@@ -279,43 +267,41 @@ async function main(): Promise<void> {
     } else {
       // No snapshot yet (admin not open / hasn't edited) -- show the last
       // published data statically until the admin pushes over the bridge.
-      applyAspectRatio(appsData.aspectRatioId ?? null);
-      runApp(resolveActiveApp(appsData), appsData.displayModeId ?? null);
-      countdownController.setRedFlag(appsData.redFlag);
+      applyAspectRatio(config.aspectRatioId ?? null);
+      applyTheme(config.displayModeId ?? null);
+      loadAndRenderLayout();
+      runEvent(config.activeEventId ?? null);
+      countdownController.setRedFlag(config.redFlag);
     }
     onLiveChange(() => {
       const snap = readLiveSnapshot();
       if (snap) applyLocalSnapshot(snap);
     });
   } else {
-    applyAspectRatio(appsData.aspectRatioId ?? null);
-    runApp(resolveActiveApp(appsData), appsData.displayModeId ?? null);
-    countdownController.setRedFlag(appsData.redFlag);
+    applyAspectRatio(config.aspectRatioId ?? null);
+    applyTheme(config.displayModeId ?? null);
+    loadAndRenderLayout();
+    runEvent(config.activeEventId ?? null);
+    countdownController.setRedFlag(config.redFlag);
 
     watchDisplaySettings(
-      appsData,
-      (app) => runApp(app, currentModeId),
-      (displayModeId) => {
-        currentModeId = displayModeId;
-        if (currentApp) applyTheme(currentApp, displayModeId);
-      },
+      config,
+      (eventId) => runEvent(eventId),
+      (displayModeId) => applyTheme(displayModeId),
       (aspectRatioId) => applyAspectRatio(aspectRatioId),
       (data) => {
         updateVersionBadge(data);
-        // A publish bumps contentVersion; re-pull this app's layout so a
-        // committed layout change appears without a display reload.
-        if (currentApp) {
-          const appId = currentApp.id;
-          void loadLayout(appId).then((doc) => {
-            currentLayout = doc.items;
-            renderCurrentLayout();
-          });
-        }
+        // A publish bumps contentVersion; re-pull the layout so a committed
+        // layout change appears without a display reload.
+        void loadLayout().then((doc) => {
+          currentLayout = doc.items;
+          renderCurrentLayout();
+        });
       },
       (data) => {
-        currentAppsData = data;
-        applyChromeLabels(currentAppsData);
-        applyTextScale(currentAppsData);
+        currentConfig = data;
+        applyChromeLabels(currentConfig);
+        applyTextScale(currentConfig);
         renderCurrentLayout();
         countdownController.refresh();
         scheduleController.refresh();
@@ -324,21 +310,23 @@ async function main(): Promise<void> {
     );
   }
 
-  setupOperatorControls(source, countdownController, () => currentAppsData);
+  setupOperatorControls(source, countdownController, () => currentConfig);
 
   // Re-fit the countdown block when the window/stage size changes (the fit is
   // height-bounded, so a resize can change how much the title needs to shrink).
   let resizeTimer: number | undefined;
   window.addEventListener("resize", () => {
     if (resizeTimer !== undefined) window.clearTimeout(resizeTimer);
-    resizeTimer = window.setTimeout(() => countdownController.refresh(), 150);
+    resizeTimer = window.setTimeout(() => {
+      renderCurrentLayout();
+      countdownController.refresh();
+    }, 150);
   });
 
   // Wire up interaction and start the clock IMMEDIATELY -- do NOT block the
   // whole UI on the time sync. worldtimeapi can be slow or unreachable (it
   // retries with backoff), and awaiting it here froze the toggle and clock
-  // for several seconds on load. The countdown/clock run on the local clock
-  // (offset 0) until the sync lands and the periodic resync corrects drift.
+  // for several seconds on load.
   setupScreenToggle();
 
   const fullscreenBtn = document.getElementById("fullscreen-btn");

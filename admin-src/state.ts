@@ -1,7 +1,7 @@
 import { DEFAULT_LABELS } from "./labels";
 import type { LayoutDoc } from "./layout";
+import type { EventSummary } from "./events";
 import type {
-  AppConfig,
   DisplayLanguage,
   EventData,
   Label,
@@ -10,88 +10,66 @@ import type {
   ScheduleItem,
 } from "./types";
 
-export interface EventListEntry {
-  id: string;
-  status: EventData["status"];
-}
-
-/** Staged data/apps.json edits, applied on top of a fresh read at Save
- * time (see saveAll() in ui.ts) so an in-memory copy of the whole file
- * never risks clobbering a concurrent change to some other app's fields. */
-export interface AppsPatch {
-  selectedAppId?: string;
+/** Staged data/display.json edits, applied on top of a fresh read at Save
+ * time (see saveAll() in ui.ts) so an in-memory copy of the whole file never
+ * clobbers a concurrent change to some other field. */
+export interface ConfigPatch {
   displayModeId?: string | null;
   aspectRatioId?: string | null;
-  /** Which language the display renders its labels in (Display settings). */
   displayLanguage?: DisplayLanguage;
-  /** Global display font-size multiplier (Display settings). */
   textScale?: number;
-  /** Full editable-labels object to write back (Display settings). Always a
-   * complete record so unedited keys stay equal to their defaults. */
   labels?: Partial<Record<LabelKey, Label>>;
-  /** appId -> new activeEventId (null clears it), staged by "Set active" /
-   * "Close event" for whichever app(s) were touched this session. */
-  activeEventIdByApp?: Record<string, string | null>;
+  /** Which event the display counts down to. */
+  activeEventId?: string | null;
   /** Red-flag / stoppage state, committed immediately from the header. */
   redFlag?: RedFlagState;
 }
 
 export interface AppState {
-  /** "editor" edits one app's events; "overview" lists every event across
-   * every app; "layout" is the free-canvas layout editor for the current app. */
-  viewMode: "editor" | "overview" | "layout";
+  /** "editor" is the event→day tree + day editor; "layout" is the free-canvas
+   * layout editor. (The old per-app "overview" page is gone.) */
+  viewMode: "editor" | "layout";
 
-  apps: AppConfig[];
-  currentAppId: string | null;
-  /** Which app is currently live on the primary display (data/apps.json's
-   * selectedAppId). Null means "whatever apps[0] is" (no override set). */
-  selectedAppId: string | null;
-  /** Which display-mode preset (data/apps.json's displayModeId) is active
-   * on every screen. Null means "standard" (per-app colors). */
+  /** Which display-mode preset (display.json's displayModeId) is active.
+   * Null = "standard". Presets are the only source of colors now. */
   displayModeId: string | null;
-  /** Which aspect-ratio preset (data/apps.json's aspectRatioId) the stage
-   * is letterboxed to on every screen. Null means 16:9. */
+  /** Which aspect-ratio preset the stage is letterboxed to. Null = 16:9. */
   aspectRatioId: string | null;
+  /** Which event the display is currently counting down to (activeEventId). */
+  activeEventId: string | null;
 
-  /** Working copy of data/apps.json's display-label settings, seeded on
-   * load and edited via the settings panel's "Display settings" section.
-   * The display renders labels in `displayLanguage`, scaled by `textScale`;
-   * `labels` is a complete record (defaults overlaid with any overrides) so
-   * saving keeps every key present. */
+  /** Working copy of display.json's label settings (see settings panel). */
   displayLanguage: DisplayLanguage;
   textScale: number;
   labels: Record<LabelKey, Label>;
 
-  /** Current red-flag / stoppage state from data/apps.json. */
+  /** Current red-flag / stoppage state from display.json. */
   redFlag: RedFlagState;
 
-  /** Read-only content revision + date from data/apps.json, shown in the
-   * header's version indicator. Null when the file omits them. */
+  /** Read-only content revision + date from display.json (version indicator). */
   contentVersion: number | null;
   contentUpdatedAt: string | null;
 
-  eventsForApp: EventListEntry[];
+  /** Every event (active + archived), the source for the left-panel tree. */
+  allEvents: EventSummary[];
+  /** Which event groups are expanded in the tree. */
+  expandedEventIds: Set<string>;
+
   currentEventId: string | null;
   currentEvent: EventData | null;
-
   selectedDayIndex: number;
 
   /** Items staged from an .xlsx import, awaiting user confirmation. */
   pendingImportItems: ScheduleItem[] | null;
 
-  /** True once currentEvent has any unsaved local edit (field edit, row
-   * add/remove, Set active, Close event, ...). Drives the Save button. */
+  /** True once currentEvent has any unsaved local edit. Drives the Save button. */
   eventDirty: boolean;
-  /** True when Close event was clicked but not yet saved: currentEvent
-   * should be committed to the archive (and removed from data/events/) on
-   * the next Save, instead of overwritten in place. */
+  /** True when Close event was clicked but not yet saved. */
   pendingClose: boolean;
-  /** Unsaved data/apps.json edits (Show on display / display mode / Set
-   * active), reconciled against a fresh read and committed on Save. */
-  appsPatch: AppsPatch;
+  /** Unsaved display.json edits, reconciled against a fresh read on Save. */
+  configPatch: ConfigPatch;
 
-  /** Working copy of the current app's layout (data/layouts/<appId>.json),
-   * loaded on app switch and edited in the layout view. Null until loaded. */
+  /** Working copy of the single layout (data/layout.json). Null until loaded. */
   layout: LayoutDoc | null;
   /** True once the layout has an unsaved edit; committed on the next Save. */
   layoutDirty: boolean;
@@ -99,9 +77,7 @@ export interface AppState {
   statusMessage: string;
 }
 
-/** A fresh, full copy of the built-in default labels -- the working
- * `state.labels` starts here and each apps.json override is overlaid on top
- * (see seedLabels), so every key is always present. */
+/** A fresh, full copy of the built-in default labels. */
 function defaultLabels(): Record<LabelKey, Label> {
   const out = {} as Record<LabelKey, Label>;
   for (const key of Object.keys(DEFAULT_LABELS) as LabelKey[]) {
@@ -110,7 +86,7 @@ function defaultLabels(): Record<LabelKey, Label> {
   return out;
 }
 
-/** Builds a complete labels record from apps.json's (partial) overrides,
+/** Builds a complete labels record from display.json's (partial) overrides,
  * falling back to the built-in default for any missing key or side. */
 export function seedLabels(overrides?: Partial<Record<LabelKey, Label>> | null): Record<LabelKey, Label> {
   const out = defaultLabels();
@@ -130,33 +106,28 @@ export function seedLabels(overrides?: Partial<Record<LabelKey, Label>> | null):
 
 export const state: AppState = {
   viewMode: "editor",
-  apps: [],
-  currentAppId: null,
-  selectedAppId: null,
   displayModeId: null,
   aspectRatioId: null,
+  activeEventId: null,
   displayLanguage: "ja",
   textScale: 1,
   labels: defaultLabels(),
   redFlag: { active: false, since: null },
   contentVersion: null,
   contentUpdatedAt: null,
-  eventsForApp: [],
+  allEvents: [],
+  expandedEventIds: new Set<string>(),
   currentEventId: null,
   currentEvent: null,
   selectedDayIndex: 0,
   pendingImportItems: null,
   eventDirty: false,
   pendingClose: false,
-  appsPatch: {},
+  configPatch: {},
   layout: null,
   layoutDirty: false,
   statusMessage: "",
 };
-
-export function currentApp(): AppConfig | null {
-  return state.apps.find((a) => a.id === state.currentAppId) ?? null;
-}
 
 export function currentDay() {
   if (!state.currentEvent) return null;
@@ -165,17 +136,16 @@ export function currentDay() {
 
 /** Whether saveAll() has anything to commit. */
 export function hasPendingChanges(): boolean {
-  const patch = state.appsPatch;
+  const patch = state.configPatch;
   return (
     state.eventDirty ||
     state.layoutDirty ||
-    patch.selectedAppId !== undefined ||
     patch.displayModeId !== undefined ||
     patch.aspectRatioId !== undefined ||
     patch.displayLanguage !== undefined ||
     patch.textScale !== undefined ||
     patch.labels !== undefined ||
-    Object.keys(patch.activeEventIdByApp ?? {}).length > 0
+    patch.activeEventId !== undefined
   );
 }
 
@@ -183,6 +153,6 @@ export function hasPendingChanges(): boolean {
 export function clearPendingChanges(): void {
   state.eventDirty = false;
   state.pendingClose = false;
-  state.appsPatch = {};
+  state.configPatch = {};
   state.layoutDirty = false;
 }

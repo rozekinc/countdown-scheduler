@@ -16,17 +16,28 @@ export interface DisplayModeColors {
 export interface DisplayModePreset {
   id: string;
   label: string;
-  /** null = pass through the active app's own theme unmodified -- today's
-   * default look, per-app branding intact. */
-  colors: DisplayModeColors | null;
+  /** The preset's colors. Since the app concept was removed, a preset is the
+   * ONLY source of colors -- there is no per-app theme to fall back to, so this
+   * is always concrete. */
+  colors: DisplayModeColors;
 }
 
 // Keep this list, and every value in it, identical to admin-src/displayModes.ts.
 export const DISPLAY_MODES: DisplayModePreset[] = [
   {
     id: "standard",
-    label: "Standard (per-app colors)",
-    colors: null,
+    // The original default look, now a concrete preset (was "pass through the
+    // app's theme"; there are no apps anymore).
+    label: "Standard",
+    colors: {
+      background: "#ffffff",
+      primary: "#e60000",
+      accent: "#484848",
+      surface: "#ffe4c4",
+      surfaceText: "#333333",
+      keywordA: "#CD5C5C",
+      keywordB: "#4682B4",
+    },
   },
   {
     id: "daylight-contrast",

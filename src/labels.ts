@@ -1,4 +1,4 @@
-import type { AppsData, DisplayLanguage, Label, LabelKey } from "./types";
+import type { DisplayConfig, DisplayLanguage, Label, LabelKey } from "./types";
 
 /** Built-in defaults for every editable label, in both languages. Used when
  * apps.json has no override for a key. Keep this the single source of truth
@@ -15,13 +15,13 @@ export const DEFAULT_LABELS: Record<LabelKey, Label> = {
   dayAfter: { ja: "明後日", en: "Day After" },
 };
 
-export function displayLanguage(apps: AppsData): DisplayLanguage {
+export function displayLanguage(apps: DisplayConfig): DisplayLanguage {
   return apps.displayLanguage === "en" ? "en" : "ja";
 }
 
 /** The text for a label in the active display language, preferring the
  * apps.json override and falling back to the built-in default. */
-export function resolveLabel(apps: AppsData, key: LabelKey): string {
+export function resolveLabel(apps: DisplayConfig, key: LabelKey): string {
   const lang = displayLanguage(apps);
   const chosen = apps.labels?.[key] ?? DEFAULT_LABELS[key];
   return chosen[lang] || DEFAULT_LABELS[key][lang] || DEFAULT_LABELS[key].ja;
@@ -31,7 +31,7 @@ export function resolveLabel(apps: AppsData, key: LabelKey): string {
  * versus `now`, or null when the date is none of those. Uses local-date
  * arithmetic so it flips at local midnight. */
 export function relativeDayLabel(
-  apps: AppsData,
+  apps: DisplayConfig,
   isoDate: string,
   now: Date,
 ): string | null {
