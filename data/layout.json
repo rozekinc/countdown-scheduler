@@ -105,7 +105,7 @@
       "type": "scheduleList",
       "z": 10,
       "props": {
-        "fontScale": 1
+        "fontScale": 0.8
       },
       "countdown": {
         "x": 75,
