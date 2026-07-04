@@ -1,28 +1,15 @@
-export interface Theme {
-  primary: string;
-  accent: string;
-  background: string;
-}
-
-export interface App {
-  id: string;
-  name: string;
-  theme: Theme;
-  activeEventId: string;
-}
-
 export type DisplayLanguage = "ja" | "en";
 
 /** An editable UI label, authored in both languages. The display renders the
- * one matching AppsData.displayLanguage; the admin editor edits both. */
+ * one matching DisplayConfig.displayLanguage; the admin editor edits both. */
 export interface Label {
   ja: string;
   en: string;
 }
 
-/** Every editable text location (chrome) across the two screens. Event
- * content (titles, schedule items, announcements) is NOT here -- that lives
- * in the event data. These are the fixed labels around it. */
+/** Every editable text location (chrome) across the two pages. Event content
+ * (titles, schedule items, announcements) is NOT here -- that lives in the
+ * event data. These are the fixed labels around it. */
 export type LabelKey =
   | "currentTime" // 現在時刻 / Current Time
   | "nextSchedule" // 次のスケジュール / Next Schedule
@@ -34,31 +21,41 @@ export type LabelKey =
   | "tomorrow" // 明日 / Tomorrow
   | "dayAfter"; // 明後日 / Day After
 
-export interface AppsData {
-  apps: App[];
-  /** Which app the primary display (no ?app= override) should show. */
-  selectedAppId?: string | null;
-  /** Active display-mode preset (see displayModes.ts). */
+/** Persisted admin-editor UI state (which events are expanded, what was last
+ * open), so reopening the editor lands in the same place. Lives in the config
+ * like every other setting: mirrored to the local snapshot instantly, and
+ * pushed to GitHub on Save. The display ignores it. */
+export interface EditorState {
+  expandedEventIds?: string[];
+  selectedEventId?: string | null;
+  selectedDayIndex?: number;
+}
+
+/** The whole display's configuration. One display, one config -- there is no
+ * longer a per-"app" concept. */
+export interface DisplayConfig {
+  /** Which event the display is currently counting down to / showing. */
+  activeEventId?: string | null;
+  /** Active display-mode preset (see displayModes.ts). The preset is the ONLY
+   * source of colors now (there are no per-app themes). */
   displayModeId?: string | null;
   /** Active aspect-ratio preset (see aspectRatios.ts). */
   aspectRatioId?: string | null;
   /** Monotonic content version + ISO date, bumped on every publish so the
-   * screens can show which data they are displaying. */
+   * screen can show which data it is displaying. */
   contentVersion?: number | null;
   contentUpdatedAt?: string | null;
-  /** Which language the display renders its labels in. Default "ja". Applies
-   * to every screen. */
+  /** Which language the display renders its labels in. Default "ja". */
   displayLanguage?: DisplayLanguage | null;
-  /** Global font-size multiplier for the display (1 = default). Applies to
-   * every screen. */
+  /** Global font-size multiplier for the display (1 = default). */
   textScale?: number | null;
   /** Editable UI labels in both languages. Missing keys fall back to the
    * built-in defaults (see labels.ts). */
   labels?: Partial<Record<LabelKey, Label>> | null;
-  /** Red-flag / session-stoppage state, toggled from the admin. When active,
-   * the display freezes the main countdown, shows a red-flag indicator, and
-   * runs a count-up "stoppage" timer from `since`. */
+  /** Red-flag / session-stoppage state, toggled from the admin. */
   redFlag?: RedFlagState | null;
+  /** Persisted admin-editor UI state (admin only; ignored by the display). */
+  editorState?: EditorState | null;
 }
 
 export interface RedFlagState {
@@ -93,7 +90,12 @@ export type EventStatus = "draft" | "active" | "ended";
 
 export interface EventData {
   id: string;
-  appId: string;
+  /** Human-readable event name, editable in the admin. Falls back to `id`
+   * wherever a name is shown but not set. */
+  name?: string;
+  /** Vestigial: kept so old event files still parse. No longer used by the
+   * display (there are no apps). New events omit it. */
+  appId?: string;
   /** Editorial/admin-only bookkeeping label; never enforced on the display. */
   status: EventStatus;
   announcement: string;

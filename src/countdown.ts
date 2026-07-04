@@ -1,4 +1,4 @@
-import type { AppsData, EventData, RedFlagState } from "./types";
+import type { DisplayConfig, EventData, RedFlagState } from "./types";
 import { setAnnouncementText } from "./marquee";
 import { setScrollingList } from "./verticalScroll";
 import { colorizeKeywords } from "./keywords";
@@ -43,7 +43,7 @@ function playSequentialSounds(sounds: HTMLAudioElement[]): void {
     });
 }
 
-export function initCountdown(getNow: () => Date, getApps: () => AppsData): CountdownController {
+export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig): CountdownController {
   const mainElem = document.getElementById("main") as HTMLElement;
   const titleElem = document.getElementById("title") as HTMLElement;
   const countdownElem = document.getElementById("countdown") as HTMLElement;

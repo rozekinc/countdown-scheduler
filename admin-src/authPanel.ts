@@ -1,5 +1,6 @@
 import { el } from "./dom";
 import { signInWithToken, isSignedIn, signOut, AuthError } from "./auth";
+import { iconButton } from "./icons";
 import { t } from "./i18n";
 
 export function renderAuthControls(
@@ -9,23 +10,16 @@ export function renderAuthControls(
   container.innerHTML = "";
 
   if (isSignedIn()) {
-    const signOutBtn = el("button", { class: "btn btn-secondary" }, [
-      t("auth.signOut"),
-    ]);
+    const signOutBtn = iconButton("signOut", t("auth.signOut"), "btn btn-secondary");
     signOutBtn.addEventListener("click", () => {
       signOut();
       renderAuthControls(container, onSignedIn);
     });
-    container.append(
-      el("span", { class: "auth-status" }, [t("auth.signedIn")]),
-      signOutBtn,
-    );
+    container.append(signOutBtn);
     return;
   }
 
-  const signInBtn = el("button", { class: "btn btn-primary" }, [
-    t("auth.signInWithToken"),
-  ]);
+  const signInBtn = iconButton("signIn", t("auth.signInWithToken"), "btn btn-primary");
   signInBtn.addEventListener("click", () => {
     openTokenModal(() => {
       renderAuthControls(container, onSignedIn);

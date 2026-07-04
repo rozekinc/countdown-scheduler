@@ -1,54 +1,48 @@
-// Canonical data shapes shared with the display site and the MCP server.
-// Keep this file in sync with the data/ JSON documents; do not invent
-// alternate field names.
+// Canonical data shapes shared with the display site. Keep this file in sync
+// with the data/ JSON documents and with src/types.ts; do not invent alternate
+// field names.
 
 import type { DisplayLanguage, Label, LabelKey } from "./labels";
 
 export type { DisplayLanguage, Label, LabelKey } from "./labels";
-
-export interface AppTheme {
-  primary: string;
-  accent: string;
-  background: string;
-}
-
-export interface AppConfig {
-  id: string;
-  name: string;
-  theme: AppTheme;
-  activeEventId: string | null;
-}
 
 export interface RedFlagState {
   active: boolean;
   since?: string | null;
 }
 
-export interface AppsFile {
-  apps: AppConfig[];
-  /** Which app the primary display (no ?app= override) should currently
-   * show. Set by "Show on display" in the admin app. */
-  selectedAppId?: string | null;
-  /** Which display-mode preset (see displayModes.ts) is active on every
-   * screen. Null/absent = "standard" (each app's own theme). */
+/** Persisted admin-editor UI state (which events are expanded, what was last
+ * open), so reopening the editor lands in the same place. Lives in the config
+ * like every other setting. The display ignores it. */
+export interface EditorState {
+  expandedEventIds?: string[];
+  selectedEventId?: string | null;
+  selectedDayIndex?: number;
+}
+
+/** The whole display's configuration (data/display.json). One display, one
+ * config -- there is no longer a per-"app" concept. */
+export interface DisplayConfig {
+  /** Which event the display is currently counting down to / showing. */
+  activeEventId?: string | null;
+  /** Active display-mode preset (see displayModes.ts) -- the only source of
+   * colors now (no per-app themes). Null/absent = "standard". */
   displayModeId?: string | null;
-  /** Which aspect-ratio preset (see aspectRatios.ts) the stage is
-   * letterboxed/pillarboxed to on every screen. Null/absent = 16:9. */
+  /** Active aspect-ratio preset (see aspectRatios.ts). Null/absent = 16:9. */
   aspectRatioId?: string | null;
   /** Which language the display renders its labels in. Default "ja". */
   displayLanguage?: DisplayLanguage | null;
   /** Global font-size multiplier for the display (1 = default). */
   textScale?: number | null;
-  /** Editable UI labels in both languages. Missing keys fall back to the
-   * built-in defaults (see labels.ts). */
+  /** Editable UI labels in both languages. */
   labels?: Partial<Record<LabelKey, Label>> | null;
-  /** Red-flag / stoppage state, toggled from the admin header. */
+  /** Red-flag / stoppage state, toggled from the admin. */
   redFlag?: RedFlagState | null;
-  /** Monotonic content revision, bumped when the published data set
-   * changes. Surfaced read-only in the admin's version indicator. */
+  /** Persisted admin-editor UI state (admin only; ignored by the display). */
+  editorState?: EditorState | null;
+  /** Monotonic content revision, bumped when the published data set changes. */
   contentVersion?: number;
-  /** Date (YYYY-MM-DD) the content was last updated, shown alongside
-   * contentVersion in the admin's version indicator. */
+  /** Date (YYYY-MM-DD) the content was last updated. */
   contentUpdatedAt?: string;
 }
 
@@ -75,7 +69,10 @@ export interface ScheduleDay {
 
 export interface EventData {
   id: string;
-  appId: string;
+  /** Human-readable event name, editable in the admin. Falls back to `id`. */
+  name?: string;
+  /** Vestigial: kept so old event files still parse. New events omit it. */
+  appId?: string;
   status: EventStatus;
   announcement: string;
   countdownRows: CountdownRow[];

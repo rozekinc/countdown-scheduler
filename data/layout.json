@@ -1,0 +1,132 @@
+{
+  "items": [
+    {
+      "id": "img-banner",
+      "type": "image",
+      "z": 5,
+      "props": {
+        "assetPath": "media/images/4413.png",
+        "fit": "contain",
+        "opacity": 1
+      },
+      "countdown": {
+        "x": 2,
+        "y": 3,
+        "w": 24,
+        "h": 14
+      },
+      "schedule": {
+        "x": 2,
+        "y": 3,
+        "w": 24,
+        "h": 14
+      }
+    },
+    {
+      "id": "img-logo",
+      "type": "image",
+      "z": 5,
+      "props": {
+        "assetPath": "media/images/ロゴ.png",
+        "fit": "contain",
+        "opacity": 1
+      },
+      "countdown": {
+        "x": 2,
+        "y": 18,
+        "w": 14,
+        "h": 12
+      },
+      "schedule": {
+        "x": 2,
+        "y": 18,
+        "w": 14,
+        "h": 12
+      }
+    },
+    {
+      "id": "clock",
+      "type": "clock",
+      "z": 10,
+      "props": {
+        "showLabel": true,
+        "align": "right",
+        "fontScale": 1
+      },
+      "countdown": {
+        "x": 62,
+        "y": 3,
+        "w": 36,
+        "h": 18
+      },
+      "schedule": {
+        "x": 62,
+        "y": 3,
+        "w": 36,
+        "h": 18
+      }
+    },
+    {
+      "id": "announcement",
+      "type": "announcement",
+      "z": 10,
+      "props": {
+        "fontScale": 1
+      },
+      "countdown": {
+        "x": 2,
+        "y": 88,
+        "w": 96,
+        "h": 10
+      },
+      "schedule": {
+        "x": 2,
+        "y": 88,
+        "w": 96,
+        "h": 10
+      }
+    },
+    {
+      "id": "countdown",
+      "type": "countdown",
+      "z": 10,
+      "props": {
+        "fontScale": 1
+      },
+      "countdown": {
+        "x": 2,
+        "y": 30,
+        "w": 72,
+        "h": 56
+      }
+    },
+    {
+      "id": "scheduleList",
+      "type": "scheduleList",
+      "z": 10,
+      "props": {
+        "fontScale": 1
+      },
+      "countdown": {
+        "x": 75,
+        "y": 30,
+        "w": 23,
+        "h": 56
+      }
+    },
+    {
+      "id": "scheduleColumns",
+      "type": "scheduleColumns",
+      "z": 10,
+      "props": {
+        "fontScale": 1
+      },
+      "schedule": {
+        "x": 2,
+        "y": 28,
+        "w": 96,
+        "h": 58
+      }
+    }
+  ]
+}

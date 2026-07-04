@@ -17,7 +17,7 @@ if anything outside `data/` is staged.
 
 ## Bump the content version (do this first, every publish)
 
-Before staging, bump the version stamp in `data/apps.json` so both the display
+Before staging, bump the version stamp in `data/display.json` so both the display
 and the admin screen show that the data changed:
 
 - Increment the top-level `contentVersion` number by 1 (start at `1` if the
@@ -32,7 +32,7 @@ reflects the last published change.
 ## Steps
 
 1. Run `git status --porcelain` to see what changed. Confirm every change is
-   under `data/` (including the `data/apps.json` version bump). If any change is
+   under `data/` (including the `data/display.json` version bump). If any change is
    outside `data/`, STOP and tell the user — do not stage or commit it.
 2. Stage ONLY the data directory: `git add data/`.
 3. Verify the staged set is data-only:

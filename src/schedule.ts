@@ -1,4 +1,4 @@
-import type { AppsData, EventData, ScheduleDay } from "./types";
+import type { DisplayConfig, EventData, ScheduleDay } from "./types";
 import { colorizeKeywords } from "./keywords";
 import { relativeDayLabel } from "./labels";
 
@@ -47,7 +47,7 @@ function pickDays(days: ScheduleDay[], now: Date): ScheduleDay[] {
 function renderColumn(
   day: ScheduleDay,
   now: Date,
-  apps: AppsData,
+  apps: DisplayConfig,
   keywords: string[] | undefined,
 ): string {
   const rel = relativeDayLabel(apps, day.date, now);
@@ -79,7 +79,7 @@ function renderColumn(
   );
 }
 
-export function initSchedule(getNow: () => Date, getApps: () => AppsData): ScheduleController {
+export function initSchedule(getNow: () => Date, getApps: () => DisplayConfig): ScheduleController {
   const columnsElem = document.getElementById("schedule-columns") as HTMLElement;
 
   let currentData: EventData | null = null;
