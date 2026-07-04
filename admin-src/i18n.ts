@@ -168,13 +168,6 @@ const EN = {
   "day.itemTitle": "Title (e.g. Rider check-in)",
   "day.itemDetail": "Detail (e.g. 10:30~ or a location)",
 
-  "import.title": "Import from Excel (.xlsx)",
-  "import.parseFailed": "Failed to parse {name}: {message}",
-  "import.parsed": "Parsed {count} row(s). Review before applying:",
-  "import.apply": "Apply to current day",
-  "import.noDay": "Select or add a day before applying the import.",
-  "import.applied": "Import applied. Review the table, then click Save to publish.",
-  "import.cancel": "Cancel import",
 
   "save.saving": "Saving…",
   "save.saved": "Saved.",
@@ -360,13 +353,6 @@ const JA: Record<TranslationKey, string> = {
   "day.itemTitle": "タイトル (例: 選手受付)",
   "day.itemDetail": "詳細 (例: 10:30~ や場所)",
 
-  "import.title": "Excel (.xlsx) からインポート",
-  "import.parseFailed": "{name} の解析に失敗しました: {message}",
-  "import.parsed": "{count} 行を解析しました。適用前に確認してください:",
-  "import.apply": "この日に適用",
-  "import.noDay": "インポートを適用する前に日を選択または追加してください。",
-  "import.applied": "インポートを適用しました。表を確認し、保存をクリックして公開してください。",
-  "import.cancel": "インポートをキャンセル",
 
   "save.saving": "保存中…",
   "save.saved": "保存しました。",

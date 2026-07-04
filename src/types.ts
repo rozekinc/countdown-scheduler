@@ -19,7 +19,9 @@ export type LabelKey =
   | "toggle" // 切替 / Switch  (screen toggle button)
   | "today" // 今日 / Today
   | "tomorrow" // 明日 / Tomorrow
-  | "dayAfter"; // 明後日 / Day After
+  | "dayAfter" // 明後日 / Day After
+  | "redFlag" // 赤旗 / RED FLAG  (red-flag banner)
+  | "stoppage"; // 中断時間 / STOPPAGE  (stoppage timer label)
 
 /** Persisted admin-editor UI state (which events are expanded, what was last
  * open), so reopening the editor lands in the same place. Lives in the config

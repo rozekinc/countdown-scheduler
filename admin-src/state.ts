@@ -7,7 +7,6 @@ import type {
   Label,
   LabelKey,
   RedFlagState,
-  ScheduleItem,
 } from "./types";
 
 /** Staged data/display.json edits, applied on top of a fresh read at Save
@@ -64,9 +63,6 @@ export interface AppState {
   currentEventId: string | null;
   currentEvent: EventData | null;
   selectedDayIndex: number;
-
-  /** Items staged from an .xlsx import, awaiting user confirmation. */
-  pendingImportItems: ScheduleItem[] | null;
 
   /** True once currentEvent has any unsaved local edit. Drives the Save button. */
   eventDirty: boolean;
@@ -138,7 +134,6 @@ export const state: AppState = {
   currentEventId: null,
   currentEvent: null,
   selectedDayIndex: 0,
-  pendingImportItems: null,
   eventDirty: false,
   pendingClose: false,
   pendingDelete: false,

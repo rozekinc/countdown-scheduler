@@ -52,6 +52,9 @@ html, body {
   box-sizing: border-box;
   min-width: 0;
   min-height: 0;
+  /* Optional per-item background colour (transparent by default). Items that
+     paint their own panel background thread --item-bg too (see below). */
+  background-color: var(--item-bg, transparent);
   /* An item placed differently on the countdown vs schedule page animates
      between the two positions on 切替 (see src/layoutManager.ts setPage).
      Suppressed by #stage.no-anim for the first placement + on resize. */
@@ -201,19 +204,6 @@ html, body {
   font-weight: 900;
   letter-spacing: 0.08em;
 }
-.rf-arrows {
-  display: inline-flex;
-  gap: 0.15em;
-  margin-left: 0.4em;
-  vertical-align: middle;
-  font-size: 0.8em;
-}
-.rf-arrow-up {
-  color: #1565ff; /* blue up */
-}
-.rf-arrow-down {
-  color: #d40000; /* red down */
-}
 
 /* The special red-flag line in the next-schedule side list. */
 #schedule-list .row-redflag {
@@ -227,14 +217,16 @@ html, body {
   color: #d40000;
 }
 
-/* Ring the whole stage with a thick pulsing red border -- a strong
-   at-a-glance safety cue. */
-body.red-flag-on .aspect-inner {
-  animation: rf-border-pulse 1.2s ease-in-out infinite;
-}
-@keyframes rf-border-pulse {
-  0%, 100% { box-shadow: inset 0 0 0 10px #d40000; }
-  50% { box-shadow: inset 0 0 0 20px #a80000; }
+/* Ring the whole stage with a thick, static, translucent red border that sits
+   ON TOP of every layout item (highest z) without blocking anything -- a strong
+   at-a-glance safety cue that still lets the content show through. */
+body.red-flag-on .aspect-inner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 14px rgba(211, 0, 0, 0.55);
 }
 
 /* See .announcement-bar further down for #announcement's actual layout --
@@ -252,7 +244,7 @@ body.red-flag-on .aspect-inner {
   min-width: 0;
   min-height: 0;
   box-sizing: border-box;
-  background: var(--theme-surface, #ffe4c4);
+  background: var(--item-bg, var(--theme-surface, #ffe4c4));
   border-left: 6px solid #696969;
   margin: 0;
   padding: 0;
@@ -359,7 +351,7 @@ body.red-flag-on .aspect-inner {
   position: relative;
   width: 100%;
   height: 100%;
-  background: color-mix(in srgb, var(--theme-background, #fff) 80%, var(--theme-primary, #e60000) 20%);
+  background: var(--item-bg, color-mix(in srgb, var(--theme-background, #fff) 80%, var(--theme-primary, #e60000) 20%));
   overflow: hidden;
 }
 
@@ -793,7 +785,7 @@ body.marquee-paused .marquee-inner {
 /* A `schedule` item: its own heading over an auto-scrolling rows area, styled
    like the schedule screen's columns. Fills its layout-item host. */
 .item-schedule {
-  background: color-mix(in srgb, var(--theme-background, #fff) 80%, var(--theme-primary, #e60000) 20%);
+  background: var(--item-bg, color-mix(in srgb, var(--theme-background, #fff) 80%, var(--theme-primary, #e60000) 20%));
 }
 .item-schedule-inner {
   width: 100%;

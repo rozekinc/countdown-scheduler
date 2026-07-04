@@ -2,7 +2,7 @@ import type { DisplayConfig, EventData, RedFlagState } from "./types";
 import { setAnnouncementText } from "./marquee";
 import { setScrollingList } from "./verticalScroll";
 import { colorizeKeywords } from "./keywords";
-import { resolveLabel, relativeDayLabel, displayLanguage } from "./labels";
+import { resolveLabel, relativeDayLabel } from "./labels";
 import { fitToHeight } from "./fitText";
 
 export interface CountdownController {
@@ -120,7 +120,7 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
   // --- red-flag stoppage --------------------------------------------------
 
   function redFlagName(): string {
-    return displayLanguage(getApps()) === "en" ? "RED FLAG" : "赤旗";
+    return resolveLabel(getApps(), "redFlag");
   }
 
   // Drive the MAIN countdown as the stoppage timer: DOWN (red) to the finish
@@ -147,18 +147,13 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
     );
   }
 
-  // The title becomes the RED FLAG banner while a flag is up: the flag label
-  // plus (when counting down to a finish time) a blue up / red down arrow pair.
+  // The title becomes the RED FLAG banner while a flag is up (editable labels;
+  // the up/down colour lives on the countdown timer itself, not on arrows).
   function renderRedFlagTitle(): void {
-    const en = displayLanguage(getApps()) === "en";
-    const label = en ? "STOPPAGE" : "中断時間";
-    const arrows =
-      redFlagFinishMs !== null
-        ? `<span class="rf-arrows"><span class="rf-arrow-up">▲</span><span class="rf-arrow-down">▼</span></span>`
-        : "";
+    const apps = getApps();
     titleElem.innerHTML =
-      `<span class="rf-flag-badge">🚩 ${redFlagName()}</span>${arrows}<br>` +
-      `<span class="countdown-time">${label}</span>`;
+      `<span class="rf-flag-badge">🚩 ${resolveLabel(apps, "redFlag")}</span><br>` +
+      `<span class="countdown-time">${resolveLabel(apps, "stoppage")}</span>`;
     fitMain();
   }
 

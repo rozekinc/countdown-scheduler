@@ -67,6 +67,9 @@ export interface ItemProps {
   /** Custom text color (any CSS color, e.g. "#ff0000"). Overrides the theme
    * default for this item's text. Omitted = use the display-mode color. */
   color?: string;
+  /** Custom background color for the item (any CSS color). Omitted = the item's
+   * default background (transparent for most, the themed panel for schedules). */
+  bgColor?: string;
   assetPath?: string;
   fit?: "contain" | "cover";
   opacity?: number;
