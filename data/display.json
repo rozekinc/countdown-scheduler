@@ -44,11 +44,12 @@
   },
   "editorState": {
     "expandedEventIds": [
-      "2026-motegi"
+      "2026-motegi",
+      "race-weekend"
     ],
-    "selectedEventId": "2026-motegi",
-    "selectedDayIndex": 0
+    "selectedEventId": "race-weekend",
+    "selectedDayIndex": 1
   },
-  "contentVersion": 7,
+  "contentVersion": 8,
   "contentUpdatedAt": "2026-07-04"
 }
