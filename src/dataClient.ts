@@ -170,6 +170,10 @@ async function fetchEventFromEvents(eventId: string): Promise<EventData | null> 
 }
 
 async function fetchEventFromArchive(eventId: string): Promise<EventData | null> {
+  // Archived events now live in a single archive folder (data/archive/<id>.json).
+  const flat = await fetchJson<EventData>(`${ARCHIVE_DIR}/${eventId}.json`);
+  if (flat) return flat;
+  // Fallback: older per-year archive layout (data/archive/<year>/<id>.json).
   const currentYear = new Date().getFullYear();
   for (let offset = 0; offset < ARCHIVE_YEAR_LOOKBACK; offset++) {
     const year = currentYear - offset;

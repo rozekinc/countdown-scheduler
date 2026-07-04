@@ -2,9 +2,9 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="app-build" content="1.0.0+4b0f622" />
+  <meta name="app-build" content="1.0.0+7246019" />
   <title>カウントダウンスケジューラー</title>
-  <link rel="stylesheet" href="assets/main.css?v=8ad272e242" />
+  <link rel="stylesheet" href="assets/main.css?v=a90a6dc877" />
 </head>
 <body>
   <div class="aspect-container">
@@ -37,15 +37,11 @@
         <h1 id="title">タイトル読み込み中...</h1>
       </div>
 
-      <!-- Countdown: big timer + stoppage. -->
+      <!-- Countdown: big timer. Hidden behind the red-flag overlay when a red
+           flag is up (see #red-flag-overlay + body.red-flag-on). -->
       <div class="layout-item" id="li-countdown" data-screen="countdown">
         <div id="main">
           <div id="countdown">00:00:00.<span class="ms">000</span></div>
-          <!-- Stoppage timer: counts UP from when the red flag was raised. -->
-          <div id="stoppage" class="rf-hidden">
-            <div id="stoppage-label" class="stoppage-label">STOPPAGE</div>
-            <div id="stoppage-timer">00:00:00</div>
-          </div>
         </div>
       </div>
 
@@ -74,10 +70,15 @@
         <div id="announcement" class="announcement-bar"></div>
       </div>
 
-      <!-- Red-flag indicator: fixed safety overlay, not a placeable item. -->
-      <div id="red-flag" class="rf-hidden" aria-hidden="true">
-        <span class="rf-flag"></span>
-        <span id="red-flag-text" class="rf-text">RED FLAG</span>
+      <!-- Red-flag mode: a full-stage safety overlay that replaces the
+           countdown with a big central flag + a prominent count-up of the
+           stoppage duration. Shown only while a red flag is up; driven from the
+           admin (config.redFlag). Not a placeable layout item. -->
+      <div id="red-flag-overlay" class="rf-hidden" aria-hidden="true">
+        <div class="rf-overlay-flag"></div>
+        <div class="rf-overlay-title" id="rf-overlay-title">RED FLAG</div>
+        <div class="rf-overlay-stoppage-label" id="rf-overlay-stoppage-label">STOPPAGE</div>
+        <div class="rf-overlay-timer" id="rf-overlay-timer">00:00:00</div>
       </div>
 
       <img src="media/images/全画面.png" id="fullscreen-btn" alt="全画面" />
@@ -94,6 +95,6 @@
        display config + live snapshot); the display carries no operator buttons
        apart from fullscreen. -->
 
-  <script src="assets/main.js?v=8ad272e242" defer></script>
+  <script src="assets/main.js?v=a90a6dc877" defer></script>
 </body>
 </html>

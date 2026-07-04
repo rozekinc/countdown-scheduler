@@ -289,6 +289,17 @@ html, body {
   margin-bottom: 14px;
 }
 
+/* Day editor heading + its delete-day button on one row. */
+.day-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.day-editor-header h3 {
+  flex: 1 1 auto;
+}
+
 .countdown-rows-section h3, .day-editor-section h3, .import-section h3 {
   font-size: 12px;
   font-weight: 700;
@@ -1112,6 +1123,27 @@ html, body {
 }
 .le-entry-fields .row-input { width: 100%; }
 .le-entry-row .btn-small { flex: 0 0 auto; }
+
+/* --- item color picker -------------------------------------------------- */
+.le-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.le-color {
+  width: 40px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+.le-color-value {
+  font-size: 12px;
+  color: #57606a;
+  flex: 1 1 auto;
+}
 
 /* --- Loading skeletons -------------------------------------------------- */
 .skeleton-wrap { padding: 8px 4px; }

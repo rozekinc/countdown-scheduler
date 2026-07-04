@@ -27,6 +27,7 @@ import {
   onPage,
   placementFor,
   type ItemPage,
+  type ItemProps,
   type ItemType,
   type LayoutItem,
   type Placement,
@@ -506,6 +507,13 @@ function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => v
     }
   }
 
+  // Custom text color (a color wheel) for any text/title-bearing item. Images
+  // have no text, so they're excluded.
+  if (item.type !== "image") {
+    panel.append(el("h4", {}, ["Color"]));
+    panel.append(colorField(p, live, rerender));
+  }
+
   // Scroll toggles for text-bearing items. Horizontal = marquee (announcement /
   // text); Vertical = auto-scroll long content (schedule list/columns / text).
   // Singletons scroll by default (checked); text items default off.
@@ -810,6 +818,30 @@ function alignField(value: string, set: (v: "left" | "center" | "right") => void
     { value: "center", label: "Center" },
     { value: "right", label: "Right" },
   ], (v) => set(v as "left" | "center" | "right"), after);
+}
+
+/** A native color-wheel picker for an item's custom text color, plus an "Auto"
+ * button that clears it back to the display-mode default. Dragging the wheel
+ * mirrors live (onLive); releasing / clearing commits a re-render (onCommit). */
+function colorField(p: ItemProps, onLive: () => void, onCommit: () => void): HTMLElement {
+  const field = el("div", { class: "le-field" });
+  field.append(el("label", {}, ["Text color"]));
+  const row = el("div", { class: "le-color-row" });
+  const input = el("input", { type: "color", class: "le-color", value: p.color ?? "#333333" }) as HTMLInputElement;
+  input.addEventListener("input", () => {
+    p.color = input.value;
+    onLive();
+  });
+  input.addEventListener("change", () => onCommit());
+  const swatchLabel = el("span", { class: "le-color-value" }, [p.color ?? "Auto (theme)"]);
+  const autoBtn = el("button", { class: "btn btn-secondary btn-small" }, ["Auto"]);
+  autoBtn.addEventListener("click", () => {
+    delete p.color;
+    onCommit();
+  });
+  row.append(input, swatchLabel, autoBtn);
+  field.append(row);
+  return field;
 }
 
 function checkboxField(label: string, value: boolean, set: (v: boolean) => void, after: () => void): HTMLElement {

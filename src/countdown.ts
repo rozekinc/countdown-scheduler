@@ -53,11 +53,12 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
   const announcementElem = document.getElementById("announcement") as HTMLElement;
   const listElem = document.getElementById("list-viewport") as HTMLElement;
   const pinnedElem = document.getElementById("list-next-pinned") as HTMLElement | null;
-  const redFlagElem = document.getElementById("red-flag") as HTMLElement;
-  const redFlagTextElem = document.getElementById("red-flag-text") as HTMLElement;
-  const stoppageElem = document.getElementById("stoppage") as HTMLElement;
-  const stoppageLabelElem = document.getElementById("stoppage-label") as HTMLElement;
-  const stoppageTimerElem = document.getElementById("stoppage-timer") as HTMLElement;
+  // Red-flag mode overlay: a big central flag + a prominent count-up timer
+  // that replaces the countdown while a red flag is up.
+  const rfOverlayElem = document.getElementById("red-flag-overlay") as HTMLElement;
+  const rfOverlayTitleElem = document.getElementById("rf-overlay-title") as HTMLElement;
+  const rfOverlayLabelElem = document.getElementById("rf-overlay-stoppage-label") as HTMLElement;
+  const rfOverlayTimerElem = document.getElementById("rf-overlay-timer") as HTMLElement;
 
   const soundAto = document.getElementById("sound-ato") as HTMLAudioElement;
   const sound20 = document.getElementById("sound-20") as HTMLAudioElement;
@@ -137,7 +138,7 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
 
   function updateStoppage(): void {
     const elapsed = Math.max(0, getNow().getTime() - redFlagSinceMs);
-    stoppageTimerElem.textContent =
+    rfOverlayTimerElem.textContent =
       `${pad2(Math.floor(elapsed / 3600000))}:` +
       `${pad2(Math.floor((elapsed % 3600000) / 60000))}:` +
       `${pad2(Math.floor((elapsed % 60000) / 1000))}`;
@@ -150,18 +151,21 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
     redFlagSinceMs = Number.isNaN(sinceMs) ? getNow().getTime() : sinceMs;
 
     const en = displayLanguage(getApps()) === "en";
-    redFlagTextElem.textContent = en ? "RED FLAG" : "赤旗";
-    stoppageLabelElem.textContent = en ? "STOPPAGE" : "中断時間";
+    rfOverlayTitleElem.textContent = en ? "RED FLAG" : "赤旗";
+    rfOverlayLabelElem.textContent = en ? "STOPPAGE" : "中断時間";
 
     document.body.classList.toggle("red-flag-on", active);
-    redFlagElem.classList.toggle("rf-hidden", !active);
-    stoppageElem.classList.toggle("rf-hidden", !active);
+    rfOverlayElem.classList.toggle("rf-hidden", !active);
 
     if (active) {
+      // Freeze the (now-hidden) countdown so it holds the right value if the
+      // overlay is ever dismissed, and drive the prominent count-up timer.
       freezeCountdown();
       updateStoppage();
       if (stoppageInterval === undefined) {
-        stoppageInterval = window.setInterval(updateStoppage, 200);
+        // 100ms keeps the seconds tick crisp and the display in step with the
+        // real elapsed time (the previous 200ms could visibly lag the second).
+        stoppageInterval = window.setInterval(updateStoppage, 100);
       }
     } else if (stoppageInterval !== undefined) {
       window.clearInterval(stoppageInterval);
@@ -344,11 +348,11 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
       renderAnnouncement();
       renderTitle();
       updateScheduleList();
-      // Re-apply red-flag labels in the (possibly changed) language.
+      // Re-apply red-flag overlay labels in the (possibly changed) language.
       if (redFlagActive) {
         const en = displayLanguage(getApps()) === "en";
-        redFlagTextElem.textContent = en ? "RED FLAG" : "赤旗";
-        stoppageLabelElem.textContent = en ? "STOPPAGE" : "中断時間";
+        rfOverlayTitleElem.textContent = en ? "RED FLAG" : "赤旗";
+        rfOverlayLabelElem.textContent = en ? "STOPPAGE" : "中断時間";
       }
     },
     setRedFlag(state: RedFlagState | null | undefined): void {

@@ -330,6 +330,7 @@ function confirmDiscardEventIfDirty(action: string): boolean {
   if (ok) {
     state.eventDirty = false;
     state.pendingClose = false;
+    state.pendingDelete = false;
   }
   return ok;
 }
@@ -881,6 +882,7 @@ async function selectEvent(id: string, rerender = true): Promise<boolean> {
     state.pendingImportItems = null;
     state.eventDirty = false;
     state.pendingClose = false;
+    state.pendingDelete = false;
     state.expandedEventIds.add(id);
     setStatus("");
   } catch (err) {
@@ -978,6 +980,7 @@ function stageNewEvent(id: string, name: string): void {
   state.selectedDayIndex = 0;
   state.pendingImportItems = null;
   state.pendingClose = false;
+  state.pendingDelete = false;
   state.expandedEventIds.add(id);
   state.allEvents = [
     { id, name, status: "draft", archived: false, path: `data/events/${id}.json`, days: [], earliestDate: null },
@@ -1003,34 +1006,39 @@ function stageSetActive(): void {
   renderMainPanel();
 }
 
-function earliestYear(event: EventData): number {
-  const times: number[] = [];
-  for (const row of event.countdownRows) {
-    const time = new Date(row.time).getTime();
-    if (!Number.isNaN(time)) times.push(time);
-  }
-  for (const day of event.scheduleDays) {
-    const time = new Date(day.date).getTime();
-    if (!Number.isNaN(time)) times.push(time);
-  }
-  if (times.length === 0) return new Date().getFullYear();
-  return new Date(Math.min(...times)).getFullYear();
-}
-
-/** Stages closing the event (moves it to the archive, clears activeEventId if
- * it pointed here). Not written until Save. */
+/** Stages archiving the event (moves it to the single archive folder, clears
+ * activeEventId if it pointed here). Not written until Save. */
 function stageCloseEvent(): void {
   const event = state.currentEvent;
   if (!event) return;
   if (!window.confirm(t("editor.closeConfirm", { id: event.id }))) return;
   event.status = "ended";
   state.pendingClose = true;
+  state.pendingDelete = false;
   if (state.activeEventId === event.id) {
     state.activeEventId = null;
     state.configPatch.activeEventId = null;
   }
   markEventDirty();
   setStatus(t("editor.closeStaged", { id: event.id }));
+  renderLeftPanel();
+  renderMainPanel();
+}
+
+/** Stages permanently deleting the event (removes the event file, no archive
+ * copy, clears activeEventId if it pointed here). Not written until Save. */
+function stageDeleteEvent(): void {
+  const event = state.currentEvent;
+  if (!event) return;
+  if (!window.confirm(t("editor.deleteConfirm", { id: event.id }))) return;
+  state.pendingDelete = true;
+  state.pendingClose = false;
+  if (state.activeEventId === event.id) {
+    state.activeEventId = null;
+    state.configPatch.activeEventId = null;
+  }
+  markEventDirty();
+  setStatus(t("editor.deleteStaged", { id: event.id }));
   renderLeftPanel();
   renderMainPanel();
 }
@@ -1051,14 +1059,18 @@ async function saveAll(): Promise<void> {
 
     // Sync the current event (local state is authoritative in local-first mode).
     if (state.currentEvent && localish) {
-      if (state.pendingClose) {
-        const year = earliestYear(state.currentEvent);
+      if (state.pendingDelete) {
+        // Permanent delete: remove the event file, no archive copy.
+        changes.push({ path: `data/events/${state.currentEvent.id}.json`, content: null });
+        messageParts.push(`Delete ${state.currentEvent.id}`);
+      } else if (state.pendingClose) {
+        // Archive: move the event into the single archive folder.
         changes.push({
-          path: `data/archive/${year}/${state.currentEvent.id}.json`,
+          path: `data/archive/${state.currentEvent.id}.json`,
           content: JSON.stringify(state.currentEvent, null, 2) + "\n",
         });
         changes.push({ path: `data/events/${state.currentEvent.id}.json`, content: null });
-        messageParts.push(`Close ${state.currentEvent.id}`);
+        messageParts.push(`Archive ${state.currentEvent.id}`);
       } else {
         changes.push({
           path: `data/events/${state.currentEvent.id}.json`,
@@ -1087,14 +1099,22 @@ async function saveAll(): Promise<void> {
     await commitFiles(changes, messageParts.join(" + "));
 
     const wasClose = state.pendingClose;
+    const wasDelete = state.pendingDelete;
     const savedEventId = state.currentEvent?.id ?? null;
     clearPendingChanges();
 
-    if (wasClose) {
+    // An archived or deleted event is no longer editable here -- drop it.
+    if (wasClose || wasDelete) {
       state.currentEventId = null;
       state.currentEvent = null;
     }
-    setStatus(wasClose ? t("save.closed", { id: savedEventId ?? "" }) : t("save.saved"));
+    setStatus(
+      wasDelete
+        ? t("save.deleted", { id: savedEventId ?? "" })
+        : wasClose
+          ? t("save.closed", { id: savedEventId ?? "" })
+          : t("save.saved"),
+    );
     mirrorToLive(); // reflect the bumped content version in the local snapshot
     await loadEventsTree();
     renderDisplayModeSwitcher();
@@ -1129,9 +1149,12 @@ function renderMainPanel(): void {
   const actions = el("div", { class: "actions-row" });
   const setActiveBtn = el("button", { class: "btn btn-primary" }, [t("editor.setActive")]);
   setActiveBtn.addEventListener("click", () => stageSetActive());
-  const closeBtn = el("button", { class: "btn btn-danger" }, [t("editor.closeEvent")]);
-  closeBtn.addEventListener("click", () => stageCloseEvent());
-  actions.append(setActiveBtn, closeBtn);
+  // Archive = move to the archive folder (previous events); Delete = permanent.
+  const archiveBtn = el("button", { class: "btn btn-secondary" }, [t("editor.closeEvent")]);
+  archiveBtn.addEventListener("click", () => stageCloseEvent());
+  const deleteBtn = el("button", { class: "btn btn-danger" }, [t("editor.deleteEvent")]);
+  deleteBtn.addEventListener("click", () => stageDeleteEvent());
+  actions.append(setActiveBtn, archiveBtn, deleteBtn);
 
   const nameInput = el("input", {
     class: "event-name-input",
@@ -1255,6 +1278,23 @@ function dateOffsetFromToday(days: number): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+/** Removes the currently-selected day (and all its items) from the event,
+ * keeping the selected-day index in range. Staged; committed on Sync. */
+function deleteCurrentDay(): void {
+  const event = state.currentEvent;
+  if (!event) return;
+  const day = event.scheduleDays[state.selectedDayIndex];
+  if (!day) return;
+  if (!window.confirm(t("day.deleteConfirm", { date: day.date || t("days.noDate") }))) return;
+  event.scheduleDays.splice(state.selectedDayIndex, 1);
+  if (state.selectedDayIndex >= event.scheduleDays.length) {
+    state.selectedDayIndex = Math.max(0, event.scheduleDays.length - 1);
+  }
+  markEventDirty();
+  renderLeftPanel();
+  renderMainPanel();
+}
+
 function renderDayEditor(): HTMLElement {
   const section = el("div", { class: "day-editor-section" });
   const day = currentDay();
@@ -1264,7 +1304,14 @@ function renderDayEditor(): HTMLElement {
     return section;
   }
 
-  section.append(el("h3", {}, [t("day.scheduleFor", { date: day.date || t("days.noDate") })]));
+  const deleteDayBtn = el("button", { class: "btn btn-danger btn-small" }, [t("day.deleteDay")]);
+  deleteDayBtn.addEventListener("click", () => deleteCurrentDay());
+  section.append(
+    el("div", { class: "day-editor-header" }, [
+      el("h3", {}, [t("day.scheduleFor", { date: day.date || t("days.noDate") })]),
+      deleteDayBtn,
+    ]),
+  );
 
   const dateInput = el("input", { class: "row-input", type: "date", value: day.date }) as HTMLInputElement;
   dateInput.addEventListener("input", () => {

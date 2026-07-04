@@ -64,6 +64,9 @@ export interface ItemProps {
    * Lets a single item carry both languages and switch with the display. */
   textI18n?: I18nText;
   align?: "left" | "center" | "right";
+  /** Custom text color (any CSS color, e.g. "#ff0000"). Overrides the theme
+   * default for this item's text. Omitted = use the display-mode color. */
+  color?: string;
   assetPath?: string;
   fit?: "contain" | "cover";
   opacity?: number;
