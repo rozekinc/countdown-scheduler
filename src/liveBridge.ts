@@ -10,6 +10,9 @@ import type { LayoutDoc } from "./layout";
 
 const SNAPSHOT_KEY = "countdown-scheduler:live-snapshot";
 const SOURCE_KEY = "countdown-scheduler:display-source";
+// Bumped by the admin's "Refresh display" button so a same-browser display
+// tab reloads on demand (storage-event fallback when BroadcastChannel is absent).
+const RELOAD_KEY = "countdown-scheduler:reload";
 const CHANNEL = "countdown-scheduler-live";
 
 export type DisplaySource = "local" | "github";
@@ -59,9 +62,22 @@ export function writeLiveSnapshot(snapshot: LiveSnapshot): void {
 /** Fire `cb` whenever the snapshot changes -- instantly in the same browser
  * via BroadcastChannel, and across tabs via the storage event. */
 export function onLiveChange(cb: () => void): void {
-  if (bc) bc.onmessage = () => cb();
+  bc?.addEventListener("message", (e) => {
+    if (e.data === "changed") cb();
+  });
   window.addEventListener("storage", (e) => {
     if (e.key === SNAPSHOT_KEY) cb();
+  });
+}
+
+/** Fire `cb` when the admin asks a same-browser display to reload (the
+ * "Refresh display" button). Used to force a fresh page load. */
+export function onReloadRequest(cb: () => void): void {
+  bc?.addEventListener("message", (e) => {
+    if (e.data === "reload") cb();
+  });
+  window.addEventListener("storage", (e) => {
+    if (e.key === RELOAD_KEY && e.newValue) cb();
   });
 }
 
