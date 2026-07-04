@@ -261,6 +261,14 @@ function renderLayoutView(): void {
  * layout so the editor always has something to show. */
 async function ensureLayoutLoaded(): Promise<void> {
   if (state.layout) return;
+  // Resume an unsaved local layout from the live snapshot (same-domain
+  // localStorage), so refreshing the admin doesn't discard in-progress layout
+  // edits or reset a Local-mode display back to the published/default layout.
+  const snap = readLiveSnapshot();
+  if (snap?.layout && Array.isArray(snap.layout.items)) {
+    state.layout = snap.layout;
+    return;
+  }
   let doc: LayoutDoc | null = null;
   try {
     const res = await fetch(`../${LAYOUT_JSON_PATH}`, { cache: "no-store" });
@@ -273,7 +281,6 @@ async function ensureLayoutLoaded(): Promise<void> {
   }
   state.layout = doc ?? defaultLayout();
   state.layoutDirty = false;
-  mirrorToLive();
 }
 
 function onSettingsSaved(): void {
@@ -325,6 +332,10 @@ async function loadConfig(): Promise<void> {
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
     applyAdminChrome();
+    // Load the layout BEFORE the first mirror so the snapshot we write always
+    // carries a real layout -- otherwise a Local-mode display would fall back
+    // to the default layout on every admin refresh.
+    await ensureLayoutLoaded();
     mirrorToLive();
     if (isSignedIn()) {
       await loadEventsTree();
