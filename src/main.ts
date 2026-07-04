@@ -231,6 +231,10 @@ async function main(): Promise<void> {
   // instantly, so a drag/resize in the editor moves the item here at once.
   function applyLocalSnapshot(snap: LiveSnapshot): void {
     const cfg = snap.config;
+    // Defensive: a stale/old-format snapshot (e.g. left over from before the
+    // single-display redesign) can lack `config`. Ignore it rather than crash;
+    // the caller falls back to the GitHub bootstrap.
+    if (!cfg) return;
     activeDataSource?.stop();
     activeDataSource = null;
     currentConfig = cfg;
@@ -251,21 +255,25 @@ async function main(): Promise<void> {
     updateVersionBadge(cfg);
   }
 
+  // A snapshot only counts as "local" if it actually carries a config; a
+  // stale/old-format snapshot is ignored so the display bootstraps from GitHub.
+  const hasLocalSnap = !!localSnap?.config;
+
   // Once a local snapshot is in play, it wins: any same-browser admin edit
   // drives the display, and the GitHub poll below must NOT override it.
-  let localActive = !!localSnap;
+  let localActive = hasLocalSnap;
 
   // Always listen for the snapshot so a GitHub-bootstrapped display switches to
   // local the instant an admin on this browser writes one.
   onLiveChange(() => {
     const snap = readLiveSnapshot();
-    if (snap) {
+    if (snap?.config) {
       localActive = true;
       applyLocalSnapshot(snap);
     }
   });
 
-  if (localSnap) {
+  if (hasLocalSnap && localSnap) {
     applyLocalSnapshot(localSnap);
   } else {
     // No snapshot yet (fresh / remote display) -- bootstrap from published
