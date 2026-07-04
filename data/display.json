@@ -42,10 +42,6 @@
       "en": "Day After"
     }
   },
-  "redFlag": {
-    "active": false,
-    "since": null
-  },
   "editorState": {
     "expandedEventIds": [
       "race-weekend"
@@ -53,6 +49,6 @@
     "selectedEventId": "race-weekend",
     "selectedDayIndex": 1
   },
-  "contentVersion": 4,
+  "contentVersion": 5,
   "contentUpdatedAt": "2026-07-04"
 }
