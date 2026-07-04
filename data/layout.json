@@ -103,7 +103,7 @@
     {
       "id": "scheduleList",
       "type": "scheduleList",
-      "z": 8,
+      "z": 10,
       "props": {
         "fontScale": 0.8
       },
