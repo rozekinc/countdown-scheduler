@@ -1,7 +1,7 @@
 {
   "activeEventId": "race-weekend",
   "displayModeId": "daylight-contrast",
-  "aspectRatioId": "standard-4-3",
+  "aspectRatioId": "ultrawide-21-9",
   "displayLanguage": "ja",
   "textScale": 1.05,
   "labels": {
@@ -50,6 +50,6 @@
     "selectedEventId": "race-weekend",
     "selectedDayIndex": 1
   },
-  "contentVersion": 8,
+  "contentVersion": 9,
   "contentUpdatedAt": "2026-07-04"
 }
