@@ -1060,3 +1060,40 @@ html, body {
   color: #57606a;
 }
 .le-delete { margin-top: 14px; width: 100%; }
+
+/* --- Loading skeletons -------------------------------------------------- */
+.skeleton-wrap { padding: 8px 4px; }
+.skeleton-note {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.skeleton-note::before {
+  content: "";
+  width: 12px; height: 12px;
+  border: 2px solid #ccc;
+  border-top-color: #888;
+  border-radius: 50%;
+  animation: skeleton-spin 0.8s linear infinite;
+}
+@keyframes skeleton-spin { to { transform: rotate(360deg); } }
+
+.skeleton {
+  background: linear-gradient(90deg, #ececec 25%, #f6f6f6 37%, #ececec 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+  border-radius: 6px;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+.skeleton-row { height: 30px; margin-bottom: 8px; }
+.skeleton-row:nth-child(odd) { width: 92%; }
+.skeleton-row:nth-child(even) { width: 78%; }
+.skeleton-title { height: 30px; width: 55%; margin-bottom: 14px; }
+.skeleton-line { height: 16px; width: 80%; margin-bottom: 18px; }
+.skeleton-block { height: 46px; margin-bottom: 10px; }

@@ -42,6 +42,10 @@ let statusBarEl: HTMLElement;
 let saveBarEl: HTMLElement;
 let saveBtnEl: HTMLButtonElement;
 
+// True while the initial config + event tree are loading, so the panels show
+// skeletons instead of looking blank/broken.
+let treeLoading = true;
+
 export function init(root: HTMLElement): void {
   rootEl = root;
   rootEl.innerHTML = "";
@@ -83,6 +87,11 @@ export function init(root: HTMLElement): void {
   renderSettingsControls(settingsControlsEl, onSettingsSaved, onDisplaySettingsChanged);
   renderViewToggle();
   applyViewMode();
+  // Paint skeletons immediately so the first (network-bound) load reads as
+  // "loading", not "blank/broken".
+  treeLoading = true;
+  renderLeftPanel();
+  renderMainPanel();
   loadConfig();
 
   // Every edit is staged locally and only ever reaches GitHub via Save
@@ -478,25 +487,53 @@ function mirrorToLive(): void {
 /** Loads every event into the tree (state.allEvents), then restores the last
  * selected event if one was persisted. */
 async function loadEventsTree(): Promise<void> {
+  treeLoading = true;
   setStatus(t("events.loading"));
+  renderLeftPanel(); // show the skeleton while the tree loads
+  renderMainPanel();
   try {
     state.allEvents = await loadAllEvents();
     setStatus("");
     // Re-open the last-selected event if it's still around and not yet loaded.
+    // NOTE: selectEvent(..., false) intentionally does NOT render, so we must
+    // fall through to the render at the end -- an early return here was the bug
+    // that left the tree blank until Settings was opened/closed.
     if (state.currentEventId && !state.currentEvent) {
       const summary = state.allEvents.find((e) => e.id === state.currentEventId);
       if (summary) {
         await selectEvent(state.currentEventId, false);
-        return;
+      } else {
+        state.currentEventId = null;
       }
-      state.currentEventId = null;
     }
   } catch (err) {
     setStatus(t("events.listFailed", { message: (err as Error).message }), true);
     state.allEvents = [];
   }
+  treeLoading = false;
   renderLeftPanel();
   renderMainPanel();
+}
+
+/** A few shimmer rows for the event tree while it loads. */
+function renderTreeSkeleton(): HTMLElement {
+  const wrap = el("div", { class: "skeleton-wrap" });
+  wrap.append(el("div", { class: "skeleton-note" }, [t("events.loading")]));
+  for (let i = 0; i < 5; i++) {
+    wrap.append(el("div", { class: "skeleton skeleton-row" }));
+  }
+  return wrap;
+}
+
+/** A shimmer stand-in for the event editor while it loads. */
+function renderMainSkeleton(): HTMLElement {
+  const wrap = el("div", { class: "skeleton-wrap" });
+  wrap.append(el("div", { class: "skeleton skeleton-title" }));
+  wrap.append(el("div", { class: "skeleton skeleton-line" }));
+  for (let i = 0; i < 4; i++) {
+    wrap.append(el("div", { class: "skeleton skeleton-block" }));
+  }
+  return wrap;
 }
 
 // The left panel is one collapsible tree: each event is a group; expanding it
@@ -516,6 +553,11 @@ function renderLeftPanel(): void {
 
   if (!isSignedIn()) {
     leftPanelEl.append(el("p", { class: "muted" }, [t("events.signInToLoad")]));
+    return;
+  }
+
+  if (treeLoading) {
+    leftPanelEl.append(renderTreeSkeleton());
     return;
   }
 
@@ -856,6 +898,11 @@ async function saveAll(): Promise<void> {
 
 function renderMainPanel(): void {
   clear(mainPanelEl);
+
+  if (treeLoading && !state.currentEvent) {
+    mainPanelEl.append(renderMainSkeleton());
+    return;
+  }
 
   if (!isSignedIn()) {
     mainPanelEl.append(el("p", { class: "muted" }, [t("signIn.toEdit")]));

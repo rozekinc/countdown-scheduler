@@ -31,27 +31,31 @@ function earliestOf(data: EventData): string | null {
 
 async function loadFromDir(dirPath: string, archived: boolean): Promise<EventSummary[]> {
   const entries = await listDir(dirPath);
-  const out: EventSummary[] = [];
-  for (const entry of entries) {
-    if (entry.type === "dir") {
-      // data/archive/<year>/ -- one level deeper.
-      out.push(...(await loadFromDir(entry.path, archived)));
-      continue;
-    }
-    if (!entry.name.endsWith(".json")) continue;
-    const file = await getJsonFile<EventData>(entry.path);
-    if (!file) continue;
-    out.push({
-      id: file.data.id,
-      name: file.data.name || file.data.id,
-      status: file.data.status,
-      archived,
-      path: entry.path,
-      days: daySummaries(file.data.scheduleDays),
-      earliestDate: earliestOf(file.data),
-    });
-  }
-  return out;
+  // Fetch every event file (and recurse into archive/<year>/) CONCURRENTLY.
+  // The old sequential await-in-a-loop meant N round-trips back to back, which
+  // is what made the first load crawl once there were several events.
+  const nested = await Promise.all(
+    entries.map(async (entry): Promise<EventSummary[]> => {
+      if (entry.type === "dir") {
+        return loadFromDir(entry.path, archived); // data/archive/<year>/
+      }
+      if (!entry.name.endsWith(".json")) return [];
+      const file = await getJsonFile<EventData>(entry.path);
+      if (!file) return [];
+      return [
+        {
+          id: file.data.id,
+          name: file.data.name || file.data.id,
+          status: file.data.status,
+          archived,
+          path: entry.path,
+          days: daySummaries(file.data.scheduleDays),
+          earliestDate: earliestOf(file.data),
+        },
+      ];
+    }),
+  );
+  return nested.flat();
 }
 
 /** Every event, active first then archived, each sorted by earliest date
