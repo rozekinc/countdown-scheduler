@@ -10,7 +10,7 @@
         "opacity": 1
       },
       "countdown": {
-        "x": 1.5,
+        "x": 1.8,
         "y": 2.8,
         "w": 24,
         "h": 14
@@ -32,10 +32,10 @@
         "opacity": 1
       },
       "countdown": {
-        "x": 2,
-        "y": 18,
-        "w": 14,
-        "h": 12
+        "x": 1.6,
+        "y": 17.1,
+        "w": 24.3,
+        "h": 11.8
       },
       "schedule": {
         "x": 2,
@@ -54,8 +54,8 @@
         "fontScale": 1
       },
       "countdown": {
-        "x": 62,
-        "y": 3,
+        "x": 42.1,
+        "y": 5.7,
         "w": 36,
         "h": 18
       },
@@ -76,7 +76,7 @@
       "countdown": {
         "x": 2,
         "y": 88,
-        "w": 96,
+        "w": 96.3,
         "h": 10
       },
       "schedule": {
@@ -91,12 +91,12 @@
       "type": "countdown",
       "z": 10,
       "props": {
-        "fontScale": 1
+        "fontScale": 0.9
       },
       "countdown": {
         "x": 2,
         "y": 30,
-        "w": 72,
+        "w": 65.1,
         "h": 56
       }
     },
@@ -105,12 +105,12 @@
       "type": "scheduleList",
       "z": 10,
       "props": {
-        "fontScale": 1
+        "fontScale": 0.85
       },
       "countdown": {
-        "x": 75,
+        "x": 68.1,
         "y": 30,
-        "w": 23,
+        "w": 29.9,
         "h": 56
       }
     },
