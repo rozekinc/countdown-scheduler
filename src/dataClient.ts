@@ -1,32 +1,29 @@
-import type { App, AppsData, EventData } from "./types";
-import { defaultLayoutForApp, type LayoutDoc } from "./layout";
+import type { DisplayConfig, EventData } from "./types";
+import { defaultLayout, type LayoutDoc } from "./layout";
 import { dataBaseUrl } from "./config";
 
 // Prefix for every data fetch. On a github.io deployment this points at
 // raw.githubusercontent.com for the live repo, so admin/assistant data edits
 // show up here WITHOUT a Pages rebuild (data is decoupled from CI). Off
 // github.io it's "" and the relative data/ paths are used (see config.ts).
-// Computed once at load -- the deployment target doesn't change mid-session.
 const BASE = dataBaseUrl();
-const APPS_URL = `${BASE}data/apps.json`;
+const CONFIG_URL = `${BASE}data/display.json`;
+const LAYOUT_URL = `${BASE}data/layout.json`;
 const EVENTS_DIR = `${BASE}data/events`;
 const ARCHIVE_DIR = `${BASE}data/archive`;
 const REFRESH_INTERVAL_MS = 30000;
-// "admin picks, the TV updates" latency for a single physical display --
-// there's no server/websocket to push a change, so polling is the only
-// mechanism. Data is read from raw.githubusercontent.com (the live repo), so
-// this is kept modest rather than at a couple seconds, to stay well clear of
-// any anonymous-fetch abuse throttling while still feeling near-immediate.
-const APPS_POLL_INTERVAL_MS = 10000;
+// "admin picks, the TV updates" latency for a single display -- there's no
+// server/websocket to push, so polling is the only mechanism.
+const CONFIG_POLL_INTERVAL_MS = 10000;
 const ARCHIVE_YEAR_LOOKBACK = 6;
 
-function cacheKey(appId: string): string {
-  return `countdown-scheduler:event:${appId}`;
+function cacheKey(eventId: string): string {
+  return `countdown-scheduler:event:${eventId}`;
 }
 
-function readCache(appId: string): EventData | null {
+function readCache(eventId: string): EventData | null {
   try {
-    const raw = window.localStorage.getItem(cacheKey(appId));
+    const raw = window.localStorage.getItem(cacheKey(eventId));
     if (!raw) return null;
     return JSON.parse(raw) as EventData;
   } catch (err) {
@@ -35,9 +32,9 @@ function readCache(appId: string): EventData | null {
   }
 }
 
-function writeCache(appId: string, data: EventData): void {
+function writeCache(eventId: string, data: EventData): void {
   try {
-    window.localStorage.setItem(cacheKey(appId), JSON.stringify(data));
+    window.localStorage.setItem(cacheKey(eventId), JSON.stringify(data));
   } catch (err) {
     console.warn("キャッシュの保存に失敗しました:", err);
   }
@@ -54,89 +51,54 @@ async function fetchJson<T>(url: string): Promise<T | null> {
   }
 }
 
-export async function loadApps(): Promise<AppsData> {
-  const data = await fetchJson<AppsData>(APPS_URL);
-  if (!data || !Array.isArray(data.apps) || data.apps.length === 0) {
-    throw new Error("apps.json の読み込みに失敗しました");
-  }
+export async function loadConfig(): Promise<DisplayConfig> {
+  const data = await fetchJson<DisplayConfig>(CONFIG_URL);
+  if (!data) throw new Error("display.json の読み込みに失敗しました");
   return data;
 }
 
-/** Loads the per-app layout (data/layouts/<appId>.json). Falls back to the
- * built-in base layout when the file is absent (or malformed), so a display
- * with no authored layout looks exactly like the pre-editor default. */
-export async function loadLayout(appId: string): Promise<LayoutDoc> {
-  const data = await fetchJson<LayoutDoc>(`${BASE}data/layouts/${appId}.json`);
-  if (!data || !Array.isArray(data.items)) return defaultLayoutForApp(appId);
+/** Loads the single layout (data/layout.json). Falls back to the built-in base
+ * layout when the file is absent (or malformed), so the display looks like the
+ * original fixed layout even before a layout is authored. */
+export async function loadLayout(): Promise<LayoutDoc> {
+  const data = await fetchJson<LayoutDoc>(LAYOUT_URL);
+  if (!data || !Array.isArray(data.items)) return defaultLayout();
   return data;
-}
-
-/** True when this page was loaded with an explicit ?app= that matched a
- * real app -- such a screen is pinned to that app and never follows the
- * admin's "what's live on the display" selection. */
-export function isPinnedByUrl(apps: App[]): boolean {
-  const params = new URLSearchParams(window.location.search);
-  const requestedId = params.get("app");
-  return requestedId ? apps.some((app) => app.id === requestedId) : false;
-}
-
-export function resolveActiveApp(data: AppsData): App {
-  const params = new URLSearchParams(window.location.search);
-  const requestedId = params.get("app");
-  const pinned = requestedId ? data.apps.find((app) => app.id === requestedId) : undefined;
-  if (pinned) return pinned;
-
-  const selected = data.selectedAppId
-    ? data.apps.find((app) => app.id === data.selectedAppId)
-    : undefined;
-  return selected ?? data.apps[0];
 }
 
 /**
- * Polls data/apps.json and reports three things the admin can change live,
- * with no reload needed on the display end:
- *  - onAppSwitch: which app is showing (selectedAppId) -- no-op on a
- *    screen pinned via ?app=, which is meant to stay put regardless.
- *  - onModeChange: which display-mode preset is active (displayModeId) --
- *    applies on every screen, pinned or not, since it's a readability
- *    setting for the physical TV, not an app-identity choice.
- *  - onAspectRatioChange: which aspect-ratio preset the stage is
- *    letterboxed to (aspectRatioId) -- same reasoning as onModeChange,
- *    applies everywhere regardless of pinning.
- *  - onContentVersionChange: the content version/date the published data
- *    carries (contentVersion/contentUpdatedAt) -- applies on every screen,
- *    pinned or not, since it just reflects "which data am I looking at".
- *  - onDisplaySettingsChange: the chrome-level presentation settings
- *    (displayLanguage / textScale / labels) -- applies on every screen,
- *    pinned or not, so the display re-applies its labels, language and text
- *    scale live without a reload.
- * Countdown vs. schedule is NOT here -- it's a local, client-side-only
- * toggle button on the display itself (see main.ts's setupScreenToggle),
- * never written to data/apps.json.
+ * Polls data/display.json and reports what the admin can change live, with no
+ * reload needed on the display end:
+ *  - onActiveEventChange: which event is being counted down (activeEventId).
+ *  - onModeChange: which display-mode preset is active (colors).
+ *  - onAspectRatioChange: which aspect-ratio preset the stage uses.
+ *  - onContentVersionChange: the content version/date (also re-pulls layout).
+ *  - onDisplaySettingsChange: language / textScale / labels / redFlag.
+ * Countdown vs. schedule is NOT here -- it's a local, client-side-only toggle
+ * on the display itself (see main.ts's setupScreenToggle).
  */
 export function watchDisplaySettings(
-  initialApps: AppsData,
-  onAppSwitch: (app: App) => void,
+  initial: DisplayConfig,
+  onActiveEventChange: (eventId: string | null) => void,
   onModeChange: (displayModeId: string | null) => void,
   onAspectRatioChange: (aspectRatioId: string | null) => void,
-  onContentVersionChange: (data: AppsData) => void,
-  onDisplaySettingsChange: (data: AppsData) => void,
+  onContentVersionChange: (data: DisplayConfig) => void,
+  onDisplaySettingsChange: (data: DisplayConfig) => void,
 ): void {
-  const pinned = isPinnedByUrl(initialApps.apps);
-  let currentAppId = resolveActiveApp(initialApps).id;
-  let currentModeId = initialApps.displayModeId ?? null;
-  let currentAspectRatioId = initialApps.aspectRatioId ?? null;
-  let currentContentVersion = initialApps.contentVersion ?? null;
-  let currentContentUpdatedAt = initialApps.contentUpdatedAt ?? null;
-  let currentDisplayLanguage = initialApps.displayLanguage ?? null;
-  let currentTextScale = initialApps.textScale ?? null;
-  let currentLabelsJson = JSON.stringify(initialApps.labels ?? null);
-  let currentRedFlagJson = JSON.stringify(initialApps.redFlag ?? null);
+  let currentEventId = initial.activeEventId ?? null;
+  let currentModeId = initial.displayModeId ?? null;
+  let currentAspectRatioId = initial.aspectRatioId ?? null;
+  let currentContentVersion = initial.contentVersion ?? null;
+  let currentContentUpdatedAt = initial.contentUpdatedAt ?? null;
+  let currentDisplayLanguage = initial.displayLanguage ?? null;
+  let currentTextScale = initial.textScale ?? null;
+  let currentLabelsJson = JSON.stringify(initial.labels ?? null);
+  let currentRedFlagJson = JSON.stringify(initial.redFlag ?? null);
 
   window.setInterval(() => {
     void (async () => {
-      const fresh = await fetchJson<AppsData>(APPS_URL);
-      if (!fresh || !Array.isArray(fresh.apps) || fresh.apps.length === 0) return;
+      const fresh = await fetchJson<DisplayConfig>(CONFIG_URL);
+      if (!fresh) return;
 
       const freshModeId = fresh.displayModeId ?? null;
       if (freshModeId !== currentModeId) {
@@ -178,14 +140,13 @@ export function watchDisplaySettings(
         onDisplaySettingsChange(fresh);
       }
 
-      if (pinned) return;
-      const resolved = resolveActiveApp(fresh);
-      if (resolved.id !== currentAppId) {
-        currentAppId = resolved.id;
-        onAppSwitch(resolved);
+      const freshEventId = fresh.activeEventId ?? null;
+      if (freshEventId !== currentEventId) {
+        currentEventId = freshEventId;
+        onActiveEventChange(currentEventId);
       }
     })();
-  }, APPS_POLL_INTERVAL_MS);
+  }, CONFIG_POLL_INTERVAL_MS);
 }
 
 async function fetchEventFromEvents(eventId: string): Promise<EventData | null> {
@@ -212,21 +173,22 @@ export interface EventDataSource {
   getCurrent(): EventData | null;
   onUpdate(listener: (data: EventData) => void): void;
   start(): void;
-  /** Stops polling. Call this before switching to a different app's data
-   * source so two sources never update the screen at once. */
+  /** Stops polling. Call before switching to a different event's source so two
+   * sources never update the screen at once. */
   stop(): void;
 }
 
-export function createEventDataSource(app: App): EventDataSource {
-  let current: EventData | null = readCache(app.id);
+/** Polls one event's JSON (by id) and feeds updates to listeners. */
+export function createEventDataSource(eventId: string): EventDataSource {
+  let current: EventData | null = readCache(eventId);
   let intervalId: number | undefined;
   const listeners: Array<(data: EventData) => void> = [];
 
   async function refresh(): Promise<void> {
-    const fresh = await fetchEvent(app.activeEventId);
+    const fresh = await fetchEvent(eventId);
     if (fresh) {
       current = fresh;
-      writeCache(app.id, fresh);
+      writeCache(eventId, fresh);
       listeners.forEach((listener) => listener(fresh));
     } else {
       console.warn("イベントデータの取得に失敗しました。以前のデータで継続します。");

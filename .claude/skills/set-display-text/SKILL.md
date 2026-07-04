@@ -5,10 +5,10 @@ description: Use when the user asks to change the on-screen wording, switch the 
 
 # Set the display's text, language, and size
 
-Edit the three global text settings in `data/apps.json`: `displayLanguage`
+Edit the three global text settings in `data/display.json`: `displayLanguage`
 (which language the screens render), `textScale` (the font-size multiplier), and
-`labels` (the editable wording for the fixed UI labels). These are global — they
-apply to every screen, including screens pinned with an `?app=` link. Event
+`labels` (the editable wording for the fixed UI labels). These are global — they apply to
+the whole display. Event
 content (countdown titles, schedule items, announcements) is NOT here; that lives
 in the event files. To place, move, or resize a piece of text (or any item) on
 the screen — rather than change its wording — use `edit-the-layout` instead.
@@ -23,13 +23,13 @@ the screen — rather than change its wording — use `edit-the-layout` instead.
 
 ## Read first
 
-- `data/apps.json` — the current `displayLanguage`, `textScale`, and `labels`.
-- `src/types.ts` — the `AppsData`, `DisplayLanguage`, and `Label` shapes. Read
-  only; do not edit.
+- `data/display.json` — the current `displayLanguage`, `textScale`, and `labels`.
+- `src/types.ts` — the `DisplayConfig`, `DisplayLanguage`, and `Label` shapes.
+  Read only; do not edit.
 
 ## Edit
 
-In `data/apps.json`, change only the relevant field(s):
+In `data/display.json`, change only the relevant field(s):
 
 ### `displayLanguage`
 
@@ -67,11 +67,11 @@ Change nothing else in the file.
 
 ## Verify
 
-- Confirm `data/apps.json` still parses as valid JSON.
+- Confirm `data/display.json` still parses as valid JSON.
 - Confirm `displayLanguage` is exactly `"ja"` or `"en"`, `textScale` is a
   number, and every edited label entry still has both a `ja` and an `en` string.
-- Tell the user every screen picks this up automatically within about 15
-  seconds, no reload needed, including `?app=`-pinned screens.
+- Tell the user the display picks this up automatically within about 15
+  seconds, no reload needed.
 
 ## Publish
 

@@ -1,34 +1,33 @@
 import { el, clear, isPast, isoToDatePart, isoToTimePart, datePartsToIso } from "./dom";
 import { renderAuthControls } from "./authPanel";
 import { renderSettingsControls } from "./settingsPanel";
-import { renderOverview } from "./overview";
-import { getJsonFile, listDir, commitFiles, type FileChange } from "./githubApi";
+import { getJsonFile, commitFiles, type FileChange } from "./githubApi";
 import { isSignedIn } from "./auth";
 import { parseXlsxToItems } from "./excelImport";
+import { loadAllEvents, type EventSummary } from "./events";
 import {
   state,
-  currentApp,
   currentDay,
   hasPendingChanges,
   clearPendingChanges,
   seedLabels,
-  type EventListEntry,
 } from "./state";
-import type { AppsFile, EventData, ScheduleItem } from "./types";
+import type { DisplayConfig, EventData, EditorState, ScheduleItem } from "./types";
 import { DISPLAY_MODES, DEFAULT_DISPLAY_MODE_ID, getDisplayMode } from "./displayModes";
 import { ASPECT_RATIOS, DEFAULT_ASPECT_RATIO_ID, getAspectRatio } from "./aspectRatios";
 import { readLiveSnapshot, writeLiveSnapshot, isLiveMode, onSourceChange } from "./liveBridge";
 import { renderLayoutEditor, primeAssets, type LayoutEditorCtx } from "./layoutEditor";
-import { defaultLayoutForApp, type LayoutDoc } from "./layout";
+import { defaultLayout, type LayoutDoc } from "./layout";
+import { icon, iconButton } from "./icons";
 import { t, getLang, setLang, onLangChange, type Lang } from "./i18n";
 
-// Public data/apps.json is fetched with a plain (unauthenticated) fetch,
+// Public data/display.json is fetched with a plain (unauthenticated) fetch,
 // relative to admin/index.html.
-const PUBLIC_APPS_URL = "../data/apps.json";
-const APPS_JSON_PATH = "data/apps.json";
+const PUBLIC_CONFIG_URL = "../data/display.json";
+const CONFIG_JSON_PATH = "data/display.json";
+const LAYOUT_JSON_PATH = "data/layout.json";
 
 let rootEl: HTMLElement;
-let appSwitcherEl: HTMLElement;
 let displayModeSwitcherEl: HTMLElement;
 let aspectRatioSwitcherEl: HTMLElement;
 let langSwitcherEl: HTMLElement;
@@ -38,7 +37,6 @@ let versionIndicatorEl: HTMLElement;
 let viewToggleEl: HTMLElement;
 let leftPanelEl: HTMLElement;
 let mainPanelEl: HTMLElement;
-let overviewPanelEl: HTMLElement;
 let layoutPanelEl: HTMLElement;
 let statusBarEl: HTMLElement;
 let saveBarEl: HTMLElement;
@@ -50,7 +48,6 @@ export function init(root: HTMLElement): void {
 
   const header = el("header", { class: "app-header" });
   viewToggleEl = el("div", { class: "view-toggle" });
-  appSwitcherEl = el("div", { class: "app-switcher" });
   displayModeSwitcherEl = el("div", { class: "display-mode-switcher" });
   aspectRatioSwitcherEl = el("div", { class: "aspect-ratio-switcher" });
   langSwitcherEl = el("div", { class: "lang-switcher" });
@@ -60,7 +57,6 @@ export function init(root: HTMLElement): void {
   saveBarEl = el("div", { class: "save-bar" });
   header.append(
     viewToggleEl,
-    appSwitcherEl,
     displayModeSwitcherEl,
     aspectRatioSwitcherEl,
     saveBarEl,
@@ -73,9 +69,8 @@ export function init(root: HTMLElement): void {
   const body = el("div", { class: "app-body" });
   leftPanelEl = el("aside", { class: "left-panel" });
   mainPanelEl = el("main", { class: "main-panel" });
-  overviewPanelEl = el("div", { class: "overview-panel" });
   layoutPanelEl = el("div", { class: "layout-panel" });
-  body.append(leftPanelEl, mainPanelEl, overviewPanelEl, layoutPanelEl);
+  body.append(leftPanelEl, mainPanelEl, layoutPanelEl);
 
   statusBarEl = el("div", { class: "status-bar" });
 
@@ -88,7 +83,7 @@ export function init(root: HTMLElement): void {
   renderSettingsControls(settingsControlsEl, onSettingsSaved, onDisplaySettingsChanged);
   renderViewToggle();
   applyViewMode();
-  loadApps();
+  loadConfig();
 
   // Every edit is staged locally and only ever reaches GitHub via Save
   // (see saveAll()) -- so a closed tab before Save is a real, silent loss
@@ -113,15 +108,12 @@ export function init(root: HTMLElement): void {
     renderVersionIndicator();
     renderAuthControls(authControlsEl, onSignedIn);
     renderSettingsControls(settingsControlsEl, onSettingsSaved, onDisplaySettingsChanged);
-    renderAppSwitcher();
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
     mirrorToLive();
     renderLeftPanel();
     renderMainPanel();
-    if (state.viewMode === "overview" && isSignedIn()) {
-      void renderOverview(overviewPanelEl, jumpToEvent);
-    }
+    if (state.viewMode === "layout") renderLayoutView();
   });
 }
 
@@ -176,12 +168,12 @@ function renderSaveBar(): void {
     // A same-browser display is reading the live bridge, so every edit already
     // shows on screen -- no Save needed. Keep a small, secondary "Publish"
     // for when they want to persist to GitHub (other machines / permanence).
-    const publishBtn = el("button", { class: "btn btn-secondary btn-publish" }, [t("live.publish")]);
+    const publishBtn = iconButton("publish", t("live.publish"), "btn btn-secondary btn-publish");
     publishBtn.addEventListener("click", () => void saveAll());
     saveBarEl.append(el("span", { class: "live-indicator" }, [t("live.indicator")]), publishBtn);
     return;
   }
-  saveBtnEl = el("button", { class: "btn btn-primary" }, [t("save.button")]) as HTMLButtonElement;
+  saveBtnEl = iconButton("save", t("save.button"), "btn btn-primary");
   saveBtnEl.addEventListener("click", () => void saveAll());
   saveBarEl.append(saveBtnEl);
   updateSaveButtonState();
@@ -190,8 +182,8 @@ function renderSaveBar(): void {
 function updateSaveButtonState(): void {
   if (isLiveMode()) return; // no Save button in live mode
   const dirty = hasPendingChanges();
-  saveBtnEl.textContent = dirty ? t("save.button") : t("save.none");
-  saveBtnEl.className = `btn ${dirty ? "btn-primary" : "btn-secondary"}`;
+  saveBtnEl.title = dirty ? t("save.button") : t("save.none");
+  saveBtnEl.className = `btn icon-btn ${dirty ? "btn-primary" : "btn-secondary"}`;
   if (dirty) {
     saveBtnEl.removeAttribute("disabled");
   } else {
@@ -221,47 +213,25 @@ function confirmDiscardEventIfDirty(action: string): boolean {
 
 function renderViewToggle(): void {
   clear(viewToggleEl);
-  const editorBtn = el(
-    "button",
-    { class: `btn ${state.viewMode === "editor" ? "btn-primary" : "btn-secondary"}` },
-    [t("nav.editor")],
-  );
-  const overviewBtn = el(
-    "button",
-    { class: `btn ${state.viewMode === "overview" ? "btn-primary" : "btn-secondary"}` },
-    [t("nav.allEvents")],
-  );
-  const layoutBtn = el(
-    "button",
-    { class: `btn ${state.viewMode === "layout" ? "btn-primary" : "btn-secondary"}` },
-    ["Layout"],
-  );
+  const editorBtn = iconButton("editor", t("nav.editor"), `btn ${state.viewMode === "editor" ? "btn-primary" : "btn-secondary"}`);
+  const layoutBtn = iconButton("layout", t("nav.layout"), `btn ${state.viewMode === "layout" ? "btn-primary" : "btn-secondary"}`);
   editorBtn.addEventListener("click", () => switchViewMode("editor"));
-  overviewBtn.addEventListener("click", () => switchViewMode("overview"));
   layoutBtn.addEventListener("click", () => switchViewMode("layout"));
-  viewToggleEl.append(editorBtn, overviewBtn, layoutBtn);
+  viewToggleEl.append(editorBtn, layoutBtn);
 }
 
 function applyViewMode(): void {
   const mode = state.viewMode;
   leftPanelEl.style.display = mode === "editor" ? "" : "none";
   mainPanelEl.style.display = mode === "editor" ? "" : "none";
-  overviewPanelEl.style.display = mode === "overview" ? "" : "none";
   layoutPanelEl.style.display = mode === "layout" ? "" : "none";
 }
 
-function switchViewMode(mode: "editor" | "overview" | "layout"): void {
+function switchViewMode(mode: "editor" | "layout"): void {
   state.viewMode = mode;
   renderViewToggle();
   applyViewMode();
-  if (mode === "overview") {
-    if (!isSignedIn()) {
-      clear(overviewPanelEl);
-      overviewPanelEl.append(el("p", { class: "muted" }, [t("overview.signInToSee")]));
-      return;
-    }
-    void renderOverview(overviewPanelEl, jumpToEvent);
-  } else if (mode === "layout") {
+  if (mode === "layout") {
     primeAssets();
     void ensureLayoutLoaded().then(() => renderLayoutView());
   }
@@ -281,16 +251,14 @@ function renderLayoutView(): void {
   renderLayoutEditor(layoutPanelEl, layoutEditorCtx);
 }
 
-/** Loads the current app's layout into state.layout if not already loaded for
- * that app. Fetched from the published data (unauthenticated), falling back to
- * the built-in base layout so the editor always has something to show. */
+/** Loads the single layout into state.layout if not already loaded. Fetched
+ * from the published data (unauthenticated), falling back to the built-in base
+ * layout so the editor always has something to show. */
 async function ensureLayoutLoaded(): Promise<void> {
-  const appId = state.currentAppId;
-  if (!appId) return;
-  if (state.layout && state.layout.appId === appId) return;
+  if (state.layout) return;
   let doc: LayoutDoc | null = null;
   try {
-    const res = await fetch(`../data/layouts/${appId}.json`, { cache: "no-store" });
+    const res = await fetch(`../${LAYOUT_JSON_PATH}`, { cache: "no-store" });
     if (res.ok) {
       const parsed = (await res.json()) as LayoutDoc;
       if (Array.isArray(parsed.items)) doc = parsed;
@@ -298,36 +266,20 @@ async function ensureLayoutLoaded(): Promise<void> {
   } catch {
     /* fall back to the base layout below */
   }
-  state.layout = doc ?? defaultLayoutForApp(appId);
+  state.layout = doc ?? defaultLayout();
   state.layoutDirty = false;
   mirrorToLive();
-}
-
-/** Overview row clicked -> switch to that app's editor with that event
- * loaded, so "seeing all events" and "editing one" are one click apart. */
-function jumpToEvent(appId: string, eventId: string): void {
-  if (!confirmDiscardEventIfDirty(t("events.switchAction"))) return;
-  state.currentAppId = appId;
-  state.currentEventId = null;
-  state.currentEvent = null;
-  state.layout = null;
-  state.layoutDirty = false;
-  applyTheme();
-  renderAppSwitcher();
-  mirrorToLive();
-  switchViewMode("editor");
-  void loadEventsForCurrentApp().then(() => selectEvent(eventId));
 }
 
 function onSettingsSaved(): void {
   setStatus(t("settings.saved"));
   if (isSignedIn()) {
-    void loadEventsForCurrentApp();
+    void loadEventsTree();
   }
 }
 
 /** Called by the settings panel after any Display-settings edit (language /
- * text size / labels). Those edits mutate state + state.appsPatch directly
+ * text size / labels). Those edits mutate state + state.configPatch directly
  * (see settingsPanel.ts); this refreshes the live preview and the Save
  * button so the effect is visible immediately and Save picks it up. */
 function onDisplaySettingsChanged(): void {
@@ -341,15 +293,14 @@ function setStatus(message: string, isError = false): void {
   statusBarEl.className = isError ? "status-bar status-error" : "status-bar";
 }
 
-async function loadApps(): Promise<void> {
+async function loadConfig(): Promise<void> {
   try {
-    const res = await fetch(PUBLIC_APPS_URL, { cache: "no-store" });
+    const res = await fetch(PUBLIC_CONFIG_URL, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = (await res.json()) as AppsFile;
-    state.apps = data.apps ?? [];
-    state.selectedAppId = data.selectedAppId ?? (state.apps[0]?.id ?? null);
+    const data = (await res.json()) as DisplayConfig;
     state.displayModeId = data.displayModeId ?? null;
     state.aspectRatioId = data.aspectRatioId ?? null;
+    state.activeEventId = data.activeEventId ?? null;
     state.displayLanguage = data.displayLanguage === "en" ? "en" : "ja";
     state.textScale = typeof data.textScale === "number" ? data.textScale : 1;
     state.labels = seedLabels(data.labels);
@@ -358,17 +309,20 @@ async function loadApps(): Promise<void> {
       : { active: false, since: null };
     state.contentVersion = data.contentVersion ?? null;
     state.contentUpdatedAt = data.contentUpdatedAt ?? null;
-    if (state.apps.length > 0) {
-      state.currentAppId = state.apps[0].id;
-    }
+    // Restore where the editor was last left (which events were expanded, what
+    // was selected) -- persisted in the config like every other setting.
+    const es = data.editorState ?? {};
+    state.expandedEventIds = new Set(es.expandedEventIds ?? []);
+    state.currentEventId = es.selectedEventId ?? null;
+    state.selectedDayIndex = typeof es.selectedDayIndex === "number" ? es.selectedDayIndex : 0;
+
     renderVersionIndicator();
-    renderAppSwitcher();
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
-    applyTheme();
+    applyAdminChrome();
     mirrorToLive();
     if (isSignedIn()) {
-      await loadEventsForCurrentApp();
+      await loadEventsTree();
     } else {
       renderLeftPanel();
       renderMainPanel();
@@ -376,9 +330,8 @@ async function loadApps(): Promise<void> {
   } catch (err) {
     const message = (err as Error).message;
     setStatus(t("load.failed", { message }), true);
-    // A failed initial load otherwise leaves every panel silently empty,
-    // with only the small status-bar line above as a clue -- easy to miss
-    // and easy to mistake for "the whole page is blank." Make it loud.
+    // A failed initial load otherwise leaves every panel silently empty --
+    // easy to mistake for "the whole page is blank." Make it loud.
     renderLoadFailure(message);
   }
 }
@@ -396,92 +349,22 @@ function renderLoadFailure(message: string): void {
 }
 
 function onSignedIn(): void {
-  if (state.viewMode === "overview") {
-    void renderOverview(overviewPanelEl, jumpToEvent);
-  } else {
-    void loadEventsForCurrentApp();
-  }
+  void loadEventsTree();
 }
 
-function renderAppSwitcher(): void {
-  clear(appSwitcherEl);
-  const select = el("select", { class: "app-select" });
-  for (const app of state.apps) {
-    const label = app.id === state.selectedAppId ? t("app.nameLiveSuffix", { name: app.name }) : app.name;
-    const option = el("option", { value: app.id }, [label]);
-    if (app.id === state.currentAppId) option.setAttribute("selected", "selected");
-    select.append(option);
-  }
-  select.addEventListener("change", () => {
-    const newAppId = (select as HTMLSelectElement).value;
-    if (newAppId === state.currentAppId) return;
-    if (!confirmDiscardEventIfDirty(t("events.switchAppsAction"))) {
-      select.value = state.currentAppId ?? "";
-      return;
-    }
-    state.currentAppId = newAppId;
-    state.currentEventId = null;
-    state.currentEvent = null;
-    // The layout is per-app; drop the old app's so the next layout-view entry
-    // (or the immediate re-render below) loads this app's.
-    state.layout = null;
-    state.layoutDirty = false;
-    applyTheme();
-    renderAppSwitcher();
-    mirrorToLive();
-    if (state.viewMode === "layout") {
-      void ensureLayoutLoaded().then(() => renderLayoutView());
-    }
-    if (isSignedIn()) {
-      loadEventsForCurrentApp();
-    } else {
-      renderLeftPanel();
-      renderMainPanel();
-    }
-  });
-
-  const isLive = state.currentAppId !== null && state.currentAppId === state.selectedAppId;
-  const staged = state.appsPatch.selectedAppId === state.currentAppId;
-  const showBtn = el(
-    "button",
-    { class: `btn ${isLive ? "btn-secondary" : "btn-primary"}`, ...(isLive ? { disabled: "true" } : {}) },
-    [isLive ? (staged ? t("app.liveOnDisplayUnsaved") : t("app.liveOnDisplay")) : t("app.showOnDisplay")],
-  );
-  if (!isLive) {
-    showBtn.addEventListener("click", () => stageSelectedAppOnDisplay());
-  }
-
-  appSwitcherEl.append(el("label", {}, [t("app.label")]), select, showBtn);
-}
-
-/**
- * Stages which app the primary display (any screen with no ?app= override)
- * should show -- independent of "Set as active" -- that picks which event
- * an app shows; this picks which app is even on screen. A screen pinned
- * via ?app= on its own URL ignores this. Not written until Save.
- */
-function stageSelectedAppOnDisplay(): void {
-  const appId = state.currentAppId;
-  if (!appId) return;
-  state.selectedAppId = appId;
-  state.appsPatch.selectedAppId = appId;
-  setStatus(t("app.stagedOnDisplay", { appId }));
-  renderAppSwitcher();
-  updateSaveButtonState();
-}
-
-function applyTheme(): void {
-  const app = currentApp();
-  if (!app) return;
+/** Admin chrome accent colors, sourced from the active display-mode preset
+ * (there are no per-app themes anymore). */
+function applyAdminChrome(): void {
+  const colors = getDisplayMode(state.displayModeId).colors;
   const root = document.documentElement;
-  root.style.setProperty("--accent", app.theme.accent);
-  root.style.setProperty("--primary", app.theme.primary);
-  root.style.setProperty("--background", app.theme.background);
+  root.style.setProperty("--accent", colors.accent);
+  root.style.setProperty("--primary", colors.primary);
+  root.style.setProperty("--background", colors.background);
 }
 
 function renderDisplayModeSwitcher(): void {
   clear(displayModeSwitcherEl);
-  const select = el("select", { class: "display-mode-select" });
+  const select = el("select", { class: "display-mode-select", title: t("displayMode.label") });
   const activeId = state.displayModeId ?? DEFAULT_DISPLAY_MODE_ID;
   for (const mode of DISPLAY_MODES) {
     const option = el("option", { value: mode.id }, [mode.label]);
@@ -491,15 +374,15 @@ function renderDisplayModeSwitcher(): void {
   select.addEventListener("change", () => {
     stageDisplayMode((select as HTMLSelectElement).value);
   });
-  displayModeSwitcherEl.append(el("label", {}, [t("displayMode.label")]), select);
+  displayModeSwitcherEl.append(icon("mode"), select);
 }
 
-/** Stages the display-mode preset applied on every screen, pinned or not.
- * Not written until Save -- see stageSelectedAppOnDisplay(). */
+/** Stages the display-mode preset. Not written until Save. */
 function stageDisplayMode(modeId: string): void {
   state.displayModeId = modeId;
-  state.appsPatch.displayModeId = modeId;
+  state.configPatch.displayModeId = modeId;
   setStatus(t("displayMode.staged", { label: getDisplayMode(modeId).label }));
+  applyAdminChrome();
   renderDisplayModeSwitcher();
   mirrorToLive();
   updateSaveButtonState();
@@ -507,7 +390,7 @@ function stageDisplayMode(modeId: string): void {
 
 function renderAspectRatioSwitcher(): void {
   clear(aspectRatioSwitcherEl);
-  const select = el("select", { class: "aspect-ratio-select" });
+  const select = el("select", { class: "aspect-ratio-select", title: t("aspectRatio.label") });
   const activeId = state.aspectRatioId ?? DEFAULT_ASPECT_RATIO_ID;
   for (const ratio of ASPECT_RATIOS) {
     const option = el("option", { value: ratio.id }, [ratio.label]);
@@ -517,160 +400,197 @@ function renderAspectRatioSwitcher(): void {
   select.addEventListener("change", () => {
     stageAspectRatio((select as HTMLSelectElement).value);
   });
-  aspectRatioSwitcherEl.append(el("label", {}, [t("aspectRatio.label")]), select);
+  aspectRatioSwitcherEl.append(icon("aspect"), select);
 }
 
-/** Stages the aspect ratio the stage is letterboxed to on every screen,
- * pinned or not -- e.g. for a 4:3 or ultrawide TV instead of the 16:9
- * default. Not written until Save -- see stageSelectedAppOnDisplay(). */
+/** Stages the aspect ratio the stage is letterboxed to. Not written until Save. */
 function stageAspectRatio(aspectRatioId: string): void {
   state.aspectRatioId = aspectRatioId;
-  state.appsPatch.aspectRatioId = aspectRatioId;
+  state.configPatch.aspectRatioId = aspectRatioId;
   setStatus(t("aspectRatio.staged", { label: getAspectRatio(aspectRatioId).label }));
   renderAspectRatioSwitcher();
   mirrorToLive();
   updateSaveButtonState();
 }
 
-// Real-time mirror: on every working-state change, push a snapshot of the
-// display-relevant state to localStorage so a same-browser display in "Local"
-// mode updates INSTANTLY (no GitHub round-trip). The red flag is controlled
-// from the display now, so an existing snapshot's redFlag is preserved rather
-// than overwritten by the admin.
-function buildAppsData(): AppsFile {
+/** The current editor UI state, folded into the config so it persists like
+ * every other setting (local snapshot instantly; GitHub on Save). */
+function currentEditorState(): EditorState {
   return {
-    apps: state.apps,
-    selectedAppId: state.selectedAppId,
+    expandedEventIds: [...state.expandedEventIds],
+    selectedEventId: state.currentEventId,
+    selectedDayIndex: state.selectedDayIndex,
+  };
+}
+
+/** The display config to publish / mirror, built from the working state. */
+function buildConfig(): DisplayConfig {
+  return {
+    activeEventId: state.activeEventId,
     displayModeId: state.displayModeId,
     aspectRatioId: state.aspectRatioId,
     displayLanguage: state.displayLanguage,
     textScale: state.textScale,
     labels: state.labels,
+    editorState: currentEditorState(),
     contentVersion: state.contentVersion ?? undefined,
     contentUpdatedAt: state.contentUpdatedAt ?? undefined,
   };
 }
 
+// Real-time mirror: on every working-state change, push a snapshot of the
+// display-relevant state to localStorage so a same-browser display in "Local"
+// mode updates INSTANTLY. The red flag is controlled from the display now, so
+// an existing snapshot's redFlag is preserved rather than overwritten.
 function mirrorToLive(): void {
-  const apps = buildAppsData();
+  const config = buildConfig();
   const prev = readLiveSnapshot();
-  if (prev?.apps?.redFlag) apps.redFlag = prev.apps.redFlag;
+  if (prev?.config?.redFlag) config.redFlag = prev.config.redFlag;
   const events: Record<string, EventData> = {};
   if (state.currentEvent) events[state.currentEvent.id] = state.currentEvent;
-  writeLiveSnapshot({ apps, events, layout: state.layout ?? undefined, ts: Date.now() });
+  writeLiveSnapshot({ config, events, layout: state.layout ?? undefined, ts: Date.now() });
 }
 
-async function loadEventsForCurrentApp(): Promise<void> {
-  const appId = state.currentAppId;
-  if (!appId) return;
+/** Loads every event into the tree (state.allEvents), then restores the last
+ * selected event if one was persisted. */
+async function loadEventsTree(): Promise<void> {
   setStatus(t("events.loading"));
   try {
-    const entries = await listDir("data/events");
-    const jsonEntries = entries.filter((e) => e.type === "file" && e.name.endsWith(".json"));
-    const results: EventListEntry[] = [];
-    for (const entry of jsonEntries) {
-      const file = await getJsonFile<EventData>(entry.path);
-      if (file && file.data.appId === appId) {
-        results.push({ id: file.data.id, status: file.data.status });
-      }
-    }
-    state.eventsForApp = results;
+    state.allEvents = await loadAllEvents();
     setStatus("");
+    // Re-open the last-selected event if it's still around and not yet loaded.
+    if (state.currentEventId && !state.currentEvent) {
+      const summary = state.allEvents.find((e) => e.id === state.currentEventId);
+      if (summary) {
+        await selectEvent(state.currentEventId, false);
+        return;
+      }
+      state.currentEventId = null;
+    }
   } catch (err) {
     setStatus(t("events.listFailed", { message: (err as Error).message }), true);
-    state.eventsForApp = [];
+    state.allEvents = [];
   }
   renderLeftPanel();
   renderMainPanel();
 }
 
+// The left panel is one collapsible tree: each event is a group; expanding it
+// reveals its days as sub-items. Selecting a day loads that event and shows it
+// in the main editor. There is no separate "all events" page anymore.
 function renderLeftPanel(): void {
   clear(leftPanelEl);
 
-  const pickerSection = el("div", { class: "event-picker" });
-  pickerSection.append(el("h3", {}, [t("events.title")]));
+  const header = el("div", { class: "tree-header" }, [el("h3", {}, [t("events.title")])]);
+  const newBtn = iconButton("plus", t("events.newDraft"), "btn btn-secondary btn-small");
+  newBtn.addEventListener("click", () => {
+    if (!confirmDiscardEventIfDirty(t("events.newDraftAction"))) return;
+    openNewEventModal();
+  });
+  header.append(newBtn);
+  leftPanelEl.append(header);
 
   if (!isSignedIn()) {
-    pickerSection.append(el("p", { class: "muted" }, [t("events.signInToLoad")]));
-    leftPanelEl.append(pickerSection);
+    leftPanelEl.append(el("p", { class: "muted" }, [t("events.signInToLoad")]));
     return;
   }
 
-  const list = el("ul", { class: "event-list" });
-  for (const entry of state.eventsForApp) {
-    const isSelected = entry.id === state.currentEventId;
-    const item = el("li", {
-      class: `event-list-item${isSelected ? " selected" : ""} status-${entry.status}`,
-    }, [
-      el("span", { class: "event-id" }, [entry.id]),
-      el("span", { class: "event-status-badge" }, [entry.status]),
-    ]);
-    item.addEventListener("click", () => {
-      if (entry.id === state.currentEventId) return;
-      if (!confirmDiscardEventIfDirty(t("events.switchAction"))) return;
-      void selectEvent(entry.id);
-    });
-    list.append(item);
+  const tree = el("div", { class: "event-tree" });
+  for (const ev of state.allEvents) {
+    tree.append(renderEventGroup(ev));
   }
-  pickerSection.append(list);
-
-  const newDraftBtn = el("button", { class: "btn btn-secondary" }, [t("events.newDraft")]);
-  newDraftBtn.addEventListener("click", () => {
-    if (!confirmDiscardEventIfDirty(t("events.newDraftAction"))) return;
-    newDraftEvent();
-  });
-  pickerSection.append(newDraftBtn);
-
-  leftPanelEl.append(pickerSection);
-
-  const dayNavSection = el("div", { class: "day-nav" });
-  dayNavSection.append(el("h3", {}, [t("days.title")]));
-
-  if (!state.currentEvent) {
-    dayNavSection.append(el("p", { class: "muted" }, [t("days.selectEvent")]));
-  } else {
-    const dayList = el("ul", { class: "day-list" });
-    state.currentEvent.scheduleDays.forEach((day, index) => {
-      const past = isPast(`${day.date}T23:59:59`);
-      const item = el("li", {
-        class: `day-list-item${index === state.selectedDayIndex ? " selected" : ""}${past ? " past" : ""}`,
-      }, [day.date || t("days.noDate")]);
-      item.addEventListener("click", () => {
-        state.selectedDayIndex = index;
-        renderLeftPanel();
-        renderMainPanel();
-      });
-      dayList.append(item);
-    });
-    dayNavSection.append(dayList);
-
-    const addDayBtn = el("button", { class: "btn btn-secondary" }, [t("days.addDay")]);
-    addDayBtn.addEventListener("click", () => {
-      if (!state.currentEvent) return;
-      // No prompt() for the date -- push a blank day and let the date
-      // picker (+ today/tomorrow/day-after shortcuts) rendered for it
-      // (see renderDayEditor) be how it's set.
-      state.currentEvent.scheduleDays.push({ date: "", announcement: "", items: [] });
-      state.selectedDayIndex = state.currentEvent.scheduleDays.length - 1;
-      markEventDirty();
-      renderLeftPanel();
-      renderMainPanel();
-    });
-    dayNavSection.append(addDayBtn);
-  }
-
-  leftPanelEl.append(dayNavSection);
+  leftPanelEl.append(tree);
 }
 
-/** Loads an event fresh from GitHub. Callers must confirm discarding any
- * unsaved edits first (see confirmDiscardEventIfDirty). */
-async function selectEvent(id: string): Promise<void> {
+function renderEventGroup(ev: EventSummary): HTMLElement {
+  const expanded = state.expandedEventIds.has(ev.id);
+  const isCurrent = ev.id === state.currentEventId;
+  const isActive = ev.id === state.activeEventId;
+  const group = el("div", { class: `event-group${isCurrent ? " current" : ""}` });
+
+  // Group header: chevron + name + status/active markers. Uses the live
+  // in-memory name when this event is the one being edited (so a rename shows
+  // immediately), else the loaded summary name.
+  const name = isCurrent && state.currentEvent ? state.currentEvent.name || state.currentEvent.id : ev.name;
+  const chevron = icon("chevron");
+  chevron.classList.toggle("open", expanded);
+  const head = el("div", { class: `event-group-head status-${ev.status}${ev.archived ? " archived" : ""}` }, [
+    chevron,
+    el("span", { class: "event-group-name" }, [name]),
+  ]);
+  if (isActive) head.append(icon("active"));
+  head.addEventListener("click", () => {
+    if (expanded) state.expandedEventIds.delete(ev.id);
+    else state.expandedEventIds.add(ev.id);
+    mirrorToLive(); // persist expand state locally (rides GitHub on next Save)
+    renderLeftPanel();
+  });
+  group.append(head);
+
+  if (!expanded) return group;
+
+  // Sub-items: the event's days, plus an "add day" affordance. Selecting a day
+  // loads the event (if not already loaded) and opens that day.
+  const days = isCurrent && state.currentEvent
+    ? state.currentEvent.scheduleDays.map((d) => ({ date: d.date, itemCount: d.items.length }))
+    : ev.days;
+  const dayList = el("ul", { class: "day-list" });
+  days.forEach((day, index) => {
+    const selected = isCurrent && index === state.selectedDayIndex;
+    const li = el("li", { class: `day-list-item${selected ? " selected" : ""}` }, [
+      icon("day"),
+      el("span", {}, [day.date || t("days.noDate")]),
+      el("span", { class: "day-count" }, [String(day.itemCount)]),
+    ]);
+    li.addEventListener("click", () => void openDay(ev, index));
+    dayList.append(li);
+  });
+  group.append(dayList);
+
+  const addDayBtn = iconButton("plus", t("days.addDay"), "btn btn-secondary btn-small");
+  addDayBtn.addEventListener("click", () => void addDayToEvent(ev));
+  group.append(addDayBtn);
+
+  return group;
+}
+
+/** Opens a day: loads its event into the editor (if needed) and selects it. */
+async function openDay(ev: EventSummary, dayIndex: number): Promise<void> {
+  if (ev.id !== state.currentEventId) {
+    if (!confirmDiscardEventIfDirty(t("events.switchAction"))) return;
+    const ok = await selectEvent(ev.id, false);
+    if (!ok) return;
+  }
+  state.selectedDayIndex = dayIndex;
+  mirrorToLive();
+  renderLeftPanel();
+  renderMainPanel();
+}
+
+async function addDayToEvent(ev: EventSummary): Promise<void> {
+  if (ev.id !== state.currentEventId) {
+    if (!confirmDiscardEventIfDirty(t("events.switchAction"))) return;
+    const ok = await selectEvent(ev.id, false);
+    if (!ok) return;
+  }
+  if (!state.currentEvent) return;
+  state.currentEvent.scheduleDays.push({ date: "", announcement: "", items: [] });
+  state.selectedDayIndex = state.currentEvent.scheduleDays.length - 1;
+  markEventDirty();
+  renderLeftPanel();
+  renderMainPanel();
+}
+
+/** Loads an event fresh from GitHub (events/ then archive). Returns whether it
+ * loaded. Callers confirm discarding unsaved edits first. */
+async function selectEvent(id: string, rerender = true): Promise<boolean> {
   setStatus(t("events.loadingOne", { id }));
+  const summary = state.allEvents.find((e) => e.id === id);
   try {
-    const file = await getJsonFile<EventData>(`data/events/${id}.json`);
+    const file = await getJsonFile<EventData>(summary?.path ?? `data/events/${id}.json`);
     if (!file) {
       setStatus(t("events.notFound", { id }), true);
-      return;
+      return false;
     }
     state.currentEventId = id;
     state.currentEvent = file.data;
@@ -678,29 +598,22 @@ async function selectEvent(id: string): Promise<void> {
     state.pendingImportItems = null;
     state.eventDirty = false;
     state.pendingClose = false;
+    state.expandedEventIds.add(id);
     setStatus("");
   } catch (err) {
     setStatus(t("events.loadFailed", { id, message: (err as Error).message }), true);
+    return false;
   }
   updateSaveButtonState();
-  renderLeftPanel();
-  renderMainPanel();
+  if (rerender) {
+    renderLeftPanel();
+    renderMainPanel();
+  }
+  return true;
 }
 
-/** Stages a brand-new draft event locally; it's written on the next Save,
- * same as any other edit. Caller must confirm discarding unsaved edits
- * first (see confirmDiscardEventIfDirty). */
-function newDraftEvent(): void {
-  const appId = state.currentAppId;
-  if (!appId) return;
-  openNewEventModal(appId);
-}
-
-/** In-page modal for the new-event id, mirroring the auth token modal
- * (authPanel.ts). Validation runs inside the modal and errors show inline,
- * so an invalid/duplicate id never gets accepted or leaks to the status
- * bar. */
-function openNewEventModal(appId: string): void {
+/** In-page modal for a new event's id + name. Validation runs inline. */
+function openNewEventModal(): void {
   const backdrop = el("div", { class: "modal-backdrop" });
 
   const idInput = el("input", {
@@ -709,6 +622,12 @@ function openNewEventModal(appId: string): void {
     placeholder: "event-id",
     autocomplete: "off",
     spellcheck: "false",
+  }) as HTMLInputElement;
+  const nameInput = el("input", {
+    type: "text",
+    class: "row-input",
+    placeholder: t("events.namePlaceholder"),
+    autocomplete: "off",
   }) as HTMLInputElement;
 
   const errorEl = el("p", { class: "error" }, []);
@@ -729,26 +648,29 @@ function openNewEventModal(appId: string): void {
       showError(t("events.invalidId"));
       return;
     }
-    if (state.eventsForApp.some((e) => e.id === id)) {
+    if (state.allEvents.some((e) => e.id === id)) {
       showError(t("events.alreadyExists", { id }));
       return;
     }
     backdrop.remove();
-    stageNewDraftEvent(appId, id);
+    stageNewEvent(id, nameInput.value.trim() || id);
   }
 
   submitBtn.addEventListener("click", submit);
-  idInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") submit();
-  });
-  idInput.addEventListener("input", () => {
-    errorEl.style.display = "none";
-  });
+  for (const input of [idInput, nameInput]) {
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submit();
+    });
+    input.addEventListener("input", () => {
+      errorEl.style.display = "none";
+    });
+  }
   cancelBtn.addEventListener("click", () => backdrop.remove());
 
   const body = el("div", { class: "modal-body" }, [
     el("h3", {}, [t("events.newIdTitle")]),
     el("label", { class: "field" }, [t("events.newIdPrompt"), idInput]),
+    el("label", { class: "field" }, [t("events.nameLabel"), nameInput]),
     errorEl,
     el("div", { class: "actions-row" }, [submitBtn, cancelBtn]),
   ]);
@@ -759,10 +681,10 @@ function openNewEventModal(appId: string): void {
 }
 
 /** Stages a validated new draft event locally; written on the next Save. */
-function stageNewDraftEvent(appId: string, id: string): void {
+function stageNewEvent(id: string, name: string): void {
   const newEvent: EventData = {
     id,
-    appId,
+    name,
     status: "draft",
     announcement: "",
     countdownRows: [],
@@ -773,24 +695,25 @@ function stageNewDraftEvent(appId: string, id: string): void {
   state.selectedDayIndex = 0;
   state.pendingImportItems = null;
   state.pendingClose = false;
-  state.eventsForApp = [...state.eventsForApp, { id, status: "draft" }];
+  state.expandedEventIds.add(id);
+  state.allEvents = [
+    { id, name, status: "draft", archived: false, path: `data/events/${id}.json`, days: [], earliestDate: null },
+    ...state.allEvents,
+  ];
   markEventDirty();
   setStatus(t("events.newDraftStaged", { id }));
   renderLeftPanel();
   renderMainPanel();
 }
 
-/** Stages event.status = "active" and this app's activeEventId. Not
- * written until Save. */
+/** Stages event.status = "active" + the display's activeEventId. Not written
+ * until Save. */
 function stageSetActive(): void {
   const event = state.currentEvent;
-  const appId = state.currentAppId;
-  if (!event || !appId) return;
+  if (!event) return;
   event.status = "active";
-  state.appsPatch.activeEventIdByApp = {
-    ...(state.appsPatch.activeEventIdByApp ?? {}),
-    [appId]: event.id,
-  };
+  state.activeEventId = event.id;
+  state.configPatch.activeEventId = event.id;
   markEventDirty();
   setStatus(t("editor.activeStaged", { id: event.id }));
   renderLeftPanel();
@@ -811,21 +734,17 @@ function earliestYear(event: EventData): number {
   return new Date(Math.min(...times)).getFullYear();
 }
 
-/** Stages closing the event (moves it to the archive, clears this app's
- * activeEventId if it pointed here). Not written until Save. */
+/** Stages closing the event (moves it to the archive, clears activeEventId if
+ * it pointed here). Not written until Save. */
 function stageCloseEvent(): void {
   const event = state.currentEvent;
-  const appId = state.currentAppId;
-  if (!event || !appId) return;
+  if (!event) return;
   if (!window.confirm(t("editor.closeConfirm", { id: event.id }))) return;
   event.status = "ended";
   state.pendingClose = true;
-  const app = currentApp();
-  if (app?.activeEventId === event.id) {
-    state.appsPatch.activeEventIdByApp = {
-      ...(state.appsPatch.activeEventIdByApp ?? {}),
-      [appId]: null,
-    };
+  if (state.activeEventId === event.id) {
+    state.activeEventId = null;
+    state.configPatch.activeEventId = null;
   }
   markEventDirty();
   setStatus(t("editor.closeStaged", { id: event.id }));
@@ -864,53 +783,29 @@ async function saveAll(): Promise<void> {
       }
     }
 
-    const patch = state.appsPatch;
-    const activeEdits = Object.entries(patch.activeEventIdByApp ?? {});
-    const hasAppsPatch =
-      patch.selectedAppId !== undefined ||
-      patch.displayModeId !== undefined ||
-      patch.aspectRatioId !== undefined ||
-      patch.displayLanguage !== undefined ||
-      patch.textScale !== undefined ||
-      patch.labels !== undefined ||
-      patch.redFlag !== undefined ||
-      activeEdits.length > 0;
+    // Always write display.json: it carries the staged config-patch fields AND
+    // the current editor UI state, so a Save also persists "where I was" to
+    // GitHub. Re-read first so we only overlay OUR fields.
+    const patch = state.configPatch;
+    const fresh = await getJsonFile<DisplayConfig>(CONFIG_JSON_PATH);
+    const configData: DisplayConfig = fresh ? fresh.data : {};
+    if (patch.displayModeId !== undefined) configData.displayModeId = patch.displayModeId;
+    if (patch.aspectRatioId !== undefined) configData.aspectRatioId = patch.aspectRatioId;
+    if (patch.displayLanguage !== undefined) configData.displayLanguage = patch.displayLanguage;
+    if (patch.textScale !== undefined) configData.textScale = patch.textScale;
+    if (patch.labels !== undefined) configData.labels = patch.labels;
+    if (patch.redFlag !== undefined) configData.redFlag = patch.redFlag;
+    if (patch.activeEventId !== undefined) configData.activeEventId = patch.activeEventId;
+    configData.editorState = currentEditorState();
+    changes.push({ path: CONFIG_JSON_PATH, content: JSON.stringify(configData, null, 2) + "\n" });
+    messageParts.push("update display config");
 
-    if (hasAppsPatch) {
-      // Re-read right before committing (this is a read, not a write) so
-      // we only ever overlay OUR staged fields onto the current file --
-      // never blindly re-serialize a possibly session-stale in-memory
-      // copy of every other app's data too.
-      const fresh = await getJsonFile<AppsFile>(APPS_JSON_PATH);
-      const appsData: AppsFile = fresh ? fresh.data : { apps: state.apps };
-      if (patch.selectedAppId !== undefined) appsData.selectedAppId = patch.selectedAppId;
-      if (patch.displayModeId !== undefined) appsData.displayModeId = patch.displayModeId;
-      if (patch.aspectRatioId !== undefined) appsData.aspectRatioId = patch.aspectRatioId;
-      if (patch.displayLanguage !== undefined) appsData.displayLanguage = patch.displayLanguage;
-      if (patch.textScale !== undefined) appsData.textScale = patch.textScale;
-      if (patch.labels !== undefined) appsData.labels = patch.labels;
-      if (patch.redFlag !== undefined) appsData.redFlag = patch.redFlag;
-      for (const [appId, eventId] of activeEdits) {
-        const app = appsData.apps.find((a) => a.id === appId);
-        if (app) app.activeEventId = eventId;
-      }
-      changes.push({ path: APPS_JSON_PATH, content: JSON.stringify(appsData, null, 2) + "\n" });
-      messageParts.push("update display settings");
-    }
-
-    if (state.layoutDirty && state.layout && state.currentAppId) {
+    if (state.layoutDirty && state.layout) {
       changes.push({
-        path: `data/layouts/${state.currentAppId}.json`,
+        path: LAYOUT_JSON_PATH,
         content: JSON.stringify(state.layout, null, 2) + "\n",
       });
-      messageParts.push(`Update ${state.currentAppId} layout`);
-    }
-
-    if (changes.length === 0) {
-      clearPendingChanges();
-      setStatus("");
-      updateSaveButtonState();
-      return;
+      messageParts.push("update layout");
     }
 
     await commitFiles(changes, messageParts.join(" + "));
@@ -924,8 +819,7 @@ async function saveAll(): Promise<void> {
       state.currentEvent = null;
     }
     setStatus(wasClose ? t("save.closed", { id: savedEventId ?? "" }) : t("save.saved"));
-    await loadEventsForCurrentApp();
-    renderAppSwitcher();
+    await loadEventsTree();
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
   } catch (err) {
@@ -957,8 +851,22 @@ function renderMainPanel(): void {
   closeBtn.addEventListener("click", () => stageCloseEvent());
   actions.append(setActiveBtn, closeBtn);
 
+  const nameInput = el("input", {
+    class: "event-name-input",
+    type: "text",
+    value: event.name ?? "",
+    placeholder: event.id,
+  }) as HTMLInputElement;
+  nameInput.addEventListener("input", () => {
+    event.name = nameInput.value;
+    markEventDirty();
+  });
+  // Re-render the tree on blur so the group label reflects the new name.
+  nameInput.addEventListener("change", () => renderLeftPanel());
   const eventHeader = el("div", { class: "event-header" }, [
-    el("h2", {}, [`${event.id} `, el("span", { class: `event-status-badge status-${event.status}` }, [event.status])]),
+    nameInput,
+    el("span", { class: "event-id-tag" }, [event.id]),
+    el("span", { class: `event-status-badge status-${event.status}` }, [event.status]),
   ]);
 
   const announcementField = el("label", { class: "field" }, [

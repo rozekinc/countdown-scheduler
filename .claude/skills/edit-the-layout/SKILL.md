@@ -1,25 +1,26 @@
 ---
 name: edit-the-layout
-description: Use when the user asks to move, resize, add, remove, or reposition items on the display (the countdown, clock, logos/images, text, schedule, announcement) — the free-canvas layout. For wording/language/size use set-display-text instead.
+description: Use when the user asks to move, resize, add, remove, or reposition items on the display (the countdown, clock, logos/images, text, schedule, announcement) — the free-canvas layout, including making an item animate between the two pages. For wording/language/size use set-display-text instead.
 ---
 
 # Edit the display layout
 
-Each app has a free-canvas **layout**: a list of positioned items placed on the
-stage. It lives at `data/layouts/<appId>.json`. Geometry is in **stage-percent**
-(0–100 of the stage's width/height), so items scale on any screen or aspect
-ratio. The easiest way to edit a layout is the admin editor's **Layout** view
-(drag/resize with a live preview); this skill covers editing the JSON directly.
+The display has one free-canvas **layout** at `data/layout.json`: a list of
+positioned items. There are two pages — the **countdown** page and the
+**schedule** page (toggled by 切替). Each item can be placed on either or both
+pages, and each page has its own position; when an item is on both pages with
+different positions, it **animates** between them on toggle. Geometry is in
+**stage-percent** (0–100 of the stage's width/height), so items scale on any
+screen or aspect ratio. The easiest way to edit is the admin's **Layout** view
+(drag/resize per page with a live preview); this skill covers the JSON directly.
 
 ## Read first
 
-- `src/layout.ts` — the `LayoutDoc` / `LayoutItem` shapes and
-  `defaultLayoutForApp` (the base layout that reproduces the original look).
-  Read only; do not edit.
-- `data/apps.json` — to confirm the `appId` you're editing.
-- `data/layouts/<appId>.json` — the layout to edit. **If it does not exist**, the
-  display is using the built-in base layout; create the file from
-  `defaultLayoutForApp` in `src/layout.ts` as the starting point, then edit.
+- `src/layout.ts` — the `LayoutDoc` / `LayoutItem` shapes and `defaultLayout`
+  (the base layout that reproduces the original look). Read only; do not edit.
+- `data/layout.json` — the layout to edit. **If it does not exist**, the display
+  is using the built-in base layout; create the file from `defaultLayout` in
+  `src/layout.ts` as the starting point, then edit.
 
 ## The item shape
 
@@ -27,17 +28,20 @@ ratio. The easiest way to edit a layout is the admin editor's **Layout** view
 {
   "id": "countdown",
   "type": "countdown",
-  "screen": "countdown",
-  "x": 2, "y": 30, "w": 72, "h": 56,
   "z": 10,
+  "countdown": { "x": 2, "y": 30, "w": 72, "h": 56 },
+  "schedule":  { "x": 20, "y": 5, "w": 40, "h": 15 },
   "props": { "fontScale": 1 }
 }
 ```
 
-- `x`,`y` = top-left corner, `w`,`h` = size — all in **stage-percent (0–100)**.
-- `z` = stacking order (higher is on top; use it for overlaps).
-- `screen` = `"shared"` (both screens), `"countdown"`, or `"schedule"`.
-- `hidden: true` hides an item without deleting it.
+- `countdown` / `schedule` are the item's **placements** on each page, each a
+  `{ x, y, w, h }` box in **stage-percent (0–100)** (top-left origin).
+  - Include **both** to show the item on both pages. If the two boxes differ,
+    the item animates between them on 切替.
+  - Include **one** to show the item on only that page.
+- `z` = stacking order (higher on top; use it for overlaps).
+- `hidden: true` hides an item on both pages without deleting it.
 - `type` is one of:
   - **Singletons** (one each, bound to live event data): `clock`, `countdown`,
     `scheduleList`, `announcement`, `scheduleColumns`. Keep their `id` equal to
@@ -45,34 +49,34 @@ ratio. The easiest way to edit a layout is the admin editor's **Layout** view
   - **Dynamic** (any number): `text`, `image`. Give each a unique `id`.
     - `text` props: `source` (`"literal"` → `text`, or `"label"` → `labelKey`),
       `align`, `fontScale`.
-    - `image` props: `assetPath` (a path under `media/images/`), `fit`
-      (`"contain"`/`"cover"`), `opacity`.
+    - `image` props: `assetPath` (under `media/images/`), `fit`, `opacity`.
 
 ## Common edits
 
-- **Move / resize**: change `x`,`y`,`w`,`h`.
-- **Add text**: append a `text` item with a unique `id` and
-  `"props": { "source": "literal", "text": "…", "align": "center" }`.
-- **Add an image**: append an `image` item pointing `assetPath` at a file that
-  already exists in `media/images/`. (Uploading a NEW image is an admin-editor
-  action; you can only reference images already committed.)
-- **Remove**: delete the item from `items` (or set `hidden: true`).
-- **Overlap fix**: give the item that should sit on top a higher `z`.
+- **Move / resize on a page**: change that page's `x`,`y`,`w`,`h`.
+- **Make an item animate on 切替**: give it both `countdown` and `schedule`
+  placements with different positions.
+- **Show on both pages, same spot**: set both placements to identical boxes.
+- **Show on one page only**: include just that page's placement; delete the
+  other.
+- **Add text / image**: append a `text` or `image` item with a unique `id` and
+  at least one placement. Image `assetPath` must reference a file already in
+  `media/images/` (uploading a new image is an admin-editor action).
+- **Remove**: delete the item (or set `hidden: true`).
 
 ## Verify
 
-- Confirm `data/layouts/<appId>.json` parses as valid JSON and every item has
-  `id`, `type`, `screen`, numeric `x`/`y`/`w`/`h`/`z`, and a `props` object.
-- Keep every `x`,`y`,`w`,`h` within 0–100, and `x + w` / `y + h` ≤ 100 so items
-  stay on stage.
-- For `image` items, confirm `assetPath` names a file that exists in
-  `media/images/`.
+- Confirm `data/layout.json` parses as valid JSON and every item has `id`,
+  `type`, numeric `z`, at least one of `countdown`/`schedule` (each with numeric
+  `x`/`y`/`w`/`h`), and a `props` object.
+- Keep every `x`,`y`,`w`,`h` within 0–100, and `x + w` / `y + h` ≤ 100.
+- For `image` items, confirm `assetPath` names a file in `media/images/`.
 
 ## Publish
 
 Follow the `publish-changes` skill to commit and push. Stage ONLY `data/`.
-Publishing bumps the content version, which is also what tells a running display
-to re-pull the layout — so a layout change shows within about 15 seconds.
+Publishing bumps the content version, which also tells a running display to
+re-pull the layout — so a change shows within about 15 seconds.
 
 ## Boundaries
 

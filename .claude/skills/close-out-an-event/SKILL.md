@@ -5,8 +5,8 @@ description: Use when the user asks to close out, end, finish, or retire an even
 
 # Close out a finished event
 
-Mark an event as `ended`. Before doing so, make sure no app still points at it,
-so no display is left showing a closed event.
+Mark an event as `ended`. Before doing so, make sure the display is not still
+pointed at it, so it isn't left showing a closed event.
 
 ## Preconditions
 
@@ -16,26 +16,26 @@ so no display is left showing a closed event.
 
 - `data/events/` — list the directory to find the event file if the user gave a
   name rather than an exact id.
-- `data/apps.json` — read the `apps[]` array to find any app whose
-  `activeEventId` equals this event's id.
+- `data/display.json` — read the top-level `activeEventId` to see whether the
+  display currently points at this event.
 - `src/types.ts` — the `EventStatus` type (`draft` | `active` | `ended`). Read
   only; do not edit.
 
 ## Edit (order matters)
 
-1. FIRST, in `data/apps.json`, for every app whose `activeEventId` equals the
-   event id, clear that pointer (set `activeEventId` to `""`). Do this before
-   changing the event status so no live app is left aimed at a closed event.
+1. FIRST, in `data/display.json`, if `activeEventId` equals the event id, clear
+   it (set `activeEventId` to `null`). Do this before changing the event status
+   so the display is not left aimed at a closed event.
 2. THEN, in `data/events/<event-id>.json`, set `status` to `"ended"`. Leave the
    file in place under `data/events/` and change nothing else.
 
 ## Verify
 
 - Confirm both files still parse as valid JSON.
-- Confirm no app in `data/apps.json` still has `activeEventId` pointing at the
-  closed event.
+- Confirm `data/display.json`'s `activeEventId` no longer points at the closed
+  event.
 - Confirm the event's `status` is now `"ended"`.
-- Tell the user which apps you cleared (if any) and that the event is ended.
+- Tell the user whether you cleared the active event and that the event is ended.
 
 ## Publish
 

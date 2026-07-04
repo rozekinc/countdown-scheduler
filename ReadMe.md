@@ -1,25 +1,25 @@
 # Countdown Scheduler
 
 A full-screen countdown and schedule display for an event venue's monitor — a
-big timer counting down to the next thing happening, a schedule screen you can
-flip to, sound cues as the countdown gets close (20, 10, and 5 minutes before),
-and its own background music. It also supports several branded "apps" (each with
-its own colors) that each point at one active event.
+big timer counting down to the next thing happening, a schedule page you can
+flip to (切替), sound cues as the countdown gets close (20, 10, and 5 minutes
+before), and its own background music. It's a single display with two pages
+(countdown and schedule) and one active event at a time.
 
 ## Where the data lives
 
 All content lives as plain JSON files under `data/` — there is no server and no
 database:
 
-- `data/apps.json` — the list of apps (each app is one branded display: its own
-  colors and which event it is currently showing).
-- `data/events/` — one file per event, holding the countdown items, the
-  announcement text, and the day-by-day schedule.
-- `data/layouts/` — one file per app (`<appId>.json`), holding that app's
-  free-canvas layout: which items (countdown, clock, text, images, schedule,
-  announcement) are placed where on the screen. Edited visually in the admin's
-  **Layout** view. An app with no layout file falls back to the built-in default
-  that reproduces the original fixed look.
+- `data/display.json` — the single display config: which event is active, the
+  color preset, aspect ratio, language, text size, and editable labels.
+- `data/events/` — one file per event, each with an `id`, a human `name`, the
+  countdown items, the announcement text, and the day-by-day schedule.
+- `data/layout.json` — the free-canvas layout: which items (countdown, clock,
+  text, images, schedule, announcement) are placed where, per page. An item can
+  sit at a different spot on the countdown vs schedule page and animates between
+  them on 切替. Edited visually in the admin's **Layout** view; absent, the
+  display falls back to a built-in default that reproduces the original look.
 - `data/archive/` — finished events, moved here (sorted by year) so
   `data/events/` only ever holds things that are still current.
 
@@ -99,8 +99,8 @@ wrong or mis-scoped token fails immediately with a clear error.
 Both the display and the admin editor show a small version badge in a corner so
 you always know what you're looking at:
 
-- **Content version** (`v3 · 2026-07-03`) — bumped every time data is published
-  (by the admin editor or an AI assistant). It lives in `data/apps.json`
+- **Content version** (`v4 · 2026-07-04`) — bumped every time data is published
+  (by the admin editor or an AI assistant). It lives in `data/display.json`
   (`contentVersion` / `contentUpdatedAt`) and updates live on the display within
   seconds of a publish. If the number went up, the screen is showing your latest
   edit.

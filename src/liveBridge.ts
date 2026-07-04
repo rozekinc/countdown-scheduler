@@ -5,7 +5,7 @@
 // GitHub round-trip and none of raw.githubusercontent.com's ~5-min cache.
 // (Different machines don't share this -- they use the published GitHub data.)
 
-import type { AppsData, EventData } from "./types";
+import type { DisplayConfig, EventData } from "./types";
 import type { LayoutDoc } from "./layout";
 
 const SNAPSHOT_KEY = "countdown-scheduler:live-snapshot";
@@ -16,11 +16,11 @@ export type DisplaySource = "local" | "github";
 
 /** Everything the display needs, written by the admin on every edit. */
 export interface LiveSnapshot {
-  apps: AppsData;
+  config: DisplayConfig;
   /** eventId -> event, for the events the admin has touched this session. */
   events: Record<string, EventData>;
-  /** The layout of the app currently being edited, so a drag/resize in the
-   * editor moves the item on a same-browser display instantly. */
+  /** The single layout, so a drag/resize in the editor moves the item on a
+   * same-browser display instantly. */
   layout?: LayoutDoc;
   ts: number;
 }
