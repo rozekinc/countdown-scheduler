@@ -1008,6 +1008,35 @@ html, body {
 
 .event-tree { display: flex; flex-direction: column; gap: 2px; }
 
+/* "Archive — previous events" collapsible section header. */
+.archive-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 4px;
+  padding: 4px 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #57606a;
+  border-top: 1px solid var(--border, #d0d7de);
+}
+.archive-header:hover { background: rgba(0, 0, 0, 0.04); }
+.archive-header .icon { color: #57606a; flex: 0 0 auto; }
+.archive-header .icon.open svg { transform: rotate(90deg); }
+.archive-header .icon svg { transition: transform 0.15s ease; }
+.archived-tree { opacity: 0.82; }
+
+/* Palette item-select buttons: keep long labels on one line. */
+.le-item-select {
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .event-group { border-radius: 6px; }
 .event-group.current { background: color-mix(in srgb, var(--primary) 8%, transparent); }
 

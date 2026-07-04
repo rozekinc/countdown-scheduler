@@ -69,6 +69,20 @@ function geomOf(item: LayoutItem): Placement | undefined {
   return placementFor(item, previewPage);
 }
 
+/** A short, human label for the palette's item list (previews text/heading). */
+function itemListLabel(item: LayoutItem): string {
+  const p = item.props;
+  if (item.type === "text") {
+    const text = (p.textI18n?.ja || p.text || "").trim();
+    return text ? `Text: ${text.slice(0, 14)}` : "Text";
+  }
+  if (item.type === "schedule") {
+    const heading = (p.heading?.ja || "").trim();
+    return heading ? `Schedule: ${heading.slice(0, 12)}` : "Schedule";
+  }
+  return ITEM_TYPE_LABELS[item.type];
+}
+
 export function renderLayoutEditor(container: HTMLElement, ctx: LayoutEditorCtx): void {
   // Editing a property re-renders the whole editor; capture the scroll offset
   // of each rail so a field edit (color, text, checkbox, …) doesn't yank the
@@ -129,6 +143,32 @@ function renderPalette(container: HTMLElement, ctx: LayoutEditorCtx): HTMLElemen
       renderLayoutEditor(container, ctx);
     });
     panel.append(btn);
+  }
+
+  // Every item, selectable by name -- so items on the OTHER page (e.g. schedule
+  // items, which live on the schedule page) can still be found and edited
+  // without hunting for their box on the canvas.
+  panel.append(el("h3", {}, ["Items"]));
+  const all = items();
+  if (all.length === 0) {
+    panel.append(el("p", { class: "muted le-hint" }, ["No items yet."]));
+  } else {
+    for (const item of all) {
+      const pages = [onPage(item, "countdown") ? "C" : "", onPage(item, "schedule") ? "S" : ""].filter(Boolean).join("/");
+      const btn = el("button", {
+        class: `btn btn-small le-item-select ${item.id === selectedId ? "btn-primary" : "btn-secondary"}`,
+      }, [`${itemListLabel(item)}${pages ? `  ·${pages}` : ""}`]);
+      btn.addEventListener("click", () => {
+        selectedId = item.id;
+        // Switch to a page the item is on so its box shows on the canvas.
+        if (!onPage(item, previewPage)) {
+          if (onPage(item, "countdown")) previewPage = "countdown";
+          else if (onPage(item, "schedule")) previewPage = "schedule";
+        }
+        renderLayoutEditor(container, ctx);
+      });
+      panel.append(btn);
+    }
   }
 
   panel.append(el("h3", {}, ["Sections"]));
