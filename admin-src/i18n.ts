@@ -76,7 +76,10 @@ const EN = {
   "aspectRatio.label": "TV shape: ",
   "aspectRatio.staged": 'TV shape staged: "{label}" -- click Save to publish.',
 
-  "lang.label": "Language: ",
+  "lang.label": "Admin: ",
+  "header.display": "Display: ",
+  "header.displayLangHint": "Language shown on the display (independent of the admin language)",
+  "header.textSize": "Display text size",
 
   "version.label": "Version: ",
 
@@ -264,7 +267,10 @@ const JA: Record<TranslationKey, string> = {
   "aspectRatio.label": "TVの形状: ",
   "aspectRatio.staged": "TVの形状を設定しました: “{label}” -- 保存をクリックして公開してください。",
 
-  "lang.label": "言語: ",
+  "lang.label": "管理: ",
+  "header.display": "表示: ",
+  "header.displayLangHint": "ディスプレイに表示される言語（管理画面の言語とは別）",
+  "header.textSize": "表示の文字サイズ",
 
   "version.label": "バージョン: ",
 

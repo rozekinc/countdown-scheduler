@@ -79,6 +79,25 @@ html, body {
   border-left: 1px solid var(--border, #d0d7de);
 }
 
+/* Viewer controls: display language toggle + text-size stepper. */
+.viewer-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.viewer-ctl-label {
+  font-size: 12px;
+  color: #57606a;
+  margin-right: 2px;
+}
+.viewer-ctl-value {
+  font-size: 12px;
+  color: #24292f;
+  min-width: 3.2em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Live-mode "no save needed" indicator + optional publish. */
 .live-indicator {
   font-size: 12px;

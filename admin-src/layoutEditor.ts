@@ -16,7 +16,7 @@ import { getAspectRatio } from "./aspectRatios";
 import { applyPreviewTheme } from "./previewTheme";
 import { isSignedIn } from "./auth";
 import { listDir, commitFiles } from "./githubApi";
-import { LABEL_EDITOR_FIELDS } from "./labels";
+import { LABEL_EDITOR_FIELDS, DEFAULT_LABELS, type LabelKey } from "./labels";
 import { icon } from "./icons";
 import {
   ADDABLE_TYPES,
@@ -557,9 +557,20 @@ function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => v
       panel.append(fontSlider());
       break;
     }
+    case "countdownTitle": {
+      panel.append(el("h4", {}, ["Countdown title text"]));
+      panel.append(labelField('"until" suffix (after the target time)', "until", live));
+      panel.append(labelField('"Finished" text (after the last item)', "finished", live));
+      panel.append(fontSlider());
+      break;
+    }
     case "scheduleList": {
       panel.append(el("h4", {}, ["Next-schedule list"]));
       panel.append(checkboxField("Show built-in heading", p.showHeading ?? true, (v) => (p.showHeading = v), rerender));
+      panel.append(el("h4", {}, ["Day labels"]));
+      panel.append(labelField("Today", "today", live));
+      panel.append(labelField("Tomorrow", "tomorrow", live));
+      panel.append(labelField("Day after", "dayAfter", live));
       panel.append(fontSlider());
       break;
     }
@@ -924,6 +935,25 @@ function colorField(
   });
   row.append(input, swatchLabel, autoBtn);
   field.append(row);
+  return field;
+}
+
+/** JA + EN inputs for one of the shared display labels (stored globally in
+ * state.labels, but edited here from the relevant item's panel). Mirrors live
+ * on every keystroke (no rebuild, so the field keeps focus). */
+function labelField(labelText: string, key: LabelKey, onLive: () => void): HTMLElement {
+  const field = el("div", { class: "le-field" });
+  field.append(el("label", {}, [labelText]));
+  const current = (): { ja: string; en: string } => state.labels[key] ?? DEFAULT_LABELS[key];
+  const makeInput = (lang: "ja" | "en", tag: string): HTMLElement => {
+    const input = el("input", { type: "text", class: "row-input", value: current()[lang] }) as HTMLInputElement;
+    input.addEventListener("input", () => {
+      state.labels[key] = { ...current(), [lang]: input.value };
+      onLive();
+    });
+    return el("div", { class: "le-field le-field-inline" }, [el("label", {}, [tag]), input]);
+  };
+  field.append(makeInput("ja", "日本語"), makeInput("en", "English"));
   return field;
 }
 
