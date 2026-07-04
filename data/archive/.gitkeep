@@ -1,0 +1,2 @@
+# Keeps data/archive/ present so the admin listing returns 200 (not 404)
+# before any events are archived. Archived events land in data/archive/<year>/.
