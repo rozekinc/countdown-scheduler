@@ -366,6 +366,8 @@ function renderProperties(container: HTMLElement, ctx: LayoutEditorCtx): HTMLEle
     ctx.onChange();
     renderLayoutEditor(container, ctx);
   };
+  // Mirror-only (no editor rebuild) -- for live slider drags.
+  const live = (): void => ctx.onChange();
 
   // Which pages this item is on.
   panel.append(el("h4", {}, ["Pages"]));
@@ -392,7 +394,7 @@ function renderProperties(container: HTMLElement, ctx: LayoutEditorCtx): HTMLEle
   }
   panel.append(numberField("Layer (z)", item.z, (v) => (item.z = Math.round(v)), rerender, 0, 999));
 
-  renderItemProps(panel, item, rerender);
+  renderItemProps(panel, item, rerender, live);
 
   // Delete (dynamic items only).
   if (!isSingleton(item.type)) {
@@ -427,8 +429,10 @@ function pageToggle(item: LayoutItem, page: ItemPage, label: string, after: () =
   return field;
 }
 
-function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => void): void {
+function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => void, live: () => void): void {
   const p = item.props;
+  const fontSlider = (): HTMLElement =>
+    rangeField("Font size", p.fontScale ?? 1, (v) => (p.fontScale = v), live, rerender, 0.2, 6, 0.05);
   switch (item.type) {
     case "text": {
       panel.append(el("h4", {}, ["Text"]));
@@ -446,7 +450,7 @@ function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => v
         panel.append(textField("Text", p.text ?? "", (v) => (p.text = v), rerender));
       }
       panel.append(alignField(p.align ?? "center", (v) => (p.align = v), rerender));
-      panel.append(numberField("Font ×", p.fontScale ?? 1, (v) => (p.fontScale = v), rerender, 0.2, 6, 0.1));
+      panel.append(fontSlider());
       break;
     }
     case "image": {
@@ -465,11 +469,11 @@ function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => v
       panel.append(el("h4", {}, ["Clock"]));
       panel.append(alignField(p.align ?? "right", (v) => (p.align = v), rerender));
       panel.append(checkboxField("Show label", p.showLabel ?? true, (v) => (p.showLabel = v), rerender));
-      panel.append(numberField("Font ×", p.fontScale ?? 1, (v) => (p.fontScale = v), rerender, 0.2, 6, 0.1));
+      panel.append(fontSlider());
       break;
     }
     default: {
-      panel.append(numberField("Font ×", p.fontScale ?? 1, (v) => (p.fontScale = v), rerender, 0.2, 6, 0.1));
+      panel.append(fontSlider());
     }
   }
 }
@@ -568,6 +572,42 @@ function numberField(label: string, value: number, set: (v: number) => void, aft
     after();
   });
   field.append(el("label", {}, [label]), input);
+  return field;
+}
+
+/** A labelled slider with a live numeric readout -- used for per-item font
+ * size. Mirrors to the live display on every drag step (onLive) but only
+ * commits a full editor re-render on release (onCommit), so dragging the slider
+ * doesn't tear itself down mid-drag. */
+function rangeField(
+  label: string,
+  value: number,
+  set: (v: number) => void,
+  onLive: () => void,
+  onCommit: () => void,
+  min = 0.2,
+  max = 6,
+  step = 0.05,
+): HTMLElement {
+  const field = el("div", { class: "le-field" });
+  const readout = el("span", { class: "le-range-value" }, [`${value.toFixed(2)}×`]);
+  field.append(el("label", {}, [label, readout]));
+  const input = el("input", {
+    type: "range",
+    class: "le-range",
+    min: String(min),
+    max: String(max),
+    step: String(step),
+    value: String(value),
+  }) as HTMLInputElement;
+  input.addEventListener("input", () => {
+    const v = Number(input.value);
+    readout.textContent = `${v.toFixed(2)}×`;
+    set(v);
+    onLive();
+  });
+  input.addEventListener("change", () => onCommit());
+  field.append(input);
   return field;
 }
 

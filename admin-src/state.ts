@@ -74,6 +74,11 @@ export interface AppState {
   /** True once the layout has an unsaved edit; committed on the next Save. */
   layoutDirty: boolean;
 
+  /** True when the local working state (resumed from the snapshot on refresh)
+   * has changes not yet synced to GitHub -- keeps the Sync button live even
+   * when the per-field dirty flags were reset by a page refresh. */
+  hasLocalChanges: boolean;
+
   statusMessage: string;
 }
 
@@ -126,6 +131,7 @@ export const state: AppState = {
   configPatch: {},
   layout: null,
   layoutDirty: false,
+  hasLocalChanges: false,
   statusMessage: "",
 };
 
@@ -140,6 +146,7 @@ export function hasPendingChanges(): boolean {
   return (
     state.eventDirty ||
     state.layoutDirty ||
+    state.hasLocalChanges ||
     patch.displayModeId !== undefined ||
     patch.aspectRatioId !== undefined ||
     patch.displayLanguage !== undefined ||
@@ -149,10 +156,11 @@ export function hasPendingChanges(): boolean {
   );
 }
 
-/** Clears all staged-change tracking after a successful save. */
+/** Clears all staged-change tracking after a successful sync. */
 export function clearPendingChanges(): void {
   state.eventDirty = false;
   state.pendingClose = false;
   state.configPatch = {};
   state.layoutDirty = false;
+  state.hasLocalChanges = false;
 }
