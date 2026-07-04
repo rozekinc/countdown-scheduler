@@ -304,10 +304,15 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
         .filter((item) => !Number.isNaN(item.time.getTime()))
         .sort((a, b) => a.time.getTime() - b.time.getTime());
 
-      if (newSchedule.length > 0) {
-        parsedSchedule = newSchedule;
-        startNextCountdown();
-      }
+      // Always re-apply and RESCAN from the start. currentIndex persists across
+      // calls, so after an edit / reorder / add / remove of countdown rows it
+      // would otherwise keep pointing at the old position -- now a different (or
+      // nonexistent) target -- making the countdown show the wrong thing.
+      // Resetting to 0 lets startNextCountdown re-scan and land on the correct
+      // current target every time (and an emptied list correctly shows finished).
+      parsedSchedule = newSchedule;
+      currentIndex = 0;
+      startNextCountdown();
     },
     refresh(): void {
       renderAnnouncement();

@@ -33,6 +33,8 @@ const PATHS: Record<string, string> = {
   day: '<rect x="3" y="4" width="18" height="17" rx="1"/><path d="M3 9h18M8 2v4M16 2v4"/>',
   // rename (pencil, small — reuse editor)
   rename: '<path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/>',
+  // drag handle (6-dot grip)
+  grip: '<circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/>',
 };
 
 export function icon(name: keyof typeof PATHS | string): HTMLElement {

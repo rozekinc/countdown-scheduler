@@ -42,6 +42,10 @@ let statusBarEl: HTMLElement;
 let saveBarEl: HTMLElement;
 let saveBtnEl: HTMLButtonElement;
 
+// True while the initial config + event tree are loading, so the panels show
+// skeletons instead of looking blank/broken.
+let treeLoading = true;
+
 export function init(root: HTMLElement): void {
   rootEl = root;
   rootEl.innerHTML = "";
@@ -83,6 +87,11 @@ export function init(root: HTMLElement): void {
   renderSettingsControls(settingsControlsEl, onSettingsSaved, onDisplaySettingsChanged);
   renderViewToggle();
   applyViewMode();
+  // Paint skeletons immediately so the first (network-bound) load reads as
+  // "loading", not "blank/broken".
+  treeLoading = true;
+  renderLeftPanel();
+  renderMainPanel();
   loadConfig();
 
   // Every edit is staged locally and only ever reaches GitHub via Save
@@ -202,6 +211,62 @@ function markEventDirty(): void {
   // writes localStorage + posts a message (no admin re-render), so it never
   // steals focus from the field being typed in.
   mirrorToLive();
+}
+
+// --- drag-and-drop row reordering ----------------------------------------
+// The item currently being dragged: its backing array + index. Kept module-
+// level so dragover/drop on sibling rows can see it. The array identity is
+// checked so a row can only be dropped within its own list.
+let dragArr: unknown[] | null = null;
+let dragIndex = -1;
+
+/** Make a row reorderable by dragging `handle`. Reorders `arr` in place and
+ * calls `after` (typically markEventDirty + renderMainPanel). */
+function makeReorderable<T>(
+  rowEl: HTMLElement,
+  handle: HTMLElement,
+  index: number,
+  arr: T[],
+  after: () => void,
+): void {
+  handle.setAttribute("draggable", "true");
+  handle.classList.add("drag-handle");
+  handle.title = "Drag to reorder";
+
+  handle.addEventListener("dragstart", (e) => {
+    dragArr = arr as unknown[];
+    dragIndex = index;
+    rowEl.classList.add("dragging");
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(index));
+      e.dataTransfer.setDragImage(rowEl, 12, 12);
+    }
+  });
+  handle.addEventListener("dragend", () => {
+    rowEl.classList.remove("dragging");
+    dragArr = null;
+    dragIndex = -1;
+  });
+
+  const sameList = (): boolean => dragArr === (arr as unknown[]);
+  rowEl.addEventListener("dragover", (e) => {
+    if (!sameList()) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    rowEl.classList.add("drag-over");
+  });
+  rowEl.addEventListener("dragleave", () => rowEl.classList.remove("drag-over"));
+  rowEl.addEventListener("drop", (e) => {
+    rowEl.classList.remove("drag-over");
+    if (!sameList() || dragIndex === index || dragIndex < 0) return;
+    e.preventDefault();
+    const [moved] = arr.splice(dragIndex, 1);
+    arr.splice(index, 0, moved);
+    dragArr = null;
+    dragIndex = -1;
+    after();
+  });
 }
 
 function confirmDiscardEventIfDirty(action: string): boolean {
@@ -478,25 +543,53 @@ function mirrorToLive(): void {
 /** Loads every event into the tree (state.allEvents), then restores the last
  * selected event if one was persisted. */
 async function loadEventsTree(): Promise<void> {
+  treeLoading = true;
   setStatus(t("events.loading"));
+  renderLeftPanel(); // show the skeleton while the tree loads
+  renderMainPanel();
   try {
     state.allEvents = await loadAllEvents();
     setStatus("");
     // Re-open the last-selected event if it's still around and not yet loaded.
+    // NOTE: selectEvent(..., false) intentionally does NOT render, so we must
+    // fall through to the render at the end -- an early return here was the bug
+    // that left the tree blank until Settings was opened/closed.
     if (state.currentEventId && !state.currentEvent) {
       const summary = state.allEvents.find((e) => e.id === state.currentEventId);
       if (summary) {
         await selectEvent(state.currentEventId, false);
-        return;
+      } else {
+        state.currentEventId = null;
       }
-      state.currentEventId = null;
     }
   } catch (err) {
     setStatus(t("events.listFailed", { message: (err as Error).message }), true);
     state.allEvents = [];
   }
+  treeLoading = false;
   renderLeftPanel();
   renderMainPanel();
+}
+
+/** A few shimmer rows for the event tree while it loads. */
+function renderTreeSkeleton(): HTMLElement {
+  const wrap = el("div", { class: "skeleton-wrap" });
+  wrap.append(el("div", { class: "skeleton-note" }, [t("events.loading")]));
+  for (let i = 0; i < 5; i++) {
+    wrap.append(el("div", { class: "skeleton skeleton-row" }));
+  }
+  return wrap;
+}
+
+/** A shimmer stand-in for the event editor while it loads. */
+function renderMainSkeleton(): HTMLElement {
+  const wrap = el("div", { class: "skeleton-wrap" });
+  wrap.append(el("div", { class: "skeleton skeleton-title" }));
+  wrap.append(el("div", { class: "skeleton skeleton-line" }));
+  for (let i = 0; i < 4; i++) {
+    wrap.append(el("div", { class: "skeleton skeleton-block" }));
+  }
+  return wrap;
 }
 
 // The left panel is one collapsible tree: each event is a group; expanding it
@@ -516,6 +609,11 @@ function renderLeftPanel(): void {
 
   if (!isSignedIn()) {
     leftPanelEl.append(el("p", { class: "muted" }, [t("events.signInToLoad")]));
+    return;
+  }
+
+  if (treeLoading) {
+    leftPanelEl.append(renderTreeSkeleton());
     return;
   }
 
@@ -857,6 +955,11 @@ async function saveAll(): Promise<void> {
 function renderMainPanel(): void {
   clear(mainPanelEl);
 
+  if (treeLoading && !state.currentEvent) {
+    mainPanelEl.append(renderMainSkeleton());
+    return;
+  }
+
   if (!isSignedIn()) {
     mainPanelEl.append(el("p", { class: "muted" }, [t("signIn.toEdit")]));
     return;
@@ -939,7 +1042,12 @@ function renderCountdownRows(event: EventData): HTMLElement {
       renderMainPanel();
     });
 
-    rowEl.append(titleInput, dateTimeInputs, removeBtn);
+    const handle = icon("grip");
+    rowEl.append(handle, titleInput, dateTimeInputs, removeBtn);
+    makeReorderable(rowEl, handle, index, event.countdownRows, () => {
+      markEventDirty();
+      renderMainPanel();
+    });
     table.append(rowEl);
   });
   section.append(table);
@@ -1086,7 +1194,12 @@ function renderDayEditor(): HTMLElement {
       renderMainPanel();
     });
 
-    rowEl.append(titleInput, detailInput, removeBtn);
+    const handle = icon("grip");
+    rowEl.append(handle, titleInput, detailInput, removeBtn);
+    makeReorderable(rowEl, handle, index, day.items, () => {
+      markEventDirty();
+      renderMainPanel();
+    });
     table.append(rowEl);
   });
   section.append(table);
