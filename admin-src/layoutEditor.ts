@@ -18,6 +18,7 @@ import { isSignedIn } from "./auth";
 import { listDir, commitFiles } from "./githubApi";
 import { LABEL_EDITOR_FIELDS, DEFAULT_LABELS, type LabelKey } from "./labels";
 import { icon } from "./icons";
+import { t, type TranslationKey } from "./i18n";
 import {
   ADDABLE_TYPES,
   ITEM_TYPE_LABELS,
@@ -69,18 +70,40 @@ function geomOf(item: LayoutItem): Placement | undefined {
   return placementFor(item, previewPage);
 }
 
+const TYPE_LABEL_KEYS: Record<ItemType, TranslationKey> = {
+  clock: "le.type.clock",
+  countdown: "le.type.countdown",
+  countdownTitle: "le.type.countdownTitle",
+  scheduleList: "le.type.scheduleList",
+  announcement: "le.type.announcement",
+  scheduleColumns: "le.type.scheduleColumns",
+  text: "le.type.text",
+  schedule: "le.type.schedule",
+  image: "le.type.image",
+};
+
+/** Localized item-type name (falls back to the shared English constant). */
+function typeLabel(type: ItemType): string {
+  return t(TYPE_LABEL_KEYS[type]) || ITEM_TYPE_LABELS[type];
+}
+
+/** Localized page name. */
+function pageLabel(page: ItemPage): string {
+  return page === "countdown" ? t("le.countdown") : t("le.schedule");
+}
+
 /** A short, human label for the palette's item list (previews text/heading). */
 function itemListLabel(item: LayoutItem): string {
   const p = item.props;
   if (item.type === "text") {
     const text = (p.textI18n?.ja || p.text || "").trim();
-    return text ? `Text: ${text.slice(0, 14)}` : "Text";
+    return text ? `${t("le.itemTextPrefix")}: ${text.slice(0, 14)}` : t("le.itemTextPrefix");
   }
   if (item.type === "schedule") {
     const heading = (p.heading?.ja || "").trim();
-    return heading ? `Schedule: ${heading.slice(0, 12)}` : "Schedule";
+    return heading ? `${t("le.itemSchedulePrefix")}: ${heading.slice(0, 12)}` : t("le.itemSchedulePrefix");
   }
-  return ITEM_TYPE_LABELS[item.type];
+  return typeLabel(item.type);
 }
 
 export function renderLayoutEditor(container: HTMLElement, ctx: LayoutEditorCtx): void {
@@ -95,7 +118,7 @@ export function renderLayoutEditor(container: HTMLElement, ctx: LayoutEditorCtx)
   container.innerHTML = "";
 
   if (!state.layout) {
-    container.append(el("p", { class: "muted" }, ["Loading layout…"]));
+    container.append(el("p", { class: "muted" }, [t("le.loading")]));
     return;
   }
 
@@ -119,11 +142,11 @@ export function renderLayoutEditor(container: HTMLElement, ctx: LayoutEditorCtx)
 function renderPalette(container: HTMLElement, ctx: LayoutEditorCtx): HTMLElement {
   const panel = el("div", { class: "le-palette" });
 
-  panel.append(el("h3", {}, ["Page"]));
+  panel.append(el("h3", {}, [t("le.page")]));
   const pageRow = el("div", { class: "le-screen-tabs" });
   (["countdown", "schedule"] as const).forEach((page) => {
     const b = el("button", { class: `btn btn-small ${previewPage === page ? "btn-primary" : "btn-secondary"}` }, [
-      page === "countdown" ? "Countdown" : "Schedule",
+      pageLabel(page),
     ]);
     b.addEventListener("click", () => {
       previewPage = page;
@@ -132,11 +155,11 @@ function renderPalette(container: HTMLElement, ctx: LayoutEditorCtx): HTMLElemen
     pageRow.append(b);
   });
   panel.append(pageRow);
-  panel.append(el("p", { class: "muted le-hint" }, ["Drag on this page to set where items sit on it. An item placed differently on the two pages animates between them on 切替."]));
+  panel.append(el("p", { class: "muted le-hint" }, [t("le.pageHint")]));
 
-  panel.append(el("h3", {}, ["Add item"]));
+  panel.append(el("h3", {}, [t("le.addItem")]));
   for (const type of ADDABLE_TYPES) {
-    const btn = el("button", { class: "btn btn-secondary btn-small" }, [`+ ${ITEM_TYPE_LABELS[type]}`]);
+    const btn = el("button", { class: "btn btn-secondary btn-small" }, [`+ ${typeLabel(type)}`]);
     btn.addEventListener("click", () => {
       addItem(type);
       ctx.onChange();
@@ -148,10 +171,10 @@ function renderPalette(container: HTMLElement, ctx: LayoutEditorCtx): HTMLElemen
   // Every item, selectable by name -- so items on the OTHER page (e.g. schedule
   // items, which live on the schedule page) can still be found and edited
   // without hunting for their box on the canvas.
-  panel.append(el("h3", {}, ["Items"]));
+  panel.append(el("h3", {}, [t("le.items")]));
   const all = items();
   if (all.length === 0) {
-    panel.append(el("p", { class: "muted le-hint" }, ["No items yet."]));
+    panel.append(el("p", { class: "muted le-hint" }, [t("le.noItems")]));
   } else {
     for (const item of all) {
       const pages = [onPage(item, "countdown") ? "C" : "", onPage(item, "schedule") ? "S" : ""].filter(Boolean).join("/");
@@ -171,13 +194,13 @@ function renderPalette(container: HTMLElement, ctx: LayoutEditorCtx): HTMLElemen
     }
   }
 
-  panel.append(el("h3", {}, ["Sections"]));
-  panel.append(el("p", { class: "muted le-hint" }, ["Toggle a built-in section on/off for this page."]));
+  panel.append(el("h3", {}, [t("le.sections")]));
+  panel.append(el("p", { class: "muted le-hint" }, [t("le.sectionsHint")]));
   for (const type of SINGLETON_TYPES) {
     const present = items().find((i) => i.type === type);
     const on = present && onPage(present, previewPage) && !present.hidden;
     const btn = el("button", { class: `btn btn-small ${on ? "btn-primary" : "btn-secondary"}` }, [
-      `${on ? "✓ " : ""}${ITEM_TYPE_LABELS[type]}`,
+      `${on ? "✓ " : ""}${typeLabel(type)}`,
     ]);
     btn.addEventListener("click", () => {
       toggleSingletonOnPage(type);
@@ -187,10 +210,10 @@ function renderPalette(container: HTMLElement, ctx: LayoutEditorCtx): HTMLElemen
     panel.append(btn);
   }
 
-  const resetBtn = el("button", { class: "btn btn-secondary btn-small le-reset" }, ["Reset to base layout"]);
+  const resetBtn = el("button", { class: "btn btn-secondary btn-small le-reset" }, [t("le.reset")]);
   resetBtn.addEventListener("click", () => {
     if (!state.layout) return;
-    if (!window.confirm("Replace the layout with the built-in base layout?")) return;
+    if (!window.confirm(t("le.resetConfirm"))) return;
     state.layout = defaultLayout();
     selectedId = null;
     ctx.onChange();
@@ -283,9 +306,7 @@ function renderCanvas(container: HTMLElement, ctx: LayoutEditorCtx): HTMLElement
 
   panel.append(stage);
   panel.append(
-    el("p", { class: "muted le-hint" }, [
-      `Editing the ${previewPage} page. Drag to move, drag a corner/edge to resize.`,
-    ]),
+    el("p", { class: "muted le-hint" }, [t("le.canvasHint", { page: pageLabel(previewPage) })]),
   );
   return panel;
 }
@@ -314,7 +335,7 @@ function renderItemBox(
   applyBoxStyle(box, geom, item.z);
   const bothPages = onPage(item, "countdown") && onPage(item, "schedule");
   box.append(
-    el("span", { class: "le-item-label" }, [`${ITEM_TYPE_LABELS[item.type]}${bothPages ? " ⇄" : ""}`]),
+    el("span", { class: "le-item-label" }, [`${typeLabel(item.type)}${bothPages ? " ⇄" : ""}`]),
   );
 
   box.addEventListener("pointerdown", (e) => {
@@ -427,12 +448,12 @@ function renderProperties(container: HTMLElement, ctx: LayoutEditorCtx): HTMLEle
   const item = selected();
 
   if (!item) {
-    panel.append(el("h3", {}, ["Properties"]));
-    panel.append(el("p", { class: "muted" }, ["Select an item to edit it."]));
+    panel.append(el("h3", {}, [t("le.properties")]));
+    panel.append(el("p", { class: "muted" }, [t("le.selectToEdit")]));
     return panel;
   }
 
-  panel.append(el("h3", {}, [ITEM_TYPE_LABELS[item.type]]));
+  panel.append(el("h3", {}, [typeLabel(item.type)]));
 
   const rerender = (): void => {
     ctx.onChange();
@@ -442,13 +463,13 @@ function renderProperties(container: HTMLElement, ctx: LayoutEditorCtx): HTMLEle
   const live = (): void => ctx.onChange();
 
   // Which pages this item is on.
-  panel.append(el("h4", {}, ["Pages"]));
-  panel.append(pageToggle(item, "countdown", "Countdown", rerender));
-  panel.append(pageToggle(item, "schedule", "Schedule", rerender));
+  panel.append(el("h4", {}, [t("le.pages")]));
+  panel.append(pageToggle(item, "countdown", t("le.countdown"), rerender));
+  panel.append(pageToggle(item, "schedule", t("le.schedule"), rerender));
 
   const geom = geomOf(item);
   if (geom) {
-    const copyBtn = el("button", { class: "btn btn-secondary btn-small" }, ["Copy position to other page"]);
+    const copyBtn = el("button", { class: "btn btn-secondary btn-small" }, [t("le.copyPos")]);
     copyBtn.addEventListener("click", () => {
       const other: ItemPage = previewPage === "countdown" ? "schedule" : "countdown";
       item[other] = { ...geom };
@@ -456,21 +477,21 @@ function renderProperties(container: HTMLElement, ctx: LayoutEditorCtx): HTMLEle
     });
     panel.append(copyBtn);
 
-    panel.append(el("h4", {}, [`Position (${previewPage})`]));
-    panel.append(numberField("X %", geom.x, (v) => (geom.x = clamp(v)), rerender));
-    panel.append(numberField("Y %", geom.y, (v) => (geom.y = clamp(v)), rerender));
-    panel.append(numberField("Width %", geom.w, (v) => (geom.w = clamp(v, 1)), rerender));
-    panel.append(numberField("Height %", geom.h, (v) => (geom.h = clamp(v, 1)), rerender));
+    panel.append(el("h4", {}, [t("le.position", { page: pageLabel(previewPage) })]));
+    panel.append(numberField(t("le.x"), geom.x, (v) => (geom.x = clamp(v)), rerender));
+    panel.append(numberField(t("le.y"), geom.y, (v) => (geom.y = clamp(v)), rerender));
+    panel.append(numberField(t("le.width"), geom.w, (v) => (geom.w = clamp(v, 1)), rerender));
+    panel.append(numberField(t("le.height"), geom.h, (v) => (geom.h = clamp(v, 1)), rerender));
   } else {
-    panel.append(el("p", { class: "muted le-hint" }, [`Not on the ${previewPage} page. Toggle it on above to place it here.`]));
+    panel.append(el("p", { class: "muted le-hint" }, [t("le.notOnPage", { page: pageLabel(previewPage) })]));
   }
-  panel.append(numberField("Layer (z)", item.z, (v) => (item.z = Math.round(v)), rerender, 0, 999));
+  panel.append(numberField(t("le.layer"), item.z, (v) => (item.z = Math.round(v)), rerender, 0, 999));
 
   renderItemProps(panel, item, rerender, live);
 
   // Delete (dynamic items only).
   if (!isSingleton(item.type)) {
-    const delBtn = el("button", { class: "btn btn-danger btn-small le-delete" }, ["Delete item"]);
+    const delBtn = el("button", { class: "btn btn-danger btn-small le-delete" }, [t("le.deleteItem")]);
     delBtn.addEventListener("click", () => {
       if (!state.layout) return;
       state.layout.items = state.layout.items.filter((i) => i.id !== item.id);
@@ -504,79 +525,79 @@ function pageToggle(item: LayoutItem, page: ItemPage, label: string, after: () =
 function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => void, live: () => void): void {
   const p = item.props;
   const fontSlider = (): HTMLElement =>
-    rangeField("Font size", p.fontScale ?? 1, (v) => (p.fontScale = v), live, rerender, 0.2, 6, 0.05);
+    rangeField(t("le.fontSize"), p.fontScale ?? 1, (v) => (p.fontScale = v), live, rerender, 0.2, 6, 0.05);
   switch (item.type) {
     case "text": {
-      panel.append(el("h4", {}, ["Text"]));
+      panel.append(el("h4", {}, [t("le.text")]));
       panel.append(
-        selectField("Content", p.source ?? "literal", [
-          { value: "literal", label: "Custom text" },
-          { value: "label", label: "Editable label" },
+        selectField(t("le.content"), p.source ?? "literal", [
+          { value: "literal", label: t("le.customText") },
+          { value: "label", label: t("le.editableLabel") },
         ], (v) => (p.source = v as "literal" | "label"), rerender),
       );
       if (p.source === "label") {
         panel.append(
-          selectField("Label", p.labelKey ?? "currentTime", LABEL_EDITOR_FIELDS.map((f) => ({ value: f.key, label: f.key })), (v) => (p.labelKey = v), rerender),
+          selectField(t("le.label"), p.labelKey ?? "currentTime", LABEL_EDITOR_FIELDS.map((f) => ({ value: f.key, label: f.key })), (v) => (p.labelKey = v), rerender),
         );
       } else {
         // Bilingual literal: the display renders whichever language is active.
         // Seed from a legacy single `text` value if that's all the item has.
         if (!p.textI18n) p.textI18n = { ja: p.text ?? "", en: p.text ?? "" };
-        panel.append(textField("Text (日本語)", p.textI18n.ja, (v) => (p.textI18n!.ja = v), rerender));
-        panel.append(textField("Text (English)", p.textI18n.en, (v) => (p.textI18n!.en = v), rerender));
+        panel.append(textField(t("le.textJa"), p.textI18n.ja, (v) => (p.textI18n!.ja = v), rerender));
+        panel.append(textField(t("le.textEn"), p.textI18n.en, (v) => (p.textI18n!.en = v), rerender));
       }
       panel.append(alignField(p.align ?? "center", (v) => (p.align = v), rerender));
       panel.append(fontSlider());
       break;
     }
     case "schedule": {
-      panel.append(el("h4", {}, ["Heading"]));
+      panel.append(el("h4", {}, [t("le.heading")]));
       if (!p.heading) p.heading = { ja: "", en: "" };
-      panel.append(textField("Heading (日本語)", p.heading.ja, (v) => (p.heading!.ja = v), rerender));
-      panel.append(textField("Heading (English)", p.heading.en, (v) => (p.heading!.en = v), rerender));
+      panel.append(textField(t("le.headingJa"), p.heading.ja, (v) => (p.heading!.ja = v), rerender));
+      panel.append(textField(t("le.headingEn"), p.heading.en, (v) => (p.heading!.en = v), rerender));
       renderScheduleEntries(panel, item, rerender, live);
       panel.append(fontSlider());
       break;
     }
     case "image": {
-      panel.append(el("h4", {}, ["Image"]));
+      panel.append(el("h4", {}, [t("le.image")]));
       panel.append(assetField(item, rerender));
       panel.append(
-        selectField("Fit", p.fit ?? "contain", [
-          { value: "contain", label: "Contain (whole image)" },
-          { value: "cover", label: "Cover (fill, may crop)" },
+        selectField(t("le.fit"), p.fit ?? "contain", [
+          { value: "contain", label: t("le.fitContain") },
+          { value: "cover", label: t("le.fitCover") },
         ], (v) => (p.fit = v as "contain" | "cover"), rerender),
       );
-      panel.append(numberField("Opacity", p.opacity ?? 1, (v) => (p.opacity = clamp(v, 0, 1)), rerender, 0, 1, 0.05));
+      panel.append(numberField(t("le.opacity"), p.opacity ?? 1, (v) => (p.opacity = clamp(v, 0, 1)), rerender, 0, 1, 0.05));
       break;
     }
     case "clock": {
-      panel.append(el("h4", {}, ["Clock"]));
+      panel.append(el("h4", {}, [t("le.clock")]));
       panel.append(alignField(p.align ?? "right", (v) => (p.align = v), rerender));
-      panel.append(checkboxField("Show built-in label", p.showLabel ?? true, (v) => (p.showLabel = v), rerender));
+      panel.append(checkboxField(t("le.showLabel"), p.showLabel ?? true, (v) => (p.showLabel = v), rerender));
       panel.append(fontSlider());
       break;
     }
     case "countdownTitle": {
-      panel.append(el("h4", {}, ["Countdown title text"]));
-      panel.append(labelField('"until" suffix (after the target time)', "until", live));
-      panel.append(labelField('"Finished" text (after the last item)', "finished", live));
+      panel.append(el("h4", {}, [t("le.titleText")]));
+      panel.append(labelField(t("le.untilLabel"), "until", live));
+      panel.append(labelField(t("le.finishedLabel"), "finished", live));
       panel.append(fontSlider());
       break;
     }
     case "scheduleList": {
-      panel.append(el("h4", {}, ["Next-schedule list"]));
-      panel.append(checkboxField("Show built-in heading", p.showHeading ?? true, (v) => (p.showHeading = v), rerender));
-      panel.append(el("h4", {}, ["Day labels"]));
-      panel.append(labelField("Today", "today", live));
-      panel.append(labelField("Tomorrow", "tomorrow", live));
-      panel.append(labelField("Day after", "dayAfter", live));
+      panel.append(el("h4", {}, [t("le.nextList")]));
+      panel.append(checkboxField(t("le.showHeading"), p.showHeading ?? true, (v) => (p.showHeading = v), rerender));
+      panel.append(el("h4", {}, [t("le.dayLabels")]));
+      panel.append(labelField(t("days.today"), "today", live));
+      panel.append(labelField(t("days.tomorrow"), "tomorrow", live));
+      panel.append(labelField(t("days.dayAfter"), "dayAfter", live));
       panel.append(fontSlider());
       break;
     }
     case "announcement": {
-      panel.append(el("h4", {}, ["Announcement"]));
-      panel.append(checkboxField("Show built-in prefix", p.showPrefix ?? true, (v) => (p.showPrefix = v), rerender));
+      panel.append(el("h4", {}, [t("le.announcement")]));
+      panel.append(checkboxField(t("le.showPrefix"), p.showPrefix ?? true, (v) => (p.showPrefix = v), rerender));
       panel.append(fontSlider());
       break;
     }
@@ -587,11 +608,11 @@ function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => v
 
   // Colour wheels: text colour (any text/title-bearing item -- not images) and
   // background colour (any item). Both clear back to the default with "Auto".
-  panel.append(el("h4", {}, ["Colors"]));
+  panel.append(el("h4", {}, [t("le.colors")]));
   if (item.type !== "image") {
-    panel.append(colorField("Text color", p.color, (v) => (p.color = v), () => delete p.color, live));
+    panel.append(colorField(t("le.textColor"), p.color, (v) => (p.color = v), () => delete p.color, live));
   }
-  panel.append(colorField("Background color", p.bgColor, (v) => (p.bgColor = v), () => delete p.bgColor, live));
+  panel.append(colorField(t("le.bgColor"), p.bgColor, (v) => (p.bgColor = v), () => delete p.bgColor, live));
 
   // Scroll toggles for text-bearing items. Horizontal = marquee (announcement /
   // text); Vertical = auto-scroll long content (schedule list/columns / text).
@@ -603,14 +624,14 @@ function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => v
     item.type === "schedule" ||
     item.type === "text";
   if (showH || showV) {
-    panel.append(el("h4", {}, ["Scroll"]));
+    panel.append(el("h4", {}, [t("le.scroll")]));
     if (showH) {
       const on = item.type === "text" ? !!p.scrollH : p.scrollH !== false;
-      panel.append(checkboxField("Horizontal (marquee)", on, (v) => (p.scrollH = v), rerender));
+      panel.append(checkboxField(t("le.scrollH"), on, (v) => (p.scrollH = v), rerender));
     }
     if (showV) {
       const on = item.type === "text" ? !!p.scrollV : p.scrollV !== false;
-      panel.append(checkboxField("Vertical", on, (v) => (p.scrollV = v), rerender));
+      panel.append(checkboxField(t("le.scrollV"), on, (v) => (p.scrollV = v), rerender));
     }
   }
 }
@@ -632,7 +653,7 @@ function renderScheduleEntries(
   live: () => void,
 ): void {
   const entries = (item.props.entries ??= []);
-  panel.append(el("h4", {}, ["Rows"]));
+  panel.append(el("h4", {}, [t("le.rows")]));
 
   const list = el("div", { class: "le-entry-list" });
   entries.forEach((entry, index) => {
@@ -640,7 +661,7 @@ function renderScheduleEntries(
   });
   panel.append(list);
 
-  const addBtn = el("button", { class: "btn btn-secondary btn-small" }, ["+ Add row"]);
+  const addBtn = el("button", { class: "btn btn-secondary btn-small" }, [t("le.addRow")]);
   addBtn.addEventListener("click", () => {
     entries.push({ title: "", detail: "" });
     rerender();
@@ -661,12 +682,12 @@ function renderEntryRow(
   handle.classList.add("le-entry-grip");
   makeEntryReorderable(row, handle, index, arr, rerender);
 
-  const titleInput = el("input", { type: "text", class: "row-input", placeholder: "Title", value: entry.title }) as HTMLInputElement;
+  const titleInput = el("input", { type: "text", class: "row-input", placeholder: t("le.rowTitle"), value: entry.title }) as HTMLInputElement;
   titleInput.addEventListener("input", () => {
     entry.title = titleInput.value;
     live();
   });
-  const detailInput = el("input", { type: "text", class: "row-input", placeholder: "Detail (e.g. 10:30~)", value: entry.detail }) as HTMLInputElement;
+  const detailInput = el("input", { type: "text", class: "row-input", placeholder: t("le.rowDetail"), value: entry.detail }) as HTMLInputElement;
   detailInput.addEventListener("input", () => {
     entry.detail = detailInput.value;
     live();
@@ -693,7 +714,7 @@ function makeEntryReorderable(
 ): void {
   handle.setAttribute("draggable", "true");
   handle.classList.add("drag-handle");
-  handle.title = "Drag to reorder";
+  handle.title = t("le.dragReorder");
 
   handle.addEventListener("dragstart", (e) => {
     entryDragArr = arr;
@@ -735,7 +756,7 @@ function makeEntryReorderable(
 
 function assetField(item: LayoutItem, rerender: () => void): HTMLElement {
   const field = el("div", { class: "le-field" });
-  field.append(el("label", {}, ["Image"]));
+  field.append(el("label", {}, [t("le.image")]));
 
   const select = el("select", { class: "row-input" }) as HTMLSelectElement;
   for (const path of assetOptions(item.props.assetPath)) {
@@ -754,13 +775,13 @@ function assetField(item: LayoutItem, rerender: () => void): HTMLElement {
   }
 
   if (isSignedIn()) {
-    const refreshBtn = el("button", { class: "btn btn-secondary btn-small" }, ["Refresh list"]);
+    const refreshBtn = el("button", { class: "btn btn-secondary btn-small" }, [t("le.refreshList")]);
     refreshBtn.addEventListener("click", () => {
       assetCache = null;
       void loadAssets().then(rerender);
     });
     const fileInput = el("input", { type: "file", accept: "image/*", class: "le-file" }) as HTMLInputElement;
-    const uploadBtn = el("button", { class: "btn btn-primary btn-small" }, ["Upload image"]);
+    const uploadBtn = el("button", { class: "btn btn-primary btn-small" }, [t("le.uploadImage")]);
     uploadBtn.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", () => {
       const file = fileInput.files?.[0];
@@ -768,7 +789,7 @@ function assetField(item: LayoutItem, rerender: () => void): HTMLElement {
     });
     field.append(uploadBtn, refreshBtn, fileInput);
   } else {
-    field.append(el("p", { class: "muted le-hint" }, ["Sign in to upload new images."]));
+    field.append(el("p", { class: "muted le-hint" }, [t("le.signInUpload")]));
   }
 
   return field;
@@ -892,10 +913,10 @@ function selectField(label: string, value: string, options: Array<{ value: strin
 }
 
 function alignField(value: string, set: (v: "left" | "center" | "right") => void, after: () => void): HTMLElement {
-  return selectField("Align", value, [
-    { value: "left", label: "Left" },
-    { value: "center", label: "Center" },
-    { value: "right", label: "Right" },
+  return selectField(t("le.align"), value, [
+    { value: "left", label: t("le.alignLeft") },
+    { value: "center", label: t("le.alignCenter") },
+    { value: "right", label: t("le.alignRight") },
   ], (v) => set(v as "left" | "center" | "right"), after);
 }
 
@@ -918,7 +939,7 @@ function colorField(
   field.append(el("label", {}, [label]));
   const row = el("div", { class: "le-color-row" });
   const input = el("input", { type: "color", class: "le-color", value: current ?? "#333333" }) as HTMLInputElement;
-  const swatchLabel = el("span", { class: "le-color-value" }, [current ?? "Auto (theme)"]);
+  const swatchLabel = el("span", { class: "le-color-value" }, [current ?? t("le.autoTheme")]);
   const commit = (): void => {
     apply(input.value);
     swatchLabel.textContent = input.value;
@@ -926,11 +947,11 @@ function colorField(
   };
   input.addEventListener("input", commit);
   input.addEventListener("change", commit);
-  const autoBtn = el("button", { class: "btn btn-secondary btn-small" }, ["Auto"]);
+  const autoBtn = el("button", { class: "btn btn-secondary btn-small" }, [t("le.auto")]);
   autoBtn.addEventListener("click", () => {
     clear();
     input.value = "#333333";
-    swatchLabel.textContent = "Auto (theme)";
+    swatchLabel.textContent = t("le.autoTheme");
     onLive();
   });
   row.append(input, swatchLabel, autoBtn);
