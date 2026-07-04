@@ -8,12 +8,9 @@ import { resolveLabel, displayLanguage } from "./labels";
 import { defaultLayout, type LayoutItem } from "./layout";
 import { applyLayout, setPage } from "./layoutManager";
 import {
-  getDisplaySource,
-  setDisplaySource,
   readLiveSnapshot,
   writeLiveSnapshot,
   onLiveChange,
-  type DisplaySource,
   type LiveSnapshot,
 } from "./liveBridge";
 import type { DisplayConfig, EventData, RedFlagState } from "./types";
@@ -126,7 +123,6 @@ function applyTextScale(config: DisplayConfig): void {
 // data-source toggle. These live on the display itself so an operator at the
 // screen can drive it without opening the admin.
 function setupOperatorControls(
-  source: DisplaySource,
   countdownController: CountdownController,
   getConfig: () => DisplayConfig,
 ): void {
@@ -165,25 +161,17 @@ function setupOperatorControls(
     document.body.classList.toggle("marquee-paused", marqueePaused);
     renderMq();
   });
-
-  const srcBtn = document.getElementById("source-btn");
-  if (srcBtn) {
-    srcBtn.textContent = `Source: ${source === "local" ? "Local" : "GitHub"}`;
-    srcBtn.addEventListener("click", () => {
-      setDisplaySource(source === "local" ? "github" : "local");
-      window.location.reload();
-    });
-  }
 }
 
 async function main(): Promise<void> {
   const currentTimeElem = document.getElementById("current-time") as HTMLElement;
 
-  // Data source: "local" reads the admin's real-time localStorage snapshot
-  // (same browser, instant); "github" reads the published data from raw
-  // (works across machines, ~5-min cache). See src/liveBridge.ts.
-  const source = getDisplaySource();
-  const localSnap = source === "local" ? readLiveSnapshot() : null;
+  // Local-first: the same-domain localStorage snapshot (written by the admin)
+  // IS the source of truth. If one exists, the display follows it and it
+  // persists across refreshes. A fresh/remote display with no snapshot yet
+  // bootstraps from the published GitHub data and polls for updates until an
+  // admin on this browser writes a snapshot. See src/liveBridge.ts.
+  const localSnap = readLiveSnapshot();
 
   const config: DisplayConfig = localSnap?.config ?? (await loadConfig());
   let currentConfig: DisplayConfig = config;
@@ -263,23 +251,25 @@ async function main(): Promise<void> {
     updateVersionBadge(cfg);
   }
 
-  if (source === "local") {
-    if (localSnap) {
-      applyLocalSnapshot(localSnap);
-    } else {
-      // No snapshot yet (admin not open / hasn't edited) -- show the last
-      // published data statically until the admin pushes over the bridge.
-      applyAspectRatio(config.aspectRatioId ?? null);
-      applyTheme(config.displayModeId ?? null);
-      loadAndRenderLayout();
-      runEvent(config.activeEventId ?? null);
-      countdownController.setRedFlag(config.redFlag);
+  // Once a local snapshot is in play, it wins: any same-browser admin edit
+  // drives the display, and the GitHub poll below must NOT override it.
+  let localActive = !!localSnap;
+
+  // Always listen for the snapshot so a GitHub-bootstrapped display switches to
+  // local the instant an admin on this browser writes one.
+  onLiveChange(() => {
+    const snap = readLiveSnapshot();
+    if (snap) {
+      localActive = true;
+      applyLocalSnapshot(snap);
     }
-    onLiveChange(() => {
-      const snap = readLiveSnapshot();
-      if (snap) applyLocalSnapshot(snap);
-    });
+  });
+
+  if (localSnap) {
+    applyLocalSnapshot(localSnap);
   } else {
+    // No snapshot yet (fresh / remote display) -- bootstrap from published
+    // GitHub data and poll for updates until a local snapshot appears.
     applyAspectRatio(config.aspectRatioId ?? null);
     applyTheme(config.displayModeId ?? null);
     loadAndRenderLayout();
@@ -288,10 +278,17 @@ async function main(): Promise<void> {
 
     watchDisplaySettings(
       config,
-      (eventId) => runEvent(eventId),
-      (displayModeId) => applyTheme(displayModeId),
-      (aspectRatioId) => applyAspectRatio(aspectRatioId),
+      (eventId) => {
+        if (!localActive) runEvent(eventId);
+      },
+      (displayModeId) => {
+        if (!localActive) applyTheme(displayModeId);
+      },
+      (aspectRatioId) => {
+        if (!localActive) applyAspectRatio(aspectRatioId);
+      },
       (data) => {
+        if (localActive) return;
         updateVersionBadge(data);
         // A publish bumps contentVersion; re-pull the layout so a committed
         // layout change appears without a display reload.
@@ -301,6 +298,7 @@ async function main(): Promise<void> {
         });
       },
       (data) => {
+        if (localActive) return;
         currentConfig = data;
         applyChromeLabels(currentConfig);
         applyTextScale(currentConfig);
@@ -312,7 +310,7 @@ async function main(): Promise<void> {
     );
   }
 
-  setupOperatorControls(source, countdownController, () => currentConfig);
+  setupOperatorControls(countdownController, () => currentConfig);
 
   // Re-fit the countdown block when the window/stage size changes (the fit is
   // height-bounded, so a resize can change how much the title needs to shrink).

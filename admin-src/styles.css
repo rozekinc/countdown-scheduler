@@ -1113,3 +1113,12 @@ html, body {
 .skeleton-title { height: 30px; width: 55%; margin-bottom: 14px; }
 .skeleton-line { height: 16px; width: 80%; margin-bottom: 18px; }
 .skeleton-block { height: 46px; margin-bottom: 10px; }
+
+/* per-item font-size slider */
+.le-range { width: 100%; }
+.le-range-value {
+  float: right;
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 11px;
+}

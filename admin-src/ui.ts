@@ -15,7 +15,7 @@ import {
 import type { DisplayConfig, EventData, EditorState, ScheduleItem } from "./types";
 import { DISPLAY_MODES, DEFAULT_DISPLAY_MODE_ID, getDisplayMode } from "./displayModes";
 import { ASPECT_RATIOS, DEFAULT_ASPECT_RATIO_ID, getAspectRatio } from "./aspectRatios";
-import { readLiveSnapshot, writeLiveSnapshot, isLiveMode, onSourceChange } from "./liveBridge";
+import { readLiveSnapshot, writeLiveSnapshot } from "./liveBridge";
 import { renderLayoutEditor, primeAssets, type LayoutEditorCtx } from "./layoutEditor";
 import { defaultLayout, type LayoutDoc } from "./layout";
 import { icon, iconButton } from "./icons";
@@ -94,19 +94,8 @@ export function init(root: HTMLElement): void {
   renderMainPanel();
   loadConfig();
 
-  // Every edit is staged locally and only ever reaches GitHub via Save
-  // (see saveAll()) -- so a closed tab before Save is a real, silent loss
-  // of whatever was staged. Warn like any other unsaved-changes editor.
-  window.addEventListener("beforeunload", (event) => {
-    if (hasPendingChanges()) {
-      event.preventDefault();
-      event.returnValue = "";
-    }
-  });
-
-  // When the display toggles its data source (on the display page), swap the
-  // Save bar between the normal Save button and the "live, no save" indicator.
-  onSourceChange(() => renderSaveBar());
+  // No beforeunload guard: edits persist in localStorage (local-first), so
+  // closing the tab loses nothing -- "Sync to GitHub" is the explicit push.
 
   // Re-render every visible piece of chrome on a language switch, so it
   // takes effect immediately without a page reload.
@@ -173,25 +162,18 @@ function renderVersionIndicator(): void {
  */
 function renderSaveBar(): void {
   clear(saveBarEl);
-  if (isLiveMode()) {
-    // A same-browser display is reading the live bridge, so every edit already
-    // shows on screen -- no Save needed. Keep a small, secondary "Publish"
-    // for when they want to persist to GitHub (other machines / permanence).
-    const publishBtn = iconButton("publish", t("live.publish"), "btn btn-secondary btn-publish");
-    publishBtn.addEventListener("click", () => void saveAll());
-    saveBarEl.append(el("span", { class: "live-indicator" }, [t("live.indicator")]), publishBtn);
-    return;
-  }
-  saveBtnEl = iconButton("save", t("save.button"), "btn btn-primary");
+  // Local-first: edits are already live and persist in localStorage across
+  // refreshes. "Sync to GitHub" is how you push the local state upstream.
+  saveBtnEl = iconButton("publish", "Sync to GitHub", "btn btn-primary");
   saveBtnEl.addEventListener("click", () => void saveAll());
   saveBarEl.append(saveBtnEl);
   updateSaveButtonState();
 }
 
 function updateSaveButtonState(): void {
-  if (isLiveMode()) return; // no Save button in live mode
+  if (!saveBtnEl) return;
   const dirty = hasPendingChanges();
-  saveBtnEl.title = dirty ? t("save.button") : t("save.none");
+  saveBtnEl.title = dirty ? "Sync local changes to GitHub" : "Synced — nothing new to push";
   saveBtnEl.className = `btn icon-btn ${dirty ? "btn-primary" : "btn-secondary"}`;
   if (dirty) {
     saveBtnEl.removeAttribute("disabled");
@@ -370,41 +352,62 @@ function setStatus(message: string, isError = false): void {
   statusBarEl.className = isError ? "status-bar status-error" : "status-bar";
 }
 
+/** Seed the working state from a DisplayConfig (from the local snapshot or a
+ * fresh GitHub read). */
+function seedConfigState(data: DisplayConfig): void {
+  state.displayModeId = data.displayModeId ?? null;
+  state.aspectRatioId = data.aspectRatioId ?? null;
+  state.activeEventId = data.activeEventId ?? null;
+  state.displayLanguage = data.displayLanguage === "en" ? "en" : "ja";
+  state.textScale = typeof data.textScale === "number" ? data.textScale : 1;
+  state.labels = seedLabels(data.labels);
+  state.redFlag = data.redFlag?.active
+    ? { active: true, since: data.redFlag.since ?? null }
+    : { active: false, since: null };
+  state.contentVersion = data.contentVersion ?? null;
+  state.contentUpdatedAt = data.contentUpdatedAt ?? null;
+  const es = data.editorState ?? {};
+  state.expandedEventIds = new Set(es.expandedEventIds ?? []);
+  state.currentEventId = es.selectedEventId ?? null;
+  state.selectedDayIndex = typeof es.selectedDayIndex === "number" ? es.selectedDayIndex : 0;
+}
+
 async function loadConfig(): Promise<void> {
   try {
-    const res = await fetch(PUBLIC_CONFIG_URL, { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = (await res.json()) as DisplayConfig;
-    state.displayModeId = data.displayModeId ?? null;
-    state.aspectRatioId = data.aspectRatioId ?? null;
-    state.activeEventId = data.activeEventId ?? null;
-    state.displayLanguage = data.displayLanguage === "en" ? "en" : "ja";
-    state.textScale = typeof data.textScale === "number" ? data.textScale : 1;
-    state.labels = seedLabels(data.labels);
-    state.redFlag = data.redFlag?.active
-      ? { active: true, since: data.redFlag.since ?? null }
-      : { active: false, since: null };
-    state.contentVersion = data.contentVersion ?? null;
-    state.contentUpdatedAt = data.contentUpdatedAt ?? null;
-    // Restore where the editor was last left (which events were expanded, what
-    // was selected) -- persisted in the config like every other setting.
-    const es = data.editorState ?? {};
-    state.expandedEventIds = new Set(es.expandedEventIds ?? []);
-    state.currentEventId = es.selectedEventId ?? null;
-    state.selectedDayIndex = typeof es.selectedDayIndex === "number" ? es.selectedDayIndex : 0;
+    // LOCAL-FIRST: resume the working session from the same-domain snapshot if
+    // present, so a refresh keeps in-progress edits (config, layout, and the
+    // event being edited). Only a fresh browser with no snapshot bootstraps
+    // from the published GitHub data. "Sync to GitHub" is how local state is
+    // pushed upstream.
+    const snap = readLiveSnapshot();
+    if (snap?.config) {
+      seedConfigState(snap.config);
+      if (snap.layout && Array.isArray(snap.layout.items)) state.layout = snap.layout;
+      // Resume the event being edited (with its unsaved changes).
+      const pid = snap.previewEventId ?? state.currentEventId;
+      if (pid && snap.events[pid]) {
+        state.currentEvent = snap.events[pid];
+        state.currentEventId = pid;
+      }
+      // A snapshot may hold changes not yet on GitHub -> keep Sync available.
+      state.hasLocalChanges = true;
+    } else {
+      const res = await fetch(PUBLIC_CONFIG_URL, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      seedConfigState((await res.json()) as DisplayConfig);
+    }
 
     renderVersionIndicator();
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
     applyAdminChrome();
-    // Load the layout BEFORE the first mirror so the snapshot we write always
-    // carries a real layout -- otherwise a Local-mode display would fall back
-    // to the default layout on every admin refresh.
+    // Ensure a layout is in state before the first mirror (see ensureLayoutLoaded).
     await ensureLayoutLoaded();
     mirrorToLive();
     if (isSignedIn()) {
       await loadEventsTree();
     } else {
+      treeLoading = false;
       renderLeftPanel();
       renderMainPanel();
     }
@@ -886,8 +889,10 @@ async function saveAll(): Promise<void> {
   try {
     const changes: FileChange[] = [];
     const messageParts: string[] = [];
+    const localish = state.eventDirty || state.hasLocalChanges;
 
-    if (state.currentEvent && state.eventDirty) {
+    // Sync the current event (local state is authoritative in local-first mode).
+    if (state.currentEvent && localish) {
       if (state.pendingClose) {
         const year = earliestYear(state.currentEvent);
         changes.push({
@@ -905,29 +910,20 @@ async function saveAll(): Promise<void> {
       }
     }
 
-    // Always write display.json: it carries the staged config-patch fields AND
-    // the current editor UI state, so a Save also persists "where I was" to
-    // GitHub. Re-read first so we only overlay OUR fields.
-    const patch = state.configPatch;
-    const fresh = await getJsonFile<DisplayConfig>(CONFIG_JSON_PATH);
-    const configData: DisplayConfig = fresh ? fresh.data : {};
-    if (patch.displayModeId !== undefined) configData.displayModeId = patch.displayModeId;
-    if (patch.aspectRatioId !== undefined) configData.aspectRatioId = patch.aspectRatioId;
-    if (patch.displayLanguage !== undefined) configData.displayLanguage = patch.displayLanguage;
-    if (patch.textScale !== undefined) configData.textScale = patch.textScale;
-    if (patch.labels !== undefined) configData.labels = patch.labels;
-    if (patch.redFlag !== undefined) configData.redFlag = patch.redFlag;
-    if (patch.activeEventId !== undefined) configData.activeEventId = patch.activeEventId;
-    configData.editorState = currentEditorState();
-    changes.push({ path: CONFIG_JSON_PATH, content: JSON.stringify(configData, null, 2) + "\n" });
-    messageParts.push("update display config");
+    // Write display.json from the CURRENT local config (local-first: local
+    // state wins over whatever is on GitHub). Bump the content version so a
+    // remote/GitHub-bootstrapped display re-pulls.
+    state.contentVersion = (state.contentVersion ?? 0) + 1;
+    state.contentUpdatedAt = new Date().toISOString().slice(0, 10);
+    changes.push({ path: CONFIG_JSON_PATH, content: JSON.stringify(buildConfig(), null, 2) + "\n" });
+    messageParts.push("sync display config");
 
-    if (state.layoutDirty && state.layout) {
+    if (state.layout && (state.layoutDirty || state.hasLocalChanges)) {
       changes.push({
         path: LAYOUT_JSON_PATH,
         content: JSON.stringify(state.layout, null, 2) + "\n",
       });
-      messageParts.push("update layout");
+      messageParts.push("sync layout");
     }
 
     await commitFiles(changes, messageParts.join(" + "));
@@ -941,6 +937,7 @@ async function saveAll(): Promise<void> {
       state.currentEvent = null;
     }
     setStatus(wasClose ? t("save.closed", { id: savedEventId ?? "" }) : t("save.saved"));
+    mirrorToLive(); // reflect the bumped content version in the local snapshot
     await loadEventsTree();
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
