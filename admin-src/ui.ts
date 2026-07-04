@@ -11,7 +11,7 @@ import {
   clearPendingChanges,
   seedLabels,
 } from "./state";
-import type { DisplayConfig, EventData, EditorState } from "./types";
+import type { DisplayConfig, DisplayLanguage, EventData, EditorState } from "./types";
 import { DISPLAY_MODES, DEFAULT_DISPLAY_MODE_ID, getDisplayMode } from "./displayModes";
 import { ASPECT_RATIOS, DEFAULT_ASPECT_RATIO_ID, getAspectRatio } from "./aspectRatios";
 import { readLiveSnapshot, writeLiveSnapshot, requestDisplayReload } from "./liveBridge";
@@ -30,6 +30,7 @@ let rootEl: HTMLElement;
 let displayModeSwitcherEl: HTMLElement;
 let aspectRatioSwitcherEl: HTMLElement;
 let displayControlsEl: HTMLElement;
+let viewerControlsEl: HTMLElement;
 let langSwitcherEl: HTMLElement;
 let authControlsEl: HTMLElement;
 let settingsControlsEl: HTMLElement;
@@ -58,6 +59,7 @@ export function init(root: HTMLElement): void {
   displayModeSwitcherEl = el("div", { class: "display-mode-switcher" });
   aspectRatioSwitcherEl = el("div", { class: "aspect-ratio-switcher" });
   displayControlsEl = el("div", { class: "display-controls" });
+  viewerControlsEl = el("div", { class: "viewer-controls" });
   langSwitcherEl = el("div", { class: "lang-switcher" });
   settingsControlsEl = el("div", { class: "settings-controls" });
   authControlsEl = el("div", { class: "auth-controls" });
@@ -67,6 +69,7 @@ export function init(root: HTMLElement): void {
     viewToggleEl,
     displayModeSwitcherEl,
     aspectRatioSwitcherEl,
+    viewerControlsEl,
     displayControlsEl,
     saveBarEl,
     langSwitcherEl,
@@ -87,10 +90,11 @@ export function init(root: HTMLElement): void {
 
   renderSaveBar();
   renderDisplayControls();
+  renderViewerControls();
   renderLangSwitcher();
   renderVersionIndicator();
   renderAuthControls(authControlsEl, onSignedIn);
-  renderSettingsControls(settingsControlsEl, onSettingsSaved, onDisplaySettingsChanged);
+  renderSettingsControls(settingsControlsEl);
   renderViewToggle();
   applyViewMode();
   // Paint skeletons immediately so the first (network-bound) load reads as
@@ -109,10 +113,11 @@ export function init(root: HTMLElement): void {
     renderViewToggle();
     renderSaveBar();
     renderDisplayControls();
+    renderViewerControls();
     renderLangSwitcher();
     renderVersionIndicator();
     renderAuthControls(authControlsEl, onSignedIn);
-    renderSettingsControls(settingsControlsEl, onSettingsSaved, onDisplaySettingsChanged);
+    renderSettingsControls(settingsControlsEl);
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
     mirrorToLive();
@@ -260,6 +265,52 @@ function onDisplayControlChanged(): void {
   mirrorToLive();
   updateSaveButtonState();
   renderDisplayControls();
+}
+
+const TEXT_SCALE_MIN = 0.6;
+const TEXT_SCALE_MAX = 1.6;
+const TEXT_SCALE_STEP = 0.05;
+
+/** Viewer (display) controls in the header: the DISPLAY language toggle and a
+ * text-size -/+ stepper. Both write the display config (state + configPatch),
+ * mirror live, and ride the next Sync. Separate from the admin-UI language
+ * (langSwitcher) so you can admin in one language and view in another. */
+function renderViewerControls(): void {
+  clear(viewerControlsEl);
+  viewerControlsEl.append(el("span", { class: "viewer-ctl-label" }, [t("header.display")]));
+
+  const setDisplayLang = (lang: DisplayLanguage): void => {
+    if (state.displayLanguage === lang) return;
+    state.displayLanguage = lang;
+    state.configPatch.displayLanguage = lang;
+    mirrorToLive();
+    updateSaveButtonState();
+    renderViewerControls();
+  };
+  (["ja", "en"] as DisplayLanguage[]).forEach((lang) => {
+    const active = state.displayLanguage === lang;
+    const b = el("button", { class: `btn btn-small ${active ? "btn-primary" : "btn-secondary"}`, title: t("header.displayLangHint") }, [
+      lang === "ja" ? "日本語" : "EN",
+    ]);
+    b.addEventListener("click", () => setDisplayLang(lang));
+    viewerControlsEl.append(b);
+  });
+
+  const scale = typeof state.textScale === "number" ? state.textScale : 1;
+  const stepScale = (delta: number): void => {
+    const next = Math.min(TEXT_SCALE_MAX, Math.max(TEXT_SCALE_MIN, Math.round((scale + delta) * 100) / 100));
+    if (next === scale) return;
+    state.textScale = next;
+    state.configPatch.textScale = next;
+    mirrorToLive();
+    updateSaveButtonState();
+    renderViewerControls();
+  };
+  const dec = el("button", { class: "btn btn-small btn-secondary", title: t("header.textSize") }, ["A−"]);
+  dec.addEventListener("click", () => stepScale(-TEXT_SCALE_STEP));
+  const inc = el("button", { class: "btn btn-small btn-secondary", title: t("header.textSize") }, ["A+"]);
+  inc.addEventListener("click", () => stepScale(TEXT_SCALE_STEP));
+  viewerControlsEl.append(dec, el("span", { class: "viewer-ctl-value" }, [`${scale.toFixed(2)}×`]), inc);
 }
 
 /** Build an ISO finish timestamp for TODAY at the given HH:MM (local), or null
@@ -577,23 +628,6 @@ async function pullFromGitHub(): Promise<void> {
   } catch (err) {
     setStatus(`Pull failed: ${(err as Error).message}`, true);
   }
-}
-
-function onSettingsSaved(): void {
-  setStatus(t("settings.saved"));
-  if (isSignedIn()) {
-    void loadEventsTree();
-  }
-}
-
-/** Called by the settings panel after any Display-settings edit (language /
- * text size / labels). Those edits mutate state + state.configPatch directly
- * (see settingsPanel.ts); this refreshes the live preview and the Save
- * button so the effect is visible immediately and Save picks it up. */
-function onDisplaySettingsChanged(): void {
-  setStatus(t("settings.displaySettingsStaged"));
-  mirrorToLive();
-  updateSaveButtonState();
 }
 
 function setStatus(message: string, isError = false): void {
