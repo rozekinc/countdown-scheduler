@@ -46,8 +46,9 @@ export interface AppState {
   redFlag: RedFlagState;
 
   /** Display controls, driven from the admin header and mirrored to the
-   * display live (they ride Sync into display.json too). */
-  currentPage: "countdown" | "schedule";
+   * display live (they ride Sync into display.json too). A page id -- base
+   * pages "countdown"/"schedule", plus any operator-added pages. */
+  currentPage: string;
   scrollPaused: boolean;
   showOutline: boolean;
 

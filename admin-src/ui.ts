@@ -203,16 +203,25 @@ function updateSaveButtonState(): void {
 function renderDisplayControls(): void {
   clear(displayControlsEl);
 
-  const onSchedule = state.currentPage === "schedule";
-  const pageBtn = iconButton(
-    "swap",
-    onSchedule ? "Showing Schedule — switch to Countdown" : "Showing Countdown — switch to Schedule",
-    `btn btn-small icon-btn ${onSchedule ? "btn-primary" : "btn-secondary"}`,
-  );
-  pageBtn.addEventListener("click", () => {
-    state.currentPage = onSchedule ? "countdown" : "schedule";
+  // Page selector: which page the DISPLAY shows (切替). Lists the base pages
+  // plus any operator-added pages (from the layout).
+  const pages = [
+    { id: "countdown", name: t("le.countdown") },
+    { id: "schedule", name: t("le.schedule") },
+    ...(state.layout?.pages ?? []).map((p) => ({ id: p.id, name: p.name || p.id })),
+  ];
+  if (!pages.some((p) => p.id === state.currentPage)) state.currentPage = "countdown";
+  const pageSelect = el("select", { class: "display-page-select", title: t("header.showingPage") }) as HTMLSelectElement;
+  for (const pg of pages) {
+    const opt = el("option", { value: pg.id }, [pg.name]);
+    if (pg.id === state.currentPage) opt.setAttribute("selected", "selected");
+    pageSelect.append(opt);
+  }
+  pageSelect.addEventListener("change", () => {
+    state.currentPage = pageSelect.value;
     onDisplayControlChanged();
   });
+  displayControlsEl.append(icon("swap"), pageSelect);
 
   const rfOn = !!state.redFlag.active;
   const rfBtn = iconButton(
@@ -256,7 +265,7 @@ function renderDisplayControls(): void {
     setStatus("Asked the display to refresh.");
   });
 
-  displayControlsEl.append(pageBtn, rfBtn, scrollBtn, outlineBtn, refreshBtn);
+  displayControlsEl.append(rfBtn, scrollBtn, outlineBtn, refreshBtn);
 }
 
 /** Shared post-toggle wiring for the display-control buttons. */
@@ -516,6 +525,8 @@ const layoutEditorCtx: LayoutEditorCtx = {
     state.layoutDirty = true;
     mirrorToLive();
     updateSaveButtonState();
+    // Keep the header page selector in sync with added/renamed/deleted pages.
+    renderDisplayControls();
   },
 };
 

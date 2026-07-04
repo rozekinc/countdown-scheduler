@@ -20,7 +20,23 @@
 //
 // Keep this file identical to admin-src/layout.ts.
 
-export type ItemPage = "countdown" | "schedule";
+// A page id. The two BASE pages "countdown" and "schedule" always exist and
+// cannot be renamed or removed; any further pages are operator-added (see
+// LayoutDoc.pages) with their own ids + editable names.
+export type ItemPage = string;
+
+/** The always-present base pages, in order. */
+export const BASE_PAGE_IDS = ["countdown", "schedule"] as const;
+
+export function isBasePage(id: string): boolean {
+  return id === "countdown" || id === "schedule";
+}
+
+/** An operator-added page (beyond the two base pages). */
+export interface PageDef {
+  id: string;
+  name: string;
+}
 
 export type ItemType =
   | "clock"
@@ -99,6 +115,8 @@ export interface LayoutItem {
   countdown?: Placement;
   /** Placement on the schedule page (omit = not shown there). */
   schedule?: Placement;
+  /** Placements on operator-added pages, keyed by page id (omit = not shown). */
+  pages?: Record<string, Placement>;
   z: number;
   hidden?: boolean;
   props: ItemProps;
@@ -108,6 +126,13 @@ export interface LayoutDoc {
   items: LayoutItem[];
   /** Schema version, bumped by migrateLayout(). Absent/old = needs migration. */
   version?: number;
+  /** Operator-added pages beyond the two base pages (countdown, schedule). */
+  pages?: PageDef[];
+}
+
+/** All page ids in order: the two base pages, then any added pages. */
+export function pageIds(doc: LayoutDoc): string[] {
+  return [...BASE_PAGE_IDS, ...(doc.pages ?? []).map((p) => p.id)];
 }
 
 /** Current layout schema version (see migrateLayout). */
@@ -143,12 +168,34 @@ export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
 
 /** The placement for a page, or undefined when the item isn't on that page. */
 export function placementFor(item: LayoutItem, page: ItemPage): Placement | undefined {
-  return page === "countdown" ? item.countdown : item.schedule;
+  if (page === "countdown") return item.countdown;
+  if (page === "schedule") return item.schedule;
+  return item.pages?.[page];
+}
+
+/** Set (or replace) the item's placement on a page. */
+export function setPlacement(item: LayoutItem, page: ItemPage, geom: Placement): void {
+  if (page === "countdown") item.countdown = geom;
+  else if (page === "schedule") item.schedule = geom;
+  else (item.pages ??= {})[page] = geom;
+}
+
+/** Remove the item's placement from a page (so it's no longer shown there). */
+export function clearPlacement(item: LayoutItem, page: ItemPage): void {
+  if (page === "countdown") delete item.countdown;
+  else if (page === "schedule") delete item.schedule;
+  else if (item.pages) delete item.pages[page];
 }
 
 /** Whether the item appears on the given page. */
 export function onPage(item: LayoutItem, page: ItemPage): boolean {
   return !!placementFor(item, page);
+}
+
+/** Whether the item is placed on ANY page (base or added). Used to decide
+ * whether its host belongs in the DOM at all. */
+export function onAnyPage(item: LayoutItem): boolean {
+  return !!item.countdown || !!item.schedule || Object.keys(item.pages ?? {}).length > 0;
 }
 
 const P = (x: number, y: number, w: number, h: number): Placement => ({ x, y, w, h });

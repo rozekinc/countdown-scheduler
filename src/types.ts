@@ -56,9 +56,10 @@ export interface DisplayConfig {
   labels?: Partial<Record<LabelKey, Label>> | null;
   /** Red-flag / session-stoppage state, toggled from the admin. */
   redFlag?: RedFlagState | null;
-  /** Which page the display shows (切替). Driven from the admin now, not a
-   * local button on the display. Default "countdown". */
-  currentPage?: "countdown" | "schedule" | null;
+  /** Which page the display shows (切替) -- a page id. The base pages are
+   * "countdown" and "schedule"; operator-added pages have their own ids (see
+   * the layout). Driven from the admin. Default "countdown". */
+  currentPage?: string | null;
   /** Whether all auto-scrollers are paused (snapped to top). Driven from the
    * admin. Default false. */
   scrollPaused?: boolean | null;

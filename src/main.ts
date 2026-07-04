@@ -145,13 +145,13 @@ async function main(): Promise<void> {
   // Which page the display currently shows. The 切替 toggle, red flag, and
   // scroll pause are driven from the ADMIN now (they ride the display config /
   // live snapshot), not from on-display buttons.
-  let lastAppliedPage: "countdown" | "schedule" | null = null;
+  let lastAppliedPage: string | null = null;
   function applyControls(cfg: DisplayConfig): void {
     document.body.classList.toggle("marquee-paused", !!cfg.scrollPaused);
     document.body.classList.toggle("show-outline", !!cfg.showOutline);
     countdownController.setRedFlag(cfg.redFlag);
 
-    const page = cfg.currentPage === "schedule" ? "schedule" : "countdown";
+    const page = cfg.currentPage ?? "countdown";
     const pageChanged = page !== lastAppliedPage;
     lastAppliedPage = page;
     setPage(page);

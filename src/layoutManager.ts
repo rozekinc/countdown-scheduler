@@ -14,7 +14,7 @@
 
 import {
   isSingleton,
-  onPage,
+  onAnyPage,
   placementFor,
   SINGLETON_TYPES,
   type ItemPage,
@@ -229,10 +229,9 @@ export function applyLayout(items: LayoutItem[], config: DisplayConfig): void {
       else if (item.type === "image") renderImageItem(host, item);
       else if (item.type === "schedule") renderScheduleItem(host, item, config);
 
-      // An item is in the DOM (display:"") if it appears on EITHER page; its
-      // per-page visibility is handled by opacity so it can animate.
-      const anywhere = onPage(item, "countdown") || onPage(item, "schedule");
-      host.style.display = item.hidden || !anywhere ? "none" : "";
+      // An item is in the DOM (display:"") if it appears on ANY page (base or
+      // added); its per-page visibility is handled by opacity so it can animate.
+      host.style.display = item.hidden || !onAnyPage(item) ? "none" : "";
       applyPlacement(host, item.hidden ? undefined : placementFor(item, currentPage));
     }
   });
