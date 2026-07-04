@@ -46,9 +46,13 @@ function playSequentialSounds(sounds: HTMLAudioElement[]): void {
 export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig): CountdownController {
   const mainElem = document.getElementById("main") as HTMLElement;
   const titleElem = document.getElementById("title") as HTMLElement;
+  // The title now lives in its own singleton host (#li-countdownTitle), split
+  // out of #main so it fits its own bounded height independently of the timer.
+  const titleHostElem = document.getElementById("li-countdownTitle") as HTMLElement | null;
   const countdownElem = document.getElementById("countdown") as HTMLElement;
   const announcementElem = document.getElementById("announcement") as HTMLElement;
   const listElem = document.getElementById("list-viewport") as HTMLElement;
+  const pinnedElem = document.getElementById("list-next-pinned") as HTMLElement | null;
   const redFlagElem = document.getElementById("red-flag") as HTMLElement;
   const redFlagTextElem = document.getElementById("red-flag-text") as HTMLElement;
   const stoppageElem = document.getElementById("stoppage") as HTMLElement;
@@ -102,10 +106,15 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
   let redFlagSinceMs = 0;
   let stoppageInterval: number | undefined;
 
-  // Re-fit the title/countdown block to its bounded height after the browser
-  // has laid out new content, so a long title shrinks instead of overflowing.
+  // Re-fit the title and the countdown/timer block, each to its OWN bounded
+  // host, after the browser has laid out new content -- so a long title shrinks
+  // within its box without dragging the timer's size down with it (and vice
+  // versa). The two hosts are sized independently by the layout.
   function fitMain(): void {
-    window.requestAnimationFrame(() => fitToHeight(mainElem));
+    window.requestAnimationFrame(() => {
+      if (titleHostElem) fitToHeight(titleHostElem);
+      fitToHeight(mainElem);
+    });
   }
 
   // Freeze the main countdown at the time remaining when the flag was raised
@@ -198,17 +207,41 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
     return `${d.getMonth() + 1}月${d.getDate()}日`;
   }
 
+  function rowHtml(item: ParsedRow, extraCls: string): string {
+    return (
+      `<li${extraCls}>` +
+      `<div class="title"><span class="bullet">▶</span>${colorizeKeywords(item.title, keywords).replace(/\n/g, "<br>")}</div>` +
+      `<div class="time">${hhmmss(item.time)}</div>` +
+      `</li>`
+    );
+  }
+
   function updateScheduleList(): void {
     const now = getNow();
     const apps = getApps();
     const upcoming = parsedSchedule.slice(currentIndex + 1);
-    // Seed with the day of the item currently counting down (shown in #main),
-    // so a header is inserted only when the list crosses into a NEW day.
-    let lastDayKey: string | null =
-      currentIndex < parsedSchedule.length ? dayKeyOf(parsedSchedule[currentIndex].time) : null;
+
+    // The immediately-next item stays PINNED static at the top of the side
+    // list; only the items after it scroll. (The item currently counting down
+    // is shown separately in #main.)
+    const pinned = upcoming[0];
+    if (pinnedElem) {
+      pinnedElem.innerHTML = pinned
+        ? `<ul class="list-pinned-ul">${rowHtml(pinned, ' class="row-next"')}</ul>`
+        : "";
+    }
+
+    // Seed the day key from the pinned item (else the item in #main), so a day
+    // header is inserted in the scrolling remainder only when it crosses into a
+    // NEW day relative to what's already shown pinned above it.
+    let lastDayKey: string | null = pinned
+      ? dayKeyOf(pinned.time)
+      : currentIndex < parsedSchedule.length
+        ? dayKeyOf(parsedSchedule[currentIndex].time)
+        : null;
 
     let html = "";
-    upcoming.forEach((item, position) => {
+    upcoming.slice(1).forEach((item) => {
       const dk = dayKeyOf(item.time);
       if (dk !== lastDayKey) {
         lastDayKey = dk;
@@ -218,14 +251,7 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
         html +=
           `<li><div class="list-day-header">---------------------<br>${label}</div></li>`;
       }
-      // The item currently counting down is shown separately in #main;
-      // the first entry here is the one coming up right after it.
-      const cls = position === 0 ? ' class="row-next"' : "";
-      html +=
-        `<li${cls}>` +
-        `<div class="title"><span class="bullet">▶</span>${colorizeKeywords(item.title, keywords).replace(/\n/g, "<br>")}</div>` +
-        `<div class="time">${hhmmss(item.time)}</div>` +
-        `</li>`;
+      html += rowHtml(item, "");
     });
 
     setScrollingList(listElem, html);

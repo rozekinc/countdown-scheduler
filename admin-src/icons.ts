@@ -37,6 +37,16 @@ const PATHS: Record<string, string> = {
   rename: '<path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/>',
   // drag handle (6-dot grip)
   grip: '<circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/>',
+  // page toggle (切替 -- two screens swapping)
+  swap: '<path d="M4 8h11l-3-3M20 16H9l3 3"/>',
+  // red flag (safety stoppage)
+  flag: '<path d="M5 21V4"/><path d="M5 4h13l-2.5 4L18 12H5"/>',
+  // pause scrolling
+  pause: '<rect x="7" y="5" width="3.5" height="14"/><rect x="13.5" y="5" width="3.5" height="14"/>',
+  // resume scrolling (play)
+  play: '<path d="M7 5l12 7-12 7z"/>',
+  // show outline (dashed frame)
+  outline: '<rect x="3" y="4" width="18" height="16" rx="1" stroke-dasharray="3 2"/>',
 };
 
 export function icon(name: keyof typeof PATHS | string): HTMLElement {

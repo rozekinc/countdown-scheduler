@@ -1,19 +1,18 @@
 import "./styles.css";
 import { loadConfig, createEventDataSource, watchDisplaySettings, loadLayout } from "./dataClient";
 import { applyTheme, applyAspectRatio } from "./theme";
-import { initCountdown, type CountdownController } from "./countdown";
+import { initCountdown } from "./countdown";
 import { initSchedule } from "./schedule";
 import { initVersionBadge } from "./versionBadge";
 import { resolveLabel, displayLanguage } from "./labels";
-import { defaultLayout, type LayoutItem } from "./layout";
+import { defaultLayout, migrateLayout, LAYOUT_VERSION, type LayoutItem, type LayoutDoc } from "./layout";
 import { applyLayout, setPage } from "./layoutManager";
 import {
   readLiveSnapshot,
-  writeLiveSnapshot,
   onLiveChange,
   type LiveSnapshot,
 } from "./liveBridge";
-import type { DisplayConfig, EventData, RedFlagState } from "./types";
+import type { DisplayConfig, EventData } from "./types";
 
 interface FullscreenDocumentElement extends HTMLElement {
   webkitRequestFullscreen?: () => void;
@@ -84,35 +83,18 @@ function enterFullscreen(): void {
   }
 }
 
-/**
- * Countdown vs. schedule is a local, on-screen toggle -- not data written
- * anywhere. The button re-targets each item to its per-page placement; items
- * placed differently on the two pages animate between them (see
- * layoutManager.setPage).
- */
-function setupScreenToggle(onPageShown: () => void): void {
-  const toggleBtn = document.getElementById("toggle-btn");
-  let isScheduleMode = false;
-  toggleBtn?.addEventListener("click", () => {
-    isScheduleMode = !isScheduleMode;
-    setPage(isScheduleMode ? "schedule" : "countdown");
-    // After the page-swap transition settles, re-render so scrollers measure
-    // against the now-visible (full-height) hosts and set up correctly.
-    window.setTimeout(onPageShown, 560);
-  });
-}
-
 // Populates the static chrome text (current-time label, next-schedule
-// heading, toggle button) from the editable labels, and sets the document
-// language. Re-run live when display.json's labels/language change.
+// heading) from the editable labels, and sets the document language. Re-run
+// live when display.json's labels/language change. NOTE: the clock label and
+// next-schedule heading can also be split into standalone bilingual text items
+// (see the layout); when they are, the built-in labels here are hidden by CSS,
+// so writing them is harmless.
 function applyChromeLabels(config: DisplayConfig): void {
   document.documentElement.lang = displayLanguage(config);
   const timeLabel = document.getElementById("time-label");
   if (timeLabel) timeLabel.textContent = resolveLabel(config, "currentTime");
   const nextScheduleLabel = document.getElementById("next-schedule-label");
   if (nextScheduleLabel) nextScheduleLabel.textContent = resolveLabel(config, "nextSchedule");
-  const toggleBtn = document.getElementById("toggle-btn");
-  if (toggleBtn) toggleBtn.textContent = resolveLabel(config, "toggle");
 }
 
 // Global font-size multiplier exposed as a CSS var the display's font-size
@@ -120,50 +102,6 @@ function applyChromeLabels(config: DisplayConfig): void {
 function applyTextScale(config: DisplayConfig): void {
   const scale = typeof config.textScale === "number" && config.textScale > 0 ? config.textScale : 1;
   document.documentElement.style.setProperty("--text-scale", String(scale));
-}
-
-// On-display operator controls: red flag, marquee start/stop, and the
-// data-source toggle. These live on the display itself so an operator at the
-// screen can drive it without opening the admin.
-function setupOperatorControls(
-  countdownController: CountdownController,
-  getConfig: () => DisplayConfig,
-): void {
-  const rfBtn = document.getElementById("redflag-btn");
-  let redFlagOn = !!getConfig().redFlag?.active;
-  const renderRf = (): void => {
-    if (!rfBtn) return;
-    rfBtn.textContent = redFlagOn ? "🚩 Red flag ON" : "🚩 Red flag";
-    rfBtn.classList.toggle("on", redFlagOn);
-  };
-  renderRf();
-  rfBtn?.addEventListener("click", () => {
-    redFlagOn = !redFlagOn;
-    const state: RedFlagState = redFlagOn
-      ? { active: true, since: new Date().toISOString() }
-      : { active: false, since: null };
-    countdownController.setRedFlag(state);
-    renderRf();
-    // Propagate into the live snapshot so a same-browser admin reflects it.
-    const snap = readLiveSnapshot();
-    if (snap) {
-      snap.config = { ...snap.config, redFlag: state };
-      snap.ts = Date.now();
-      writeLiveSnapshot(snap);
-    }
-  });
-
-  const mqBtn = document.getElementById("marquee-btn");
-  let marqueePaused = false;
-  const renderMq = (): void => {
-    if (mqBtn) mqBtn.textContent = marqueePaused ? "▶ Scroll" : "⏸ Scroll";
-  };
-  renderMq();
-  mqBtn?.addEventListener("click", () => {
-    marqueePaused = !marqueePaused;
-    document.body.classList.toggle("marquee-paused", marqueePaused);
-    renderMq();
-  });
 }
 
 async function main(): Promise<void> {
@@ -201,6 +139,33 @@ async function main(): Promise<void> {
   function applyEvent(data: EventData): void {
     countdownController.setEventData(data);
     scheduleController.setEventData(data);
+  }
+
+  // Which page the display currently shows. The 切替 toggle, red flag, and
+  // scroll pause are driven from the ADMIN now (they ride the display config /
+  // live snapshot), not from on-display buttons.
+  let lastAppliedPage: "countdown" | "schedule" | null = null;
+  function applyControls(cfg: DisplayConfig): void {
+    document.body.classList.toggle("marquee-paused", !!cfg.scrollPaused);
+    document.body.classList.toggle("show-outline", !!cfg.showOutline);
+    countdownController.setRedFlag(cfg.redFlag);
+
+    const page = cfg.currentPage === "schedule" ? "schedule" : "countdown";
+    const pageChanged = page !== lastAppliedPage;
+    lastAppliedPage = page;
+    setPage(page);
+    if (pageChanged) {
+      // After the page-swap transition settles, re-measure so scrollers set up
+      // against the now-visible (full-height) hosts. Re-running the layout
+      // rebuilds the dynamic `schedule` items' scrollers too (they're placed by
+      // the layout manager, not a controller). (This used to hang off the
+      // toggle click, before 切替 moved to the admin.)
+      window.setTimeout(() => {
+        renderCurrentLayout();
+        countdownController.refresh();
+        scheduleController.refresh();
+      }, 560);
+    }
   }
 
   // GitHub mode: poll raw for the active event and feed the controllers.
@@ -245,16 +210,27 @@ async function main(): Promise<void> {
     applyTextScale(cfg);
     applyAspectRatio(cfg.aspectRatioId ?? null);
     applyTheme(cfg.displayModeId ?? null);
-    currentLayout = snap.layout?.items ?? defaultLayout().items;
-    renderCurrentLayout();
     // Prefer the event being edited (previewEventId) so schedule/countdown
     // edits show live; fall back to the active event.
     const eventId = snap.previewEventId ?? cfg.activeEventId ?? null;
     const event = eventId ? snap.events[eventId] : undefined;
+    // Migrate a pre-v2 snapshot layout defensively (e.g. one written by an
+    // older admin before this browser refreshed it), seeding the converted
+    // schedule item from the snapshot's own event so no content is lost.
+    let layoutDoc: LayoutDoc =
+      snap.layout && Array.isArray(snap.layout.items) ? snap.layout : defaultLayout();
+    if ((layoutDoc.version ?? 0) < LAYOUT_VERSION) {
+      const entries = event?.scheduleDays.flatMap((d) =>
+        d.items.map((i) => ({ title: i.title, detail: i.detail })),
+      );
+      layoutDoc = migrateLayout(layoutDoc, entries);
+    }
+    currentLayout = layoutDoc.items;
+    renderCurrentLayout();
     if (event) applyEvent(event);
     countdownController.refresh();
     scheduleController.refresh();
-    countdownController.setRedFlag(cfg.redFlag);
+    applyControls(cfg);
     updateVersionBadge(cfg);
   }
 
@@ -285,7 +261,7 @@ async function main(): Promise<void> {
     applyTheme(config.displayModeId ?? null);
     loadAndRenderLayout();
     runEvent(config.activeEventId ?? null);
-    countdownController.setRedFlag(config.redFlag);
+    applyControls(config);
 
     watchDisplaySettings(
       config,
@@ -316,12 +292,10 @@ async function main(): Promise<void> {
         renderCurrentLayout();
         countdownController.refresh();
         scheduleController.refresh();
-        countdownController.setRedFlag(data.redFlag);
+        applyControls(data);
       },
     );
   }
-
-  setupOperatorControls(countdownController, () => currentConfig);
 
   // Re-fit the countdown block when the window/stage size changes (the fit is
   // height-bounded, so a resize can change how much the title needs to shrink).
@@ -334,15 +308,9 @@ async function main(): Promise<void> {
     }, 150);
   });
 
-  // Wire up interaction and start the clock IMMEDIATELY -- do NOT block the
-  // whole UI on the time sync. worldtimeapi can be slow or unreachable (it
-  // retries with backoff), and awaiting it here froze the toggle and clock
-  // for several seconds on load.
-  setupScreenToggle(() => {
-    countdownController.refresh();
-    scheduleController.refresh();
-  });
-
+  // Start the clock IMMEDIATELY -- do NOT block the whole UI on the time sync.
+  // worldtimeapi can be slow or unreachable (it retries with backoff), and
+  // awaiting it here froze the clock for several seconds on load.
   const fullscreenBtn = document.getElementById("fullscreen-btn");
   fullscreenBtn?.addEventListener("click", enterFullscreen);
 

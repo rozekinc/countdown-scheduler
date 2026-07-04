@@ -751,3 +751,87 @@ body.marquee-paused .marquee-inner {
 /* scrollbar tuning */
 #schedule-list::-webkit-scrollbar { width: 8px; }
 #schedule-list::-webkit-scrollbar-thumb { background-color: #cacabc; border-radius: 4px; }
+
+/* --- split titles ------------------------------------------------------- */
+
+/* Countdown title host: the event title + target time, now its own placeable
+   singleton (was nested in #main). Centered, and fit to its own bounded height
+   via --fit-scale (src/countdown.ts fitMain calls fitToHeight on this host). */
+#li-countdownTitle {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 0.4cqh 1cqw;
+  overflow: hidden;
+}
+#li-countdownTitle #title {
+  width: 100%;
+}
+
+/* The four "titles" can be split into standalone text items; when they are,
+   the built-in label/heading/prefix baked into the clock / list / announcement
+   singletons is switched off so the two don't double up. */
+.layout-item[data-show-label="off"] .time-label,
+.layout-item[data-show-heading="off"] #schedule-list h2,
+.layout-item[data-show-prefix="off"] .announcement-label {
+  display: none;
+}
+
+/* --- multi-instance schedule item --------------------------------------- */
+
+/* A `schedule` item: its own heading over an auto-scrolling rows area, styled
+   like the schedule screen's columns. Fills its layout-item host. */
+.item-schedule {
+  background: color-mix(in srgb, var(--theme-background, #fff) 80%, var(--theme-primary, #e60000) 20%);
+}
+.item-schedule-inner {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.2cqh 2cqw;
+  overflow: hidden;
+}
+.item-schedule .schedule-item-heading {
+  flex: 0 0 auto;
+  font-size: calc(clamp(20px, 2.6cqw, 40px) * var(--text-scale, 1) * var(--item-scale, 1));
+  font-weight: bold;
+  text-align: center;
+  color: var(--theme-surface-text, #333);
+  margin-bottom: 1cqh;
+}
+/* The rows area takes the height left under the heading and clips, so the
+   vertical auto-scroller (setScrollingContent) can loop a long list. */
+.item-schedule .schedule-col-items {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* --- pinned next-schedule item (countdown side list) -------------------- */
+
+/* The immediately-next item is pinned static here above the scrolling
+   remainder; it reuses the list's <li> styling (it's inside #schedule-list). */
+#list-next-pinned {
+  flex: 0 0 auto;
+  width: 100%;
+}
+#list-next-pinned .list-pinned-ul {
+  list-style-type: none;
+  padding-left: 1em;
+}
+
+/* --- placement outline (admin "Show outline") --------------------------- */
+
+/* When the admin turns on "Show outline", every layout item on the display
+   gets a dashed outline so the operator can confirm positions in the live
+   view. It's a transient aid, not committed content. */
+body.show-outline .layout-item {
+  outline: 1px dashed rgba(255, 0, 0, 0.7);
+  outline-offset: -1px;
+}

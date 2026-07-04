@@ -17,6 +17,7 @@ import { applyPreviewTheme } from "./previewTheme";
 import { isSignedIn } from "./auth";
 import { listDir, commitFiles } from "./githubApi";
 import { LABEL_EDITOR_FIELDS } from "./labels";
+import { icon } from "./icons";
 import {
   ADDABLE_TYPES,
   ITEM_TYPE_LABELS,
@@ -29,6 +30,7 @@ import {
   type ItemType,
   type LayoutItem,
   type Placement,
+  type ScheduleEntry,
 } from "./layout";
 
 export interface LayoutEditorCtx {
@@ -154,8 +156,10 @@ function addItem(type: ItemType): void {
     [previewPage]: geom,
     props:
       type === "text"
-        ? { source: "literal", text: "Text", align: "center", fontScale: 1 }
-        : { assetPath: "media/images/ロゴ.png", fit: "contain", opacity: 1 },
+        ? { source: "literal", textI18n: { ja: "テキスト", en: "Text" }, align: "center", fontScale: 1 }
+        : type === "schedule"
+          ? { fontScale: 1, heading: { ja: "スケジュール", en: "Schedule" }, entries: [] }
+          : { assetPath: "media/images/ロゴ.png", fit: "contain", opacity: 1 },
   };
   state.layout.items.push(item);
   selectedId = id;
@@ -447,9 +451,22 @@ function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => v
           selectField("Label", p.labelKey ?? "currentTime", LABEL_EDITOR_FIELDS.map((f) => ({ value: f.key, label: f.key })), (v) => (p.labelKey = v), rerender),
         );
       } else {
-        panel.append(textField("Text", p.text ?? "", (v) => (p.text = v), rerender));
+        // Bilingual literal: the display renders whichever language is active.
+        // Seed from a legacy single `text` value if that's all the item has.
+        if (!p.textI18n) p.textI18n = { ja: p.text ?? "", en: p.text ?? "" };
+        panel.append(textField("Text (日本語)", p.textI18n.ja, (v) => (p.textI18n!.ja = v), rerender));
+        panel.append(textField("Text (English)", p.textI18n.en, (v) => (p.textI18n!.en = v), rerender));
       }
       panel.append(alignField(p.align ?? "center", (v) => (p.align = v), rerender));
+      panel.append(fontSlider());
+      break;
+    }
+    case "schedule": {
+      panel.append(el("h4", {}, ["Heading"]));
+      if (!p.heading) p.heading = { ja: "", en: "" };
+      panel.append(textField("Heading (日本語)", p.heading.ja, (v) => (p.heading!.ja = v), rerender));
+      panel.append(textField("Heading (English)", p.heading.en, (v) => (p.heading!.en = v), rerender));
+      renderScheduleEntries(panel, item, rerender, live);
       panel.append(fontSlider());
       break;
     }
@@ -468,7 +485,19 @@ function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => v
     case "clock": {
       panel.append(el("h4", {}, ["Clock"]));
       panel.append(alignField(p.align ?? "right", (v) => (p.align = v), rerender));
-      panel.append(checkboxField("Show label", p.showLabel ?? true, (v) => (p.showLabel = v), rerender));
+      panel.append(checkboxField("Show built-in label", p.showLabel ?? true, (v) => (p.showLabel = v), rerender));
+      panel.append(fontSlider());
+      break;
+    }
+    case "scheduleList": {
+      panel.append(el("h4", {}, ["Next-schedule list"]));
+      panel.append(checkboxField("Show built-in heading", p.showHeading ?? true, (v) => (p.showHeading = v), rerender));
+      panel.append(fontSlider());
+      break;
+    }
+    case "announcement": {
+      panel.append(el("h4", {}, ["Announcement"]));
+      panel.append(checkboxField("Show built-in prefix", p.showPrefix ?? true, (v) => (p.showPrefix = v), rerender));
       panel.append(fontSlider());
       break;
     }
@@ -482,7 +511,10 @@ function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => v
   // Singletons scroll by default (checked); text items default off.
   const showH = item.type === "announcement" || item.type === "text";
   const showV =
-    item.type === "scheduleList" || item.type === "scheduleColumns" || item.type === "text";
+    item.type === "scheduleList" ||
+    item.type === "scheduleColumns" ||
+    item.type === "schedule" ||
+    item.type === "text";
   if (showH || showV) {
     panel.append(el("h4", {}, ["Scroll"]));
     if (showH) {
@@ -494,6 +526,122 @@ function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => v
       panel.append(checkboxField("Vertical", on, (v) => (p.scrollV = v), rerender));
     }
   }
+}
+
+// --- schedule item rows ---------------------------------------------------
+
+// Module-level drag state for the schedule-entry reorder, mirroring ui.ts's
+// makeReorderable (replicated locally to avoid a circular import).
+let entryDragArr: ScheduleEntry[] | null = null;
+let entryDragIndex = -1;
+
+/** The add/remove/drag-reorder list of {title, detail} rows for a `schedule`
+ * item's own content. Text edits mirror live (no rebuild, so the field keeps
+ * focus); structural changes (add/remove/reorder) do a full re-render. */
+function renderScheduleEntries(
+  panel: HTMLElement,
+  item: LayoutItem,
+  rerender: () => void,
+  live: () => void,
+): void {
+  const entries = (item.props.entries ??= []);
+  panel.append(el("h4", {}, ["Rows"]));
+
+  const list = el("div", { class: "le-entry-list" });
+  entries.forEach((entry, index) => {
+    list.append(renderEntryRow(entry, index, entries, rerender, live));
+  });
+  panel.append(list);
+
+  const addBtn = el("button", { class: "btn btn-secondary btn-small" }, ["+ Add row"]);
+  addBtn.addEventListener("click", () => {
+    entries.push({ title: "", detail: "" });
+    rerender();
+  });
+  panel.append(addBtn);
+}
+
+function renderEntryRow(
+  entry: ScheduleEntry,
+  index: number,
+  arr: ScheduleEntry[],
+  rerender: () => void,
+  live: () => void,
+): HTMLElement {
+  const row = el("div", { class: "le-entry-row" });
+
+  const handle = icon("grip");
+  handle.classList.add("le-entry-grip");
+  makeEntryReorderable(row, handle, index, arr, rerender);
+
+  const titleInput = el("input", { type: "text", class: "row-input", placeholder: "Title", value: entry.title }) as HTMLInputElement;
+  titleInput.addEventListener("input", () => {
+    entry.title = titleInput.value;
+    live();
+  });
+  const detailInput = el("input", { type: "text", class: "row-input", placeholder: "Detail (e.g. 10:30~)", value: entry.detail }) as HTMLInputElement;
+  detailInput.addEventListener("input", () => {
+    entry.detail = detailInput.value;
+    live();
+  });
+
+  const delBtn = el("button", { class: "btn btn-danger btn-small" }, ["×"]);
+  delBtn.addEventListener("click", () => {
+    arr.splice(index, 1);
+    rerender();
+  });
+
+  const fields = el("div", { class: "le-entry-fields" }, [titleInput, detailInput]);
+  row.append(handle, fields, delBtn);
+  return row;
+}
+
+/** Drag-reorder helper for schedule rows (see makeReorderable in ui.ts). */
+function makeEntryReorderable(
+  row: HTMLElement,
+  handle: HTMLElement,
+  index: number,
+  arr: ScheduleEntry[],
+  after: () => void,
+): void {
+  handle.setAttribute("draggable", "true");
+  handle.classList.add("drag-handle");
+  handle.title = "Drag to reorder";
+
+  handle.addEventListener("dragstart", (e) => {
+    entryDragArr = arr;
+    entryDragIndex = index;
+    row.classList.add("dragging");
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(index));
+      e.dataTransfer.setDragImage(row, 12, 12);
+    }
+  });
+  handle.addEventListener("dragend", () => {
+    row.classList.remove("dragging");
+    entryDragArr = null;
+    entryDragIndex = -1;
+  });
+
+  const sameList = (): boolean => entryDragArr === arr;
+  row.addEventListener("dragover", (e) => {
+    if (!sameList()) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    row.classList.add("drag-over");
+  });
+  row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
+  row.addEventListener("drop", (e) => {
+    row.classList.remove("drag-over");
+    if (!sameList() || entryDragIndex === index || entryDragIndex < 0) return;
+    e.preventDefault();
+    const [moved] = arr.splice(entryDragIndex, 1);
+    arr.splice(index, 0, moved);
+    entryDragArr = null;
+    entryDragIndex = -1;
+    after();
+  });
 }
 
 // --- asset picker + upload ------------------------------------------------

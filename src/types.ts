@@ -54,6 +54,15 @@ export interface DisplayConfig {
   labels?: Partial<Record<LabelKey, Label>> | null;
   /** Red-flag / session-stoppage state, toggled from the admin. */
   redFlag?: RedFlagState | null;
+  /** Which page the display shows (切替). Driven from the admin now, not a
+   * local button on the display. Default "countdown". */
+  currentPage?: "countdown" | "schedule" | null;
+  /** Whether all auto-scrollers are paused (snapped to top). Driven from the
+   * admin. Default false. */
+  scrollPaused?: boolean | null;
+  /** Placement-confirmation aid: draw a dashed outline around every layout item
+   * on the display so the operator can verify positions. Default false. */
+  showOutline?: boolean | null;
   /** Persisted admin-editor UI state (admin only; ignored by the display). */
   editorState?: EditorState | null;
 }
