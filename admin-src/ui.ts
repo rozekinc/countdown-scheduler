@@ -3,7 +3,6 @@ import { renderAuthControls } from "./authPanel";
 import { renderSettingsControls } from "./settingsPanel";
 import { getJsonFile, commitFiles, type FileChange } from "./githubApi";
 import { isSignedIn } from "./auth";
-import { parseXlsxToItems } from "./excelImport";
 import { loadAllEvents, type EventSummary } from "./events";
 import {
   state,
@@ -12,7 +11,7 @@ import {
   clearPendingChanges,
   seedLabels,
 } from "./state";
-import type { DisplayConfig, EventData, EditorState, ScheduleItem } from "./types";
+import type { DisplayConfig, EventData, EditorState } from "./types";
 import { DISPLAY_MODES, DEFAULT_DISPLAY_MODE_ID, getDisplayMode } from "./displayModes";
 import { ASPECT_RATIOS, DEFAULT_ASPECT_RATIO_ID, getAspectRatio } from "./aspectRatios";
 import { readLiveSnapshot, writeLiveSnapshot, requestDisplayReload } from "./liveBridge";
@@ -952,7 +951,6 @@ async function selectEvent(id: string, rerender = true): Promise<boolean> {
     state.currentEventId = id;
     state.currentEvent = file.data;
     state.selectedDayIndex = 0;
-    state.pendingImportItems = null;
     state.eventDirty = false;
     state.pendingClose = false;
     state.pendingDelete = false;
@@ -1051,7 +1049,6 @@ function stageNewEvent(id: string, name: string): void {
   state.currentEventId = id;
   state.currentEvent = newEvent;
   state.selectedDayIndex = 0;
-  state.pendingImportItems = null;
   state.pendingClose = false;
   state.pendingDelete = false;
   state.expandedEventIds.add(id);
@@ -1261,9 +1258,8 @@ function renderMainPanel(): void {
 
   const countdownSection = renderCountdownRows(event);
   const daySection = renderDayEditor();
-  const importSection = renderImportSection();
 
-  mainPanelEl.append(eventHeader, actions, announcementField, countdownSection, daySection, importSection);
+  mainPanelEl.append(eventHeader, actions, announcementField, countdownSection, daySection);
 }
 
 function renderCountdownRows(event: EventData): HTMLElement {
@@ -1490,60 +1486,3 @@ function renderDayEditor(): HTMLElement {
   return section;
 }
 
-function renderImportSection(): HTMLElement {
-  const section = el("div", { class: "import-section" });
-  section.append(el("h3", {}, [t("import.title")]));
-
-  const fileInput = el("input", { type: "file", accept: ".xlsx" });
-  fileInput.addEventListener("change", async () => {
-    const input = fileInput as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    try {
-      state.pendingImportItems = await parseXlsxToItems(file);
-      renderMainPanel();
-    } catch (err) {
-      setStatus(t("import.parseFailed", { name: file.name, message: (err as Error).message }), true);
-    }
-  });
-  section.append(fileInput);
-
-  if (state.pendingImportItems) {
-    section.append(el("p", {}, [t("import.parsed", { count: state.pendingImportItems.length })]));
-    const preview = el("div", { class: "rows-table scrollable" });
-    for (const item of state.pendingImportItems) {
-      preview.append(
-        el("div", { class: "row-editor readonly" }, [
-          el("span", { class: "row-input" }, [item.title]),
-          el("span", { class: "row-input" }, [item.detail]),
-        ]),
-      );
-    }
-    section.append(preview);
-
-    const applyBtn = el("button", { class: "btn btn-primary" }, [t("import.apply")]);
-    applyBtn.addEventListener("click", () => {
-      const day = currentDay();
-      const items: ScheduleItem[] = state.pendingImportItems ?? [];
-      if (!day) {
-        setStatus(t("import.noDay"), true);
-        return;
-      }
-      day.items = items;
-      state.pendingImportItems = null;
-      markEventDirty();
-      setStatus(t("import.applied"));
-      renderMainPanel();
-    });
-
-    const cancelBtn = el("button", { class: "btn btn-secondary" }, [t("import.cancel")]);
-    cancelBtn.addEventListener("click", () => {
-      state.pendingImportItems = null;
-      renderMainPanel();
-    });
-
-    section.append(applyBtn, cancelBtn);
-  }
-
-  return section;
-}

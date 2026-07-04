@@ -18,7 +18,9 @@ export type LabelKey =
   | "toggle"
   | "today"
   | "tomorrow"
-  | "dayAfter";
+  | "dayAfter"
+  | "redFlag"
+  | "stoppage";
 
 export const DEFAULT_LABELS: Record<LabelKey, Label> = {
   currentTime: { ja: "現在時刻", en: "Current Time" },
@@ -30,6 +32,8 @@ export const DEFAULT_LABELS: Record<LabelKey, Label> = {
   today: { ja: "今日", en: "Today" },
   tomorrow: { ja: "明日", en: "Tomorrow" },
   dayAfter: { ja: "明後日", en: "Day After" },
+  redFlag: { ja: "赤旗", en: "RED FLAG" },
+  stoppage: { ja: "中断時間", en: "STOPPAGE" },
 };
 
 /** Order + a short description of where each label shows, for the editor. */
@@ -43,4 +47,6 @@ export const LABEL_EDITOR_FIELDS: Array<{ key: LabelKey; where: string }> = [
   { key: "today", where: "Schedule — label under today's date" },
   { key: "tomorrow", where: "Schedule — label under tomorrow's date" },
   { key: "dayAfter", where: "Schedule — label under the day-after's date" },
+  { key: "redFlag", where: "Red flag — the RED FLAG banner title" },
+  { key: "stoppage", where: "Red flag — the stoppage timer label" },
 ];

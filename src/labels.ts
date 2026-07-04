@@ -13,6 +13,8 @@ export const DEFAULT_LABELS: Record<LabelKey, Label> = {
   today: { ja: "今日", en: "Today" },
   tomorrow: { ja: "明日", en: "Tomorrow" },
   dayAfter: { ja: "明後日", en: "Day After" },
+  redFlag: { ja: "赤旗", en: "RED FLAG" },
+  stoppage: { ja: "中断時間", en: "STOPPAGE" },
 };
 
 export function displayLanguage(apps: DisplayConfig): DisplayLanguage {

@@ -217,6 +217,10 @@ export function applyLayout(items: LayoutItem[], config: DisplayConfig): void {
       // with the theme color as the fallback, so clearing it restores the theme.
       if (item.props.color) host.style.setProperty("--item-color", item.props.color);
       else host.style.removeProperty("--item-color");
+      // Custom background color -- the host paints var(--item-bg); items with
+      // their own panel background (schedule) thread it too (see styles.css).
+      if (item.props.bgColor) host.style.setProperty("--item-bg", item.props.bgColor);
+      else host.style.removeProperty("--item-bg");
       host.dataset.baseOpacity = host.dataset.baseOpacity ?? "1";
       applyScrollPrefs(host, item);
       applyLabelPrefs(host, item);

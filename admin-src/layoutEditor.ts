@@ -27,7 +27,6 @@ import {
   onPage,
   placementFor,
   type ItemPage,
-  type ItemProps,
   type ItemType,
   type LayoutItem,
   type Placement,
@@ -165,7 +164,19 @@ function renderPalette(container: HTMLElement, ctx: LayoutEditorCtx): HTMLElemen
 function addItem(type: ItemType): void {
   if (!state.layout) return;
   const id = uniqueId(type);
-  const geom: Placement = { x: 35, y: 40, w: 30, h: 15 };
+  // Cascade each new item down-right so multiple items (e.g. several schedule
+  // items) don't stack in the exact same spot -- otherwise only the top one is
+  // clickable and the rest can't be selected/edited.
+  const sameType = items().filter((i) => i.type === type).length;
+  const w = type === "schedule" ? 40 : 30;
+  const h = type === "schedule" ? 40 : 15;
+  const shift = (sameType % 6) * 4;
+  const geom: Placement = {
+    x: clamp(20 + shift, 0, 100 - w),
+    y: clamp(18 + shift, 0, 100 - h),
+    w,
+    h,
+  };
   const item: LayoutItem = {
     id,
     type,
@@ -523,12 +534,13 @@ function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => v
     }
   }
 
-  // Custom text color (a color wheel) for any text/title-bearing item. Images
-  // have no text, so they're excluded.
+  // Colour wheels: text colour (any text/title-bearing item -- not images) and
+  // background colour (any item). Both clear back to the default with "Auto".
+  panel.append(el("h4", {}, ["Colors"]));
   if (item.type !== "image") {
-    panel.append(el("h4", {}, ["Color"]));
-    panel.append(colorField(p, live, rerender));
+    panel.append(colorField("Text color", p.color, (v) => (p.color = v), () => delete p.color, live));
   }
+  panel.append(colorField("Background color", p.bgColor, (v) => (p.bgColor = v), () => delete p.bgColor, live));
 
   // Scroll toggles for text-bearing items. Horizontal = marquee (announcement /
   // text); Vertical = auto-scroll long content (schedule list/columns / text).
@@ -836,24 +848,39 @@ function alignField(value: string, set: (v: "left" | "center" | "right") => void
   ], (v) => set(v as "left" | "center" | "right"), after);
 }
 
-/** A native color-wheel picker for an item's custom text color, plus an "Auto"
- * button that clears it back to the display-mode default. Dragging the wheel
- * mirrors live (onLive); releasing / clearing commits a re-render (onCommit). */
-function colorField(p: ItemProps, onLive: () => void, onCommit: () => void): HTMLElement {
+/** A native color-wheel picker (text or background), plus an "Auto" button that
+ * clears the value back to the default.
+ *
+ * IMPORTANT: this never re-renders the editor on a colour change. On macOS the
+ * system colour panel fires `change` on EVERY adjustment (not just on close); a
+ * re-render there would detach this very input mid-drag and the panel would
+ * stop calling back. Instead we update the swatch in place and mirror live, so
+ * the input stays attached the whole time the panel is open. */
+function colorField(
+  label: string,
+  current: string | undefined,
+  apply: (v: string) => void,
+  clear: () => void,
+  onLive: () => void,
+): HTMLElement {
   const field = el("div", { class: "le-field" });
-  field.append(el("label", {}, ["Text color"]));
+  field.append(el("label", {}, [label]));
   const row = el("div", { class: "le-color-row" });
-  const input = el("input", { type: "color", class: "le-color", value: p.color ?? "#333333" }) as HTMLInputElement;
-  input.addEventListener("input", () => {
-    p.color = input.value;
+  const input = el("input", { type: "color", class: "le-color", value: current ?? "#333333" }) as HTMLInputElement;
+  const swatchLabel = el("span", { class: "le-color-value" }, [current ?? "Auto (theme)"]);
+  const commit = (): void => {
+    apply(input.value);
+    swatchLabel.textContent = input.value;
     onLive();
-  });
-  input.addEventListener("change", () => onCommit());
-  const swatchLabel = el("span", { class: "le-color-value" }, [p.color ?? "Auto (theme)"]);
+  };
+  input.addEventListener("input", commit);
+  input.addEventListener("change", commit);
   const autoBtn = el("button", { class: "btn btn-secondary btn-small" }, ["Auto"]);
   autoBtn.addEventListener("click", () => {
-    delete p.color;
-    onCommit();
+    clear();
+    input.value = "#333333";
+    swatchLabel.textContent = "Auto (theme)";
+    onLive();
   });
   row.append(input, swatchLabel, autoBtn);
   field.append(row);
