@@ -69,7 +69,7 @@ html, body {
   align-items: center;
   font-size: calc(clamp(16px, 3cqw, 60px) * var(--text-scale, 1) * var(--item-scale, 1));
   font-weight: 700;
-  color: var(--theme-accent, #222);
+  color: var(--item-color, var(--theme-accent, #222));
   line-height: 1.1;
   word-break: break-word;
   white-space: pre-line;
@@ -101,14 +101,14 @@ html, body {
   justify-content: center;
   text-align: right;
   font-size: calc(clamp(22px, min(5cqw, 9cqh), 76px) * var(--text-scale, 1) * var(--item-scale, 1));
-  color: var(--theme-accent, #484848);
+  color: var(--item-color, var(--theme-accent, #484848));
   user-select: none;
   white-space: nowrap;
   line-height: 1.05;
 }
 .time-label {
   font-size: 0.5em;
-  color: var(--theme-accent, #484848);
+  color: var(--item-color, var(--theme-accent, #484848));
 }
 
 /* Main timer block. Fills its item host (a bounded box), flex-centered; a
@@ -147,7 +147,7 @@ html, body {
      this was originally tuned against, but invisible against dark-glare's
      near-black background. Every other text element on this screen
      already follows --theme-accent; this one just got missed. */
-  color: var(--theme-accent, #222);
+  color: var(--item-color, var(--theme-accent, #222));
 }
 
 /* countdown -- the single most important glanceable value on the whole
@@ -161,7 +161,7 @@ html, body {
      past the available height. */
   font-size: calc(clamp(40px, min(8cqw, 14cqh), 120px) * var(--text-scale, 1) * var(--fit-scale, 1) * var(--item-scale, 1));
   font-weight: 800;
-  color: var(--theme-primary, #e60000);
+  color: var(--item-color, var(--theme-primary, #e60000));
   font-feature-settings: "tnum";
   white-space: nowrap;
 }
@@ -171,61 +171,105 @@ html, body {
   vertical-align: -0.1em;
 }
 
-/* --- Red flag / stoppage --- */
+/* --- Red flag mode --- */
 .rf-hidden {
   display: none !important;
 }
 
-/* Red-flag indicator, top-left, only while a red flag is active. */
-#red-flag {
+/* Full-stage red-flag overlay: a big central flag + a prominent count-up of
+   the stoppage duration. Replaces the countdown while a red flag is up. The
+   countdown/title hosts are hidden underneath (see body.red-flag-on below), so
+   nothing shows through around the flag. */
+#red-flag-overlay {
   position: absolute;
-  top: 2.5cqh;
-  left: 1.5cqw;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  gap: 0.6cqw;
-  background: #d40000;
-  color: #fff;
-  padding: 0.7cqh 1.4cqw;
-  border-radius: 8px;
-  font-weight: 800;
-  font-size: calc(clamp(20px, 2.4cqw, 40px) * var(--text-scale, 1));
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
-}
-#red-flag .rf-flag {
-  width: 1.1em;
-  height: 1.1em;
-  background: #fff;
-  /* a simple waving-flag silhouette */
-  clip-path: polygon(0 0, 100% 0, 100% 72%, 0 72%);
-}
-
-/* A red border around the whole stage is a strong at-a-glance cue. */
-body.red-flag-on .aspect-inner {
-  box-shadow: inset 0 0 0 6px #d40000;
-}
-
-/* Stoppage (count-up) timer, shown under the frozen countdown. */
-#stoppage {
+  inset: 0;
+  z-index: 40;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 0.6cqh;
+  justify-content: center;
+  gap: 1.6cqh;
+  pointer-events: none;
+  padding: 4cqh 4cqw;
+  box-sizing: border-box;
 }
-.stoppage-label {
-  font-size: calc(clamp(15px, 1.8cqw, 26px) * var(--text-scale, 1) * var(--fit-scale, 1) * var(--item-scale, 1));
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  opacity: 0.8;
-  color: var(--theme-accent, #333);
+
+/* A red flag on a pole, drawn with two pseudo-elements (pole + cloth). */
+.rf-overlay-flag {
+  position: relative;
+  width: 26cqh;
+  height: 20cqh;
+  flex: 0 0 auto;
 }
-#stoppage-timer {
-  font-size: calc(clamp(28px, min(5.5cqw, 10cqh), 80px) * var(--text-scale, 1) * var(--fit-scale, 1) * var(--item-scale, 1));
-  font-weight: 800;
+.rf-overlay-flag::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: -4cqh;
+  width: 1.4cqh;
+  background: #333;
+  border-radius: 1cqh;
+}
+.rf-overlay-flag::after {
+  content: "";
+  position: absolute;
+  left: 1.2cqh;
+  top: 0;
+  width: 24cqh;
+  height: 14cqh;
+  background: #d40000;
+  clip-path: polygon(0 0, 100% 0, 100% 78%, 0 100%);
+  box-shadow: 0 0.4cqh 1.6cqh rgba(0, 0, 0, 0.4);
+  animation: rf-flag-wave 1.6s ease-in-out infinite;
+  transform-origin: left center;
+}
+@keyframes rf-flag-wave {
+  0%, 100% { transform: skewY(0deg); }
+  50% { transform: skewY(-2.2deg); }
+}
+
+.rf-overlay-title {
+  font-size: calc(clamp(32px, 8cqh, 110px) * var(--text-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.12em;
   color: #d40000;
+  text-shadow: 0 0.3cqh 1cqh rgba(0, 0, 0, 0.25);
+}
+.rf-overlay-stoppage-label {
+  font-size: calc(clamp(16px, 3.2cqh, 42px) * var(--text-scale, 1));
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: #d40000;
+  opacity: 0.85;
+}
+/* The prominent count-up timer -- the whole point of the mode. */
+.rf-overlay-timer {
+  font-size: calc(clamp(48px, 15cqh, 200px) * var(--text-scale, 1));
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+  background: #d40000;
+  padding: 1.2cqh 3.5cqw;
+  border-radius: 14px;
   font-feature-settings: "tnum";
+  letter-spacing: 0.04em;
   white-space: nowrap;
+  box-shadow: 0 0.6cqh 2cqh rgba(0, 0, 0, 0.35);
+}
+
+/* Hide the normal countdown + title behind the overlay, and ring the whole
+   stage with a thick pulsing red border -- a strong at-a-glance safety cue. */
+body.red-flag-on #li-countdown,
+body.red-flag-on #li-countdownTitle {
+  opacity: 0 !important;
+}
+body.red-flag-on .aspect-inner {
+  animation: rf-border-pulse 1.2s ease-in-out infinite;
+}
+@keyframes rf-border-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 10px #d40000; }
+  50% { box-shadow: inset 0 0 0 20px #a80000; }
 }
 
 /* See .announcement-bar further down for #announcement's actual layout --
@@ -261,7 +305,7 @@ body.red-flag-on .aspect-inner {
   flex: 0 0 auto;
   font-weight: bold;
   text-align: center;
-  color: var(--theme-surface-text, #000);
+  color: var(--item-color, var(--theme-surface-text, #000));
 }
 
 /* auto-scroll viewport: takes the height left under the heading and clips,
@@ -300,7 +344,7 @@ body.red-flag-on .aspect-inner {
   text-align: center;
   font-size: calc(clamp(24px, 2.3cqw, 36px) * var(--text-scale, 1) * var(--item-scale, 1));
   font-weight: bold;
-  color: var(--theme-surface-text, #000);
+  color: var(--item-color, var(--theme-surface-text, #000));
 }
 
 #schedule-list ul {
@@ -321,7 +365,7 @@ body.red-flag-on .aspect-inner {
 
 #schedule-list ul li .title {
   display: inline-block;
-  color: var(--theme-accent, #484848);
+  color: var(--item-color, var(--theme-accent, #484848));
   font-weight: bold;
   white-space: normal;
   font-size: 0.85em;
@@ -330,7 +374,7 @@ body.red-flag-on .aspect-inner {
 #schedule-list ul li .title .bullet {
   display: inline-block;
   margin-right: 6px;
-  color: var(--theme-accent, #484848);
+  color: var(--item-color, var(--theme-accent, #484848));
   font-weight: bold;
   vertical-align: top;
   user-select: none;
@@ -340,7 +384,7 @@ body.red-flag-on .aspect-inner {
   display: block;
   margin-left: 1.1em;
   margin-top: 2px;
-  color: var(--theme-accent, #484848);
+  color: var(--item-color, var(--theme-accent, #484848));
   font-weight: bold;
 }
 
@@ -417,14 +461,14 @@ body.red-flag-on .aspect-inner {
 .schedule-item-title {
   font-size: calc(clamp(22px, 2.6cqw, 36px) * var(--text-scale, 1) * var(--item-scale, 1));
   font-weight: bold;
-  color: var(--theme-surface-text, #333);
+  color: var(--item-color, var(--theme-surface-text, #333));
 }
 
 .schedule-item-detail {
   margin-top: 0.2cqh;
   font-size: calc(clamp(18px, 2.1cqw, 28px) * var(--text-scale, 1) * var(--item-scale, 1));
   font-weight: bold;
-  color: var(--theme-accent, #484848);
+  color: var(--item-color, var(--theme-accent, #484848));
 }
 
 .schedule-col-announcement {
@@ -519,7 +563,7 @@ body.red-flag-on .aspect-inner {
 }
 
 .announcement-label {
-  color: var(--theme-primary, blue);
+  color: var(--item-color, var(--theme-primary, blue));
 }
 
 .row-next {
@@ -591,7 +635,7 @@ body.red-flag-on .aspect-inner {
   gap: 0.4em;
   justify-content: center;
   font-size: calc(clamp(20px, 2.4cqw, 38px) * var(--text-scale, 1) * var(--item-scale, 1));
-  color: var(--theme-accent, black);
+  color: var(--item-color, var(--theme-accent, black));
   font-weight: bold;
   white-space: nowrap;
   overflow: hidden;
@@ -801,7 +845,7 @@ body.marquee-paused .marquee-inner {
   font-size: calc(clamp(20px, 2.6cqw, 40px) * var(--text-scale, 1) * var(--item-scale, 1));
   font-weight: bold;
   text-align: center;
-  color: var(--theme-surface-text, #333);
+  color: var(--item-color, var(--theme-surface-text, #333));
   margin-bottom: 1cqh;
 }
 /* The rows area takes the height left under the heading and clips, so the

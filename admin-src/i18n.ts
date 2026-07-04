@@ -138,10 +138,13 @@ const EN = {
   "signIn.toEdit": "Sign in with GitHub to edit event data.",
   "editor.selectOrCreate": "Select or create an event to begin editing.",
   "editor.setActive": "Set as active",
-  "editor.closeEvent": "Close event",
-  "editor.closeConfirm": "Close {id}? This moves it to the archive once you Save.",
+  "editor.closeEvent": "Archive event",
+  "editor.closeConfirm": "Archive {id}? It moves to the archive (previous events) once you Save.",
   "editor.activeStaged": "{id} staged as active -- click Save to publish.",
-  "editor.closeStaged": "{id} staged to close -- click Save to publish.",
+  "editor.closeStaged": "{id} staged to archive -- click Save to publish.",
+  "editor.deleteEvent": "Delete event",
+  "editor.deleteConfirm": "Permanently delete {id}? This removes it entirely (NOT archived) once you Save. This cannot be undone.",
+  "editor.deleteStaged": "{id} staged for deletion -- click Save to publish.",
   "editor.announcement": "Countdown-screen announcement:",
 
   "countdown.title": "Countdown rows",
@@ -153,6 +156,8 @@ const EN = {
   "day.announcement": "Day announcement: ",
   "day.addRow": "+ Add item",
   "day.remove": "Remove",
+  "day.deleteDay": "Delete day",
+  "day.deleteConfirm": "Delete this day ({date}) and all its items?",
   "day.itemTitle": "Title (e.g. Rider check-in)",
   "day.itemDetail": "Detail (e.g. 10:30~ or a location)",
 
@@ -166,7 +171,8 @@ const EN = {
 
   "save.saving": "Saving…",
   "save.saved": "Saved.",
-  "save.closed": "Closed {id}.",
+  "save.closed": "Archived {id}.",
+  "save.deleted": "Deleted {id}.",
   "save.failed": "Failed to save: {message}",
 
   "load.failedTitle": "Couldn't load data/display.json",
@@ -317,10 +323,13 @@ const JA: Record<TranslationKey, string> = {
   "signIn.toEdit": "イベントデータを編集するには GitHub でサインインしてください。",
   "editor.selectOrCreate": "編集するイベントを選択または作成してください。",
   "editor.setActive": "アクティブに設定",
-  "editor.closeEvent": "イベントを終了",
-  "editor.closeConfirm": "{id} を終了しますか？保存すると、アーカイブに移動します。",
+  "editor.closeEvent": "アーカイブ",
+  "editor.closeConfirm": "{id} をアーカイブしますか？保存すると、アーカイブ（過去のイベント）に移動します。",
   "editor.activeStaged": "{id} をアクティブに設定しました -- 保存をクリックして公開してください。",
-  "editor.closeStaged": "{id} を終了するよう設定しました -- 保存をクリックして公開してください。",
+  "editor.closeStaged": "{id} をアーカイブするよう設定しました -- 保存をクリックして公開してください。",
+  "editor.deleteEvent": "イベントを削除",
+  "editor.deleteConfirm": "{id} を完全に削除しますか？アーカイブせず完全に削除されます（保存後）。元に戻せません。",
+  "editor.deleteStaged": "{id} を削除するよう設定しました -- 保存をクリックして公開してください。",
   "editor.announcement": "カウントダウン画面のお知らせ:",
 
   "countdown.title": "カウントダウン行",
@@ -332,6 +341,8 @@ const JA: Record<TranslationKey, string> = {
   "day.announcement": "その日のお知らせ: ",
   "day.addRow": "+ 項目を追加",
   "day.remove": "削除",
+  "day.deleteDay": "日を削除",
+  "day.deleteConfirm": "この日（{date}）とすべての項目を削除しますか？",
   "day.itemTitle": "タイトル (例: 選手受付)",
   "day.itemDetail": "詳細 (例: 10:30~ や場所)",
 
@@ -345,7 +356,8 @@ const JA: Record<TranslationKey, string> = {
 
   "save.saving": "保存中…",
   "save.saved": "保存しました。",
-  "save.closed": "{id} を終了しました。",
+  "save.closed": "{id} をアーカイブしました。",
+  "save.deleted": "{id} を削除しました。",
   "save.failed": "保存に失敗しました: {message}",
 
   "load.failedTitle": "data/display.json を読み込めませんでした",

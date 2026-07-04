@@ -70,8 +70,12 @@ export interface AppState {
 
   /** True once currentEvent has any unsaved local edit. Drives the Save button. */
   eventDirty: boolean;
-  /** True when Close event was clicked but not yet saved. */
+  /** True when Archive event was clicked but not yet saved (moves the event to
+   * the archive folder on Sync). */
   pendingClose: boolean;
+  /** True when Delete event was clicked but not yet saved (permanently removes
+   * the event file on Sync, WITHOUT archiving). */
+  pendingDelete: boolean;
   /** Unsaved display.json edits, reconciled against a fresh read on Save. */
   configPatch: ConfigPatch;
 
@@ -137,6 +141,7 @@ export const state: AppState = {
   pendingImportItems: null,
   eventDirty: false,
   pendingClose: false,
+  pendingDelete: false,
   configPatch: {},
   layout: null,
   layoutDirty: false,
@@ -169,6 +174,7 @@ export function hasPendingChanges(): boolean {
 export function clearPendingChanges(): void {
   state.eventDirty = false;
   state.pendingClose = false;
+  state.pendingDelete = false;
   state.configPatch = {};
   state.layoutDirty = false;
   state.hasLocalChanges = false;

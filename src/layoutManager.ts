@@ -213,6 +213,10 @@ export function applyLayout(items: LayoutItem[], config: DisplayConfig): void {
 
       host.style.zIndex = String(item.z ?? 0);
       host.style.setProperty("--item-scale", String(item.props.fontScale ?? 1));
+      // Custom text color (any CSS color) -- the text CSS reads --item-color
+      // with the theme color as the fallback, so clearing it restores the theme.
+      if (item.props.color) host.style.setProperty("--item-color", item.props.color);
+      else host.style.removeProperty("--item-color");
       host.dataset.baseOpacity = host.dataset.baseOpacity ?? "1";
       applyScrollPrefs(host, item);
       applyLabelPrefs(host, item);
