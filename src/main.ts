@@ -10,6 +10,7 @@ import { applyLayout, setPage } from "./layoutManager";
 import {
   readLiveSnapshot,
   onLiveChange,
+  onReloadRequest,
   type LiveSnapshot,
 } from "./liveBridge";
 import type { DisplayConfig, EventData } from "./types";
@@ -241,6 +242,10 @@ async function main(): Promise<void> {
   // Once a local snapshot is in play, it wins: any same-browser admin edit
   // drives the display, and the GitHub poll below must NOT override it.
   let localActive = hasLocalSnap;
+
+  // The admin's "Refresh display" button forces a fresh page load on a
+  // same-browser display tab (e.g. after a change that needs a clean reload).
+  onReloadRequest(() => window.location.reload());
 
   // Always listen for the snapshot so a GitHub-bootstrapped display switches to
   // local the instant an admin on this browser writes one.

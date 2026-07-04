@@ -47,6 +47,8 @@ const PATHS: Record<string, string> = {
   play: '<path d="M7 5l12 7-12 7z"/>',
   // show outline (dashed frame)
   outline: '<rect x="3" y="4" width="18" height="16" rx="1" stroke-dasharray="3 2"/>',
+  // refresh display (circular arrows)
+  refresh: '<path d="M20 11a8 8 0 0 0-14-5l-2 2"/><path d="M4 5v4h4"/><path d="M4 13a8 8 0 0 0 14 5l2-2"/><path d="M20 19v-4h-4"/>',
 };
 
 export function icon(name: keyof typeof PATHS | string): HTMLElement {

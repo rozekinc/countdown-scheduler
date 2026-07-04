@@ -15,7 +15,7 @@ import {
 import type { DisplayConfig, EventData, EditorState, ScheduleItem } from "./types";
 import { DISPLAY_MODES, DEFAULT_DISPLAY_MODE_ID, getDisplayMode } from "./displayModes";
 import { ASPECT_RATIOS, DEFAULT_ASPECT_RATIO_ID, getAspectRatio } from "./aspectRatios";
-import { readLiveSnapshot, writeLiveSnapshot } from "./liveBridge";
+import { readLiveSnapshot, writeLiveSnapshot, requestDisplayReload } from "./liveBridge";
 import { renderLayoutEditor, primeAssets, type LayoutEditorCtx } from "./layoutEditor";
 import { defaultLayout, migrateLayout, LAYOUT_VERSION, type LayoutDoc, type ScheduleEntry } from "./layout";
 import { icon, iconButton } from "./icons";
@@ -242,7 +242,19 @@ function renderDisplayControls(): void {
     onDisplayControlChanged();
   });
 
-  displayControlsEl.append(pageBtn, rfBtn, scrollBtn, outlineBtn);
+  // Force a fresh reload of a same-browser display tab (e.g. after a change
+  // that the live update doesn't fully reflect until the page reloads).
+  const refreshBtn = iconButton(
+    "refresh",
+    "Refresh the display (reloads a same-browser display tab)",
+    "btn btn-small icon-btn btn-secondary",
+  );
+  refreshBtn.addEventListener("click", () => {
+    requestDisplayReload();
+    setStatus("Asked the display to refresh.");
+  });
+
+  displayControlsEl.append(pageBtn, rfBtn, scrollBtn, outlineBtn, refreshBtn);
 }
 
 /** Shared post-toggle wiring for the display-control buttons. */

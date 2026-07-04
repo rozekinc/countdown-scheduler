@@ -7,6 +7,7 @@ import type { LayoutDoc } from "./layout";
 
 const SNAPSHOT_KEY = "countdown-scheduler:live-snapshot";
 const SOURCE_KEY = "countdown-scheduler:display-source";
+const RELOAD_KEY = "countdown-scheduler:reload";
 const CHANNEL = "countdown-scheduler-live";
 
 export interface LiveSnapshot {
@@ -45,6 +46,17 @@ export function writeLiveSnapshot(snapshot: LiveSnapshot): void {
     bc?.postMessage("changed");
   } catch {
     /* storage unavailable -- the display just won't get this local update. */
+  }
+}
+
+/** Ask any same-browser display tab to reload the page (the "Refresh display"
+ * button). Posts over the channel and bumps a storage key as a fallback. */
+export function requestDisplayReload(): void {
+  bc?.postMessage("reload");
+  try {
+    window.localStorage.setItem(RELOAD_KEY, String(Date.now()));
+  } catch {
+    /* storage unavailable -- BroadcastChannel is the primary path anyway. */
   }
 }
 

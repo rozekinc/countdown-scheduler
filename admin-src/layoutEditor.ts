@@ -71,6 +71,14 @@ function geomOf(item: LayoutItem): Placement | undefined {
 }
 
 export function renderLayoutEditor(container: HTMLElement, ctx: LayoutEditorCtx): void {
+  // Editing a property re-renders the whole editor; capture the scroll offset
+  // of each rail so a field edit (color, text, checkbox, …) doesn't yank the
+  // panel back to the top on every keystroke/commit.
+  const scroll = {
+    palette: container.querySelector<HTMLElement>(".le-palette")?.scrollTop ?? 0,
+    props: container.querySelector<HTMLElement>(".le-props")?.scrollTop ?? 0,
+    canvas: container.querySelector<HTMLElement>(".le-canvas-panel")?.scrollTop ?? 0,
+  };
   container.innerHTML = "";
 
   if (!state.layout) {
@@ -83,6 +91,14 @@ export function renderLayoutEditor(container: HTMLElement, ctx: LayoutEditorCtx)
   wrap.append(renderCanvas(container, ctx));
   wrap.append(renderProperties(container, ctx));
   container.append(wrap);
+
+  // Restore the rails' scroll after the rebuild.
+  const palette = container.querySelector<HTMLElement>(".le-palette");
+  if (palette) palette.scrollTop = scroll.palette;
+  const props = container.querySelector<HTMLElement>(".le-props");
+  if (props) props.scrollTop = scroll.props;
+  const canvas = container.querySelector<HTMLElement>(".le-canvas-panel");
+  if (canvas) canvas.scrollTop = scroll.canvas;
 }
 
 // --- palette (left) -------------------------------------------------------
