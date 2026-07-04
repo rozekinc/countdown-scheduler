@@ -163,10 +163,13 @@ function renderVersionIndicator(): void {
 function renderSaveBar(): void {
   clear(saveBarEl);
   // Local-first: edits are already live and persist in localStorage across
-  // refreshes. "Sync to GitHub" is how you push the local state upstream.
+  // refreshes. "Sync to GitHub" pushes local state up; "Pull from GitHub"
+  // replaces local state with what's published (remote wins).
   saveBtnEl = iconButton("publish", "Sync to GitHub", "btn btn-primary");
   saveBtnEl.addEventListener("click", () => void saveAll());
-  saveBarEl.append(saveBtnEl);
+  const pullBtn = iconButton("pull", "Pull from GitHub (overwrites local)", "btn btn-secondary");
+  pullBtn.addEventListener("click", () => void pullFromGitHub());
+  saveBarEl.append(saveBtnEl, pullBtn);
   updateSaveButtonState();
 }
 
@@ -316,18 +319,67 @@ async function ensureLayoutLoaded(): Promise<void> {
     state.layout = snap.layout;
     return;
   }
-  let doc: LayoutDoc | null = null;
+  state.layout = await fetchPublishedLayout();
+  state.layoutDirty = false;
+}
+
+/** Fetch the published layout.json (ignoring any local snapshot), or the
+ * built-in base layout if it's absent/unreadable. */
+async function fetchPublishedLayout(): Promise<LayoutDoc> {
   try {
     const res = await fetch(`../${LAYOUT_JSON_PATH}`, { cache: "no-store" });
     if (res.ok) {
       const parsed = (await res.json()) as LayoutDoc;
-      if (Array.isArray(parsed.items)) doc = parsed;
+      if (Array.isArray(parsed.items)) return parsed;
     }
   } catch {
-    /* fall back to the base layout below */
+    /* fall back to the base layout */
   }
-  state.layout = doc ?? defaultLayout();
-  state.layoutDirty = false;
+  return defaultLayout();
+}
+
+/**
+ * Pull the published data from GitHub and REPLACE the local working state with
+ * it -- config, layout, events, and the selected event. Overwrites anything
+ * not yet synced (that's the point: it lets one person publish and another pull
+ * their changes in). There's no data-merge / conflict resolution -- remote
+ * wins -- so it's gated behind a clear warning.
+ */
+async function pullFromGitHub(): Promise<void> {
+  if (
+    !window.confirm(
+      "Pull from GitHub?\n\nThis replaces everything here with the published data — " +
+        "any local changes you haven't synced will be overwritten.",
+    )
+  ) {
+    return;
+  }
+  setStatus("Pulling from GitHub…");
+  try {
+    const res = await fetch(PUBLIC_CONFIG_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    seedConfigState((await res.json()) as DisplayConfig);
+    // Force layout + current event to re-load from GitHub (not the snapshot).
+    state.layout = await fetchPublishedLayout();
+    state.currentEvent = null;
+    clearPendingChanges();
+
+    renderVersionIndicator();
+    renderDisplayModeSwitcher();
+    renderAspectRatioSwitcher();
+    applyAdminChrome();
+    mirrorToLive(); // push the pulled state into the local snapshot + display
+    if (isSignedIn()) {
+      await loadEventsTree(); // reloads the tree + re-opens the selected event fresh
+    } else {
+      renderLeftPanel();
+      renderMainPanel();
+    }
+    if (state.viewMode === "layout") renderLayoutView();
+    setStatus("Pulled the latest from GitHub.");
+  } catch (err) {
+    setStatus(`Pull failed: ${(err as Error).message}`, true);
+  }
 }
 
 function onSettingsSaved(): void {
