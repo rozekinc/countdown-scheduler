@@ -5,28 +5,12 @@
   "announcement": "安全に作業しよう！！ / Drive safely!",
   "countdownRows": [
     {
-      "title": "JSB1000 Warm Up\nstart",
-      "time": "2026-07-04T17:46:00+09:00"
+      "title": "Night Pitwalk start",
+      "time": "2026-07-04T18:30:00+09:00"
     },
     {
-      "title": "JSB1000 Warm Up\nfinish",
-      "time": "2026-07-04T18:01:00+09:00"
-    },
-    {
-      "title": "ST1000 Warm Up\nstart",
-      "time": "2026-07-04T20:21:00+09:00"
-    },
-    {
-      "title": "ST1000 Warm Up\nfinish",
-      "time": "2026-07-04T20:36:00+09:00"
-    },
-    {
-      "title": "Pitwalk start",
-      "time": "2026-07-04T21:01:00+09:00"
-    },
-    {
-      "title": "Track parade\nstart",
-      "time": "2026-07-04T22:32:00+09:00"
+      "title": "Night Pitwalk finish",
+      "time": "2026-07-04T20:15:00+09:00"
     },
     {
       "title": "Day 1\nclose",
