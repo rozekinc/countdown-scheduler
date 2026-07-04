@@ -38,6 +38,13 @@ export interface DisplayConfig {
   labels?: Partial<Record<LabelKey, Label>> | null;
   /** Red-flag / stoppage state, toggled from the admin. */
   redFlag?: RedFlagState | null;
+  /** Which page the display shows (切替), driven from the admin. */
+  currentPage?: "countdown" | "schedule" | null;
+  /** Whether all auto-scrollers are paused (snapped to top), from the admin. */
+  scrollPaused?: boolean | null;
+  /** Draw a dashed outline around every layout item on the display, so the
+   * operator can confirm placements. From the admin. */
+  showOutline?: boolean | null;
   /** Persisted admin-editor UI state (admin only; ignored by the display). */
   editorState?: EditorState | null;
   /** Monotonic content revision, bumped when the published data set changes. */

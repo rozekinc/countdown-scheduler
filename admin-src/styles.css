@@ -70,6 +70,15 @@ html, body {
   gap: 8px;
 }
 
+/* Display controls cluster (切替 / red flag / scroll / outline). */
+.display-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border, #d0d7de);
+}
+
 /* Live-mode "no save needed" indicator + optional publish. */
 .live-indicator {
   font-size: 12px;
@@ -1076,6 +1085,33 @@ html, body {
   color: #57606a;
 }
 .le-delete { margin-top: 14px; width: 100%; }
+
+/* --- schedule item row editor ------------------------------------------ */
+.le-entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.le-entry-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.le-entry-row.dragging { opacity: 0.5; }
+.le-entry-row.drag-over {
+  box-shadow: 0 -2px 0 0 var(--primary);
+}
+.le-entry-grip { flex: 0 0 auto; }
+.le-entry-fields {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.le-entry-fields .row-input { width: 100%; }
+.le-entry-row .btn-small { flex: 0 0 auto; }
 
 /* --- Loading skeletons -------------------------------------------------- */
 .skeleton-wrap { padding: 8px 4px; }

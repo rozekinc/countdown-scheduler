@@ -46,6 +46,12 @@ export interface AppState {
   /** Current red-flag / stoppage state from display.json. */
   redFlag: RedFlagState;
 
+  /** Display controls, driven from the admin header and mirrored to the
+   * display live (they ride Sync into display.json too). */
+  currentPage: "countdown" | "schedule";
+  scrollPaused: boolean;
+  showOutline: boolean;
+
   /** Read-only content revision + date from display.json (version indicator). */
   contentVersion: number | null;
   contentUpdatedAt: string | null;
@@ -118,6 +124,9 @@ export const state: AppState = {
   textScale: 1,
   labels: defaultLabels(),
   redFlag: { active: false, since: null },
+  currentPage: "countdown",
+  scrollPaused: false,
+  showOutline: false,
   contentVersion: null,
   contentUpdatedAt: null,
   allEvents: [],

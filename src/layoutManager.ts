@@ -21,9 +21,10 @@ import {
   type LayoutItem,
   type Placement,
 } from "./layout";
-import { resolveLabel } from "./labels";
+import { resolveLabel, displayLanguage } from "./labels";
 import { setScrollingContent } from "./verticalScroll";
 import { setAnnouncementText } from "./marquee";
+import { colorizeKeywords } from "./keywords";
 import type { DisplayConfig, LabelKey } from "./types";
 
 function escapeHtml(s: string): string {
@@ -39,6 +40,18 @@ function applyScrollPrefs(host: HTMLElement, item: LayoutItem): void {
   else delete host.dataset.scrollH;
   if (item.props.scrollV === false) host.dataset.scrollV = "off";
   else delete host.dataset.scrollV;
+}
+
+/** Reflect the singleton "show built-in label" toggles onto the host as
+ * data-show-* attributes. The CSS hides the built-in label/heading/prefix when
+ * set to "off" (the operator has split them into standalone text items). */
+function applyLabelPrefs(host: HTMLElement, item: LayoutItem): void {
+  if (item.props.showLabel === false) host.dataset.showLabel = "off";
+  else delete host.dataset.showLabel;
+  if (item.props.showHeading === false) host.dataset.showHeading = "off";
+  else delete host.dataset.showHeading;
+  if (item.props.showPrefix === false) host.dataset.showPrefix = "off";
+  else delete host.dataset.showPrefix;
 }
 
 function stageEl(): HTMLElement {
@@ -83,7 +96,9 @@ function renderTextItem(host: HTMLElement, item: LayoutItem, config: DisplayConf
   const p = item.props;
   const value =
     p.source === "literal"
-      ? p.text ?? ""
+      ? p.textI18n
+        ? p.textI18n[displayLanguage(config)]
+        : p.text ?? ""
       : resolveLabel(config, (p.labelKey ?? "currentTime") as LabelKey);
   host.style.textAlign = p.align ?? "center";
   host.style.justifyContent =
@@ -101,6 +116,46 @@ function renderTextItem(host: HTMLElement, item: LayoutItem, config: DisplayConf
     host.classList.remove("item-text-scrolls");
     host.textContent = value;
   }
+}
+
+/** A multi-instance schedule item: its own heading + rows (p.entries),
+ * decoupled from the event's scheduleDays. The rows vertically auto-scroll when
+ * they overflow (unless scrollV === false), reusing the schedule-column look. */
+function renderScheduleItem(host: HTMLElement, item: LayoutItem, config: DisplayConfig): void {
+  host.classList.add("item-schedule");
+  const p = item.props;
+  const heading = p.heading ? p.heading[displayLanguage(config)] : "";
+  const entries = p.entries ?? [];
+  const itemsHtml = entries
+    .map(
+      (e) =>
+        `<div class="schedule-col-item">` +
+        `<div class="schedule-item-title">${colorizeKeywords(e.title ?? "", undefined).replace(/\n/g, "<br>")}</div>` +
+        `<div class="schedule-item-detail">${e.detail ?? ""}</div>` +
+        `</div>`,
+    )
+    .join("");
+
+  // Rebuild the fixed shell once, then (re)fill the scrolling items area, so a
+  // re-render doesn't tear down the scroller when nothing structural changed.
+  let inner = host.querySelector<HTMLElement>(".item-schedule-inner");
+  if (!inner) {
+    host.innerHTML =
+      `<div class="item-schedule-inner">` +
+      `<div class="schedule-item-heading"></div>` +
+      `<div class="schedule-col-items"></div>` +
+      `</div>`;
+    inner = host.querySelector<HTMLElement>(".item-schedule-inner");
+  }
+  const headingEl = host.querySelector<HTMLElement>(".schedule-item-heading");
+  const itemsEl = host.querySelector<HTMLElement>(".schedule-col-items");
+  if (headingEl) {
+    headingEl.textContent = heading;
+    headingEl.style.display = heading ? "" : "none";
+  }
+  if (!itemsEl) return;
+  if (p.scrollV !== false) setScrollingContent(itemsEl, itemsHtml);
+  else itemsEl.innerHTML = itemsHtml;
 }
 
 function renderImageItem(host: HTMLElement, item: LayoutItem): void {
@@ -160,9 +215,11 @@ export function applyLayout(items: LayoutItem[], config: DisplayConfig): void {
       host.style.setProperty("--item-scale", String(item.props.fontScale ?? 1));
       host.dataset.baseOpacity = host.dataset.baseOpacity ?? "1";
       applyScrollPrefs(host, item);
+      applyLabelPrefs(host, item);
 
       if (item.type === "text") renderTextItem(host, item, config);
       else if (item.type === "image") renderImageItem(host, item);
+      else if (item.type === "schedule") renderScheduleItem(host, item, config);
 
       // An item is in the DOM (display:"") if it appears on EITHER page; its
       // per-page visibility is handled by opacity so it can animate.

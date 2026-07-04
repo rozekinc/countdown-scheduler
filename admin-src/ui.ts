@@ -17,7 +17,7 @@ import { DISPLAY_MODES, DEFAULT_DISPLAY_MODE_ID, getDisplayMode } from "./displa
 import { ASPECT_RATIOS, DEFAULT_ASPECT_RATIO_ID, getAspectRatio } from "./aspectRatios";
 import { readLiveSnapshot, writeLiveSnapshot } from "./liveBridge";
 import { renderLayoutEditor, primeAssets, type LayoutEditorCtx } from "./layoutEditor";
-import { defaultLayout, type LayoutDoc } from "./layout";
+import { defaultLayout, migrateLayout, LAYOUT_VERSION, type LayoutDoc, type ScheduleEntry } from "./layout";
 import { icon, iconButton } from "./icons";
 import { t, getLang, setLang, onLangChange, type Lang } from "./i18n";
 
@@ -30,6 +30,7 @@ const LAYOUT_JSON_PATH = "data/layout.json";
 let rootEl: HTMLElement;
 let displayModeSwitcherEl: HTMLElement;
 let aspectRatioSwitcherEl: HTMLElement;
+let displayControlsEl: HTMLElement;
 let langSwitcherEl: HTMLElement;
 let authControlsEl: HTMLElement;
 let settingsControlsEl: HTMLElement;
@@ -54,6 +55,7 @@ export function init(root: HTMLElement): void {
   viewToggleEl = el("div", { class: "view-toggle" });
   displayModeSwitcherEl = el("div", { class: "display-mode-switcher" });
   aspectRatioSwitcherEl = el("div", { class: "aspect-ratio-switcher" });
+  displayControlsEl = el("div", { class: "display-controls" });
   langSwitcherEl = el("div", { class: "lang-switcher" });
   settingsControlsEl = el("div", { class: "settings-controls" });
   authControlsEl = el("div", { class: "auth-controls" });
@@ -63,6 +65,7 @@ export function init(root: HTMLElement): void {
     viewToggleEl,
     displayModeSwitcherEl,
     aspectRatioSwitcherEl,
+    displayControlsEl,
     saveBarEl,
     langSwitcherEl,
     settingsControlsEl,
@@ -81,6 +84,7 @@ export function init(root: HTMLElement): void {
   rootEl.append(header, body, statusBarEl);
 
   renderSaveBar();
+  renderDisplayControls();
   renderLangSwitcher();
   renderVersionIndicator();
   renderAuthControls(authControlsEl, onSignedIn);
@@ -102,6 +106,7 @@ export function init(root: HTMLElement): void {
   onLangChange(() => {
     renderViewToggle();
     renderSaveBar();
+    renderDisplayControls();
     renderLangSwitcher();
     renderVersionIndicator();
     renderAuthControls(authControlsEl, onSignedIn);
@@ -183,6 +188,69 @@ function updateSaveButtonState(): void {
   } else {
     saveBtnEl.setAttribute("disabled", "true");
   }
+}
+
+/** The "Display controls" header cluster: 切替 (page), red flag, pause/resume
+ * scroll, and show-outline. Each flips its state field, mirrors to a
+ * same-browser display instantly, and rides the next Sync into display.json. */
+function renderDisplayControls(): void {
+  clear(displayControlsEl);
+
+  const onSchedule = state.currentPage === "schedule";
+  const pageBtn = iconButton(
+    "swap",
+    onSchedule ? "Showing Schedule — switch to Countdown" : "Showing Countdown — switch to Schedule",
+    `btn btn-small icon-btn ${onSchedule ? "btn-primary" : "btn-secondary"}`,
+  );
+  pageBtn.addEventListener("click", () => {
+    state.currentPage = onSchedule ? "countdown" : "schedule";
+    onDisplayControlChanged();
+  });
+
+  const rfOn = !!state.redFlag.active;
+  const rfBtn = iconButton(
+    "flag",
+    rfOn ? "Red flag is UP — clear it" : "Raise red flag (stoppage)",
+    `btn btn-small icon-btn ${rfOn ? "btn-danger" : "btn-secondary"}`,
+  );
+  rfBtn.addEventListener("click", () => {
+    state.redFlag = rfOn
+      ? { active: false, since: null }
+      : { active: true, since: new Date().toISOString() };
+    onDisplayControlChanged();
+  });
+
+  const paused = state.scrollPaused;
+  const scrollBtn = iconButton(
+    paused ? "play" : "pause",
+    paused ? "Scrolling paused — resume" : "Pause scrolling",
+    `btn btn-small icon-btn ${paused ? "btn-primary" : "btn-secondary"}`,
+  );
+  scrollBtn.addEventListener("click", () => {
+    state.scrollPaused = !state.scrollPaused;
+    onDisplayControlChanged();
+  });
+
+  const outline = state.showOutline;
+  const outlineBtn = iconButton(
+    "outline",
+    outline ? "Item outlines shown on display — hide" : "Show item outlines on the display",
+    `btn btn-small icon-btn ${outline ? "btn-primary" : "btn-secondary"}`,
+  );
+  outlineBtn.addEventListener("click", () => {
+    state.showOutline = !state.showOutline;
+    onDisplayControlChanged();
+  });
+
+  displayControlsEl.append(pageBtn, rfBtn, scrollBtn, outlineBtn);
+}
+
+/** Shared post-toggle wiring for the display-control buttons. */
+function onDisplayControlChanged(): void {
+  state.hasLocalChanges = true;
+  mirrorToLive();
+  updateSaveButtonState();
+  renderDisplayControls();
 }
 
 /** Marks the current event dirty and refreshes just the Save button --
@@ -316,26 +384,56 @@ async function ensureLayoutLoaded(): Promise<void> {
   // edits or reset a Local-mode display back to the published/default layout.
   const snap = readLiveSnapshot();
   if (snap?.layout && Array.isArray(snap.layout.items)) {
-    state.layout = snap.layout;
+    state.layout = await migrateIfNeeded(snap.layout);
     return;
   }
   state.layout = await fetchPublishedLayout();
   state.layoutDirty = false;
 }
 
-/** Fetch the published layout.json (ignoring any local snapshot), or the
- * built-in base layout if it's absent/unreadable. */
+/** Fetch the published layout.json (ignoring any local snapshot), migrated to
+ * the current schema, or the built-in base layout if it's absent/unreadable. */
 async function fetchPublishedLayout(): Promise<LayoutDoc> {
+  let doc: LayoutDoc | null = null;
   try {
     const res = await fetch(`../${LAYOUT_JSON_PATH}`, { cache: "no-store" });
     if (res.ok) {
       const parsed = (await res.json()) as LayoutDoc;
-      if (Array.isArray(parsed.items)) return parsed;
+      if (Array.isArray(parsed.items)) doc = parsed;
     }
   } catch {
     /* fall back to the base layout */
   }
-  return defaultLayout();
+  return doc ? migrateIfNeeded(doc) : defaultLayout();
+}
+
+/** Bring a loaded layout up to the current schema (split titles + schedule
+ * item), seeding a converted schedule item from the active event's schedule so
+ * no content is lost. Marks the layout dirty when a migration actually runs, so
+ * the operator's next Sync upgrades the published layout.json. Idempotent. */
+async function migrateIfNeeded(doc: LayoutDoc): Promise<LayoutDoc> {
+  if ((doc.version ?? 0) >= LAYOUT_VERSION) return doc;
+  const migrated = migrateLayout(doc, await loadActiveScheduleEntries());
+  state.layoutDirty = true;
+  return migrated;
+}
+
+/** Flatten the active event's schedule days into title/detail rows, used to
+ * seed a migrated `schedule` item. Best-effort (unauthenticated public read);
+ * returns undefined if there's no active event or it can't be read. */
+async function loadActiveScheduleEntries(): Promise<ScheduleEntry[] | undefined> {
+  const id = state.activeEventId;
+  if (!id) return undefined;
+  try {
+    const res = await fetch(`../data/events/${id}.json`, { cache: "no-store" });
+    if (!res.ok) return undefined;
+    const ev = (await res.json()) as EventData;
+    return (ev.scheduleDays ?? []).flatMap((d) =>
+      d.items.map((i) => ({ title: i.title, detail: i.detail })),
+    );
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -367,6 +465,7 @@ async function pullFromGitHub(): Promise<void> {
     renderVersionIndicator();
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
+    renderDisplayControls();
     applyAdminChrome();
     mirrorToLive(); // push the pulled state into the local snapshot + display
     if (isSignedIn()) {
@@ -416,6 +515,9 @@ function seedConfigState(data: DisplayConfig): void {
   state.redFlag = data.redFlag?.active
     ? { active: true, since: data.redFlag.since ?? null }
     : { active: false, since: null };
+  state.currentPage = data.currentPage === "schedule" ? "schedule" : "countdown";
+  state.scrollPaused = !!data.scrollPaused;
+  state.showOutline = !!data.showOutline;
   state.contentVersion = data.contentVersion ?? null;
   state.contentUpdatedAt = data.contentUpdatedAt ?? null;
   const es = data.editorState ?? {};
@@ -434,7 +536,7 @@ async function loadConfig(): Promise<void> {
     const snap = readLiveSnapshot();
     if (snap?.config) {
       seedConfigState(snap.config);
-      if (snap.layout && Array.isArray(snap.layout.items)) state.layout = snap.layout;
+      if (snap.layout && Array.isArray(snap.layout.items)) state.layout = await migrateIfNeeded(snap.layout);
       // Resume the event being edited (with its unsaved changes).
       const pid = snap.previewEventId ?? state.currentEventId;
       if (pid && snap.events[pid]) {
@@ -452,6 +554,7 @@ async function loadConfig(): Promise<void> {
     renderVersionIndicator();
     renderDisplayModeSwitcher();
     renderAspectRatioSwitcher();
+    renderDisplayControls();
     applyAdminChrome();
     // Ensure a layout is in state before the first mirror (see ensureLayoutLoaded).
     await ensureLayoutLoaded();
@@ -568,6 +671,11 @@ function buildConfig(): DisplayConfig {
     displayLanguage: state.displayLanguage,
     textScale: state.textScale,
     labels: state.labels,
+    // Display controls, driven from the admin header (see renderDisplayControls).
+    redFlag: state.redFlag,
+    currentPage: state.currentPage,
+    scrollPaused: state.scrollPaused,
+    showOutline: state.showOutline,
     editorState: currentEditorState(),
     contentVersion: state.contentVersion ?? undefined,
     contentUpdatedAt: state.contentUpdatedAt ?? undefined,
@@ -576,12 +684,10 @@ function buildConfig(): DisplayConfig {
 
 // Real-time mirror: on every working-state change, push a snapshot of the
 // display-relevant state to localStorage so a same-browser display in "Local"
-// mode updates INSTANTLY. The red flag is controlled from the display now, so
-// an existing snapshot's redFlag is preserved rather than overwritten.
+// mode updates INSTANTLY. 切替 / red flag / scroll / outline are all driven
+// from the admin now (buildConfig emits them straight from state).
 function mirrorToLive(): void {
   const config = buildConfig();
-  const prev = readLiveSnapshot();
-  if (prev?.config?.redFlag) config.redFlag = prev.config.redFlag;
   const events: Record<string, EventData> = {};
   if (state.currentEvent) events[state.currentEvent.id] = state.currentEvent;
   writeLiveSnapshot({

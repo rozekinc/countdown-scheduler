@@ -2,9 +2,9 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="app-build" content="1.0.0+839b367" />
+  <meta name="app-build" content="1.0.0+4b0f622" />
   <title>カウントダウンスケジューラー</title>
-  <link rel="stylesheet" href="assets/main.css?v=782fc2f4e7" />
+  <link rel="stylesheet" href="assets/main.css?v=8ad272e242" />
 </head>
 <body>
   <div class="aspect-container">
@@ -30,10 +30,16 @@
         </div>
       </div>
 
-      <!-- Countdown: big timer + title + stoppage. -->
+      <!-- Countdown title: the event's title + target time. Split into its own
+           singleton host so it can be placed/sized independently of the timer
+           and fit to its own bounded height (see src/countdown.ts fitMain). -->
+      <div class="layout-item" id="li-countdownTitle" data-screen="countdown">
+        <h1 id="title">タイトル読み込み中...</h1>
+      </div>
+
+      <!-- Countdown: big timer + stoppage. -->
       <div class="layout-item" id="li-countdown" data-screen="countdown">
         <div id="main">
-          <h1 id="title">タイトル読み込み中...</h1>
           <div id="countdown">00:00:00.<span class="ms">000</span></div>
           <!-- Stoppage timer: counts UP from when the red flag was raised. -->
           <div id="stoppage" class="rf-hidden">
@@ -47,6 +53,9 @@
       <div class="layout-item" id="li-scheduleList" data-screen="countdown">
         <aside id="schedule-list">
           <h2 id="next-schedule-label">次のスケジュール</h2>
+          <!-- The immediately-next item is pinned static here; the items after
+               it scroll in #list-viewport below (see src/countdown.ts). -->
+          <div id="list-next-pinned"></div>
           <div id="list-viewport"></div>
         </aside>
       </div>
@@ -81,14 +90,10 @@
     </div>
   </div>
 
-  <!-- Operator controls. Dimmed until the pointer moves so they stay out of
-       the way on a venue screen; see #op-controls in styles.css. -->
-  <div id="op-controls">
-    <button id="toggle-btn" type="button">切替</button>
-    <button id="redflag-btn" type="button">🚩 Red flag</button>
-    <button id="marquee-btn" type="button">⏸ Scroll</button>
-  </div>
+  <!-- 切替 / red flag / scroll are driven from the admin now (they ride the
+       display config + live snapshot); the display carries no operator buttons
+       apart from fullscreen. -->
 
-  <script src="assets/main.js?v=782fc2f4e7" defer></script>
+  <script src="assets/main.js?v=8ad272e242" defer></script>
 </body>
 </html>

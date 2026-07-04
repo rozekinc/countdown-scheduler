@@ -1,5 +1,5 @@
 import type { DisplayConfig, EventData } from "./types";
-import { defaultLayout, type LayoutDoc } from "./layout";
+import { defaultLayout, migrateLayout, LAYOUT_VERSION, type LayoutDoc, type ScheduleEntry } from "./layout";
 import { dataBaseUrl } from "./config";
 
 // Prefix for every data fetch. On a github.io deployment this points at
@@ -59,11 +59,27 @@ export async function loadConfig(): Promise<DisplayConfig> {
 
 /** Loads the single layout (data/layout.json). Falls back to the built-in base
  * layout when the file is absent (or malformed), so the display looks like the
- * original fixed layout even before a layout is authored. */
+ * original fixed layout even before a layout is authored. A pre-v2 layout is
+ * migrated in place (split titles + schedule item); the converted schedule
+ * item is seeded from the active event's schedule so no content is lost. */
 export async function loadLayout(): Promise<LayoutDoc> {
   const data = await fetchJson<LayoutDoc>(LAYOUT_URL);
   if (!data || !Array.isArray(data.items)) return defaultLayout();
-  return data;
+  if ((data.version ?? 0) >= LAYOUT_VERSION) return data;
+  return migrateLayout(data, await loadActiveScheduleEntries());
+}
+
+/** Flatten the active event's schedule days into title/detail rows, to seed a
+ * migrated `schedule` item. Best-effort: returns undefined if nothing loads. */
+async function loadActiveScheduleEntries(): Promise<ScheduleEntry[] | undefined> {
+  const config = await fetchJson<DisplayConfig>(CONFIG_URL);
+  const eventId = config?.activeEventId ?? null;
+  if (!eventId) return undefined;
+  const event = await fetchEvent(eventId);
+  if (!event) return undefined;
+  return event.scheduleDays.flatMap((day) =>
+    day.items.map((i) => ({ title: i.title, detail: i.detail })),
+  );
 }
 
 /**
