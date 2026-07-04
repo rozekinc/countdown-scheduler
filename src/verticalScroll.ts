@@ -21,6 +21,13 @@ export function setScrollingContent(viewport: HTMLElement | null, contentHtml: s
   inner.style.animationDuration = "";
 
   requestAnimationFrame(() => {
+    // A zero-height viewport isn't laid out yet (e.g. the schedule page before
+    // it's first shown); render static and let a later refresh (once visible)
+    // set up the scroll with a real measurement.
+    if (viewport.clientHeight <= 0) {
+      copies[1].remove();
+      return;
+    }
     // Each copy (rows + its trailing gap, set in CSS) is exactly half of
     // the doubled inner height -- the distance one full loop travels.
     const periodHeight = inner.scrollHeight / 2;
@@ -58,6 +65,10 @@ export function setScrollingList(viewport: HTMLElement | null, itemsHtml: string
   inner.style.animationDuration = "";
 
   requestAnimationFrame(() => {
+    if (viewport.clientHeight <= 0) {
+      copies[1].remove();
+      return;
+    }
     const periodHeight = inner.scrollHeight / 2;
     const overflowing = periodHeight > viewport.clientHeight;
     if (!overflowing) {

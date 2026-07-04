@@ -476,6 +476,24 @@ function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => v
       panel.append(fontSlider());
     }
   }
+
+  // Scroll toggles for text-bearing items. Horizontal = marquee (announcement /
+  // text); Vertical = auto-scroll long content (schedule list/columns / text).
+  // Singletons scroll by default (checked); text items default off.
+  const showH = item.type === "announcement" || item.type === "text";
+  const showV =
+    item.type === "scheduleList" || item.type === "scheduleColumns" || item.type === "text";
+  if (showH || showV) {
+    panel.append(el("h4", {}, ["Scroll"]));
+    if (showH) {
+      const on = item.type === "text" ? !!p.scrollH : p.scrollH !== false;
+      panel.append(checkboxField("Horizontal (marquee)", on, (v) => (p.scrollH = v), rerender));
+    }
+    if (showV) {
+      const on = item.type === "text" ? !!p.scrollV : p.scrollV !== false;
+      panel.append(checkboxField("Vertical", on, (v) => (p.scrollV = v), rerender));
+    }
+  }
 }
 
 // --- asset picker + upload ------------------------------------------------

@@ -90,12 +90,15 @@ function enterFullscreen(): void {
  * placed differently on the two pages animate between them (see
  * layoutManager.setPage).
  */
-function setupScreenToggle(): void {
+function setupScreenToggle(onPageShown: () => void): void {
   const toggleBtn = document.getElementById("toggle-btn");
   let isScheduleMode = false;
   toggleBtn?.addEventListener("click", () => {
     isScheduleMode = !isScheduleMode;
     setPage(isScheduleMode ? "schedule" : "countdown");
+    // After the page-swap transition settles, re-render so scrollers measure
+    // against the now-visible (full-height) hosts and set up correctly.
+    window.setTimeout(onPageShown, 560);
   });
 }
 
@@ -335,7 +338,10 @@ async function main(): Promise<void> {
   // whole UI on the time sync. worldtimeapi can be slow or unreachable (it
   // retries with backoff), and awaiting it here froze the toggle and clock
   // for several seconds on load.
-  setupScreenToggle();
+  setupScreenToggle(() => {
+    countdownController.refresh();
+    scheduleController.refresh();
+  });
 
   const fullscreenBtn = document.getElementById("fullscreen-btn");
   fullscreenBtn?.addEventListener("click", enterFullscreen);

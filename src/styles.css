@@ -362,7 +362,7 @@ body.red-flag-on .aspect-inner {
   inset: 0;
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 3cqw;
   padding: 2cqh 4cqw;
   box-sizing: border-box;
@@ -372,11 +372,20 @@ body.red-flag-on .aspect-inner {
 .schedule-column {
   flex: 1 1 0;
   min-width: 0;
+  min-height: 0;
   max-width: 32%;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
+}
+
+/* Items take the height left under the header and clip, so a long day's list
+   overflows and the vertical auto-scroller (src/schedule.ts) can loop it. */
+.schedule-col-items {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .schedule-col-header {
@@ -692,9 +701,30 @@ body.red-flag-on .aspect-inner {
   50% { box-shadow: 0 0 0 7px rgba(212, 0, 0, 0); }
 }
 
-/* Marquee start/stop pauses the next-schedule auto-scroll. */
-body.marquee-paused .list-scroll-inner {
-  animation-play-state: paused !important;
+/* "Stop scroll" (operator ⏸ button) SNAPS every scroller back to the top /
+   start rather than freezing it mid-scroll -- `animation: none` resets the
+   transform to translate(0). Covers the side list, schedule columns, and the
+   announcement marquee. */
+body.marquee-paused .list-scroll-inner,
+body.marquee-paused .schedule-rows-inner,
+body.marquee-paused .marquee-inner {
+  animation: none !important;
+}
+
+/* Per-item scroll toggles (data-scroll-* set by src/layoutManager.ts). "off"
+   disables the animation, snapping the content to the top/start. Items scroll
+   by default; only an explicit off is written. */
+.layout-item[data-scroll-v="off"] .list-scroll-inner,
+.layout-item[data-scroll-v="off"] .schedule-rows-inner {
+  animation: none !important;
+}
+.layout-item[data-scroll-h="off"] .marquee-inner {
+  animation: none !important;
+}
+
+/* A text item that scrolls needs block flow so the scroller fills the host. */
+.item-text.item-text-scrolls {
+  display: block;
 }
 
 /* Subtle "which data/build am I?" badge for a venue monitor -- small,

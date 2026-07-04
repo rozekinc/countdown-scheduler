@@ -1,6 +1,7 @@
 import type { DisplayConfig, EventData, ScheduleDay } from "./types";
 import { colorizeKeywords } from "./keywords";
 import { relativeDayLabel } from "./labels";
+import { setScrollingContent } from "./verticalScroll";
 
 export interface ScheduleController {
   setEventData(data: EventData): void;
@@ -101,6 +102,13 @@ export function initSchedule(getNow: () => Date, getApps: () => DisplayConfig): 
     columnsElem.innerHTML = days
       .map((day) => renderColumn(day, now, apps, data.highlightKeywords))
       .join("");
+
+    // Each column's items vertically auto-scroll when they overflow (seamless
+    // loop), so a long day's schedule stays fully visible. Disabled per-item /
+    // on "stop" via the data-scroll-v attribute + CSS (see styles.css).
+    columnsElem.querySelectorAll<HTMLElement>(".schedule-col-items").forEach((el) => {
+      setScrollingContent(el, el.innerHTML);
+    });
   }
 
   return {
