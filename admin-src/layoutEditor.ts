@@ -23,10 +23,15 @@ import {
   ADDABLE_TYPES,
   ITEM_TYPE_LABELS,
   SINGLETON_TYPES,
+  BASE_PAGE_IDS,
   defaultLayout,
   isSingleton,
+  isBasePage,
   onPage,
   placementFor,
+  setPlacement,
+  clearPlacement,
+  pageIds,
   type ItemPage,
   type ItemType,
   type LayoutItem,
@@ -44,6 +49,18 @@ let assetCache: string[] | null = null;
 
 function items(): LayoutItem[] {
   return state.layout?.items ?? [];
+}
+
+/** All page ids (base two + added), in order. */
+function allPageIds(): ItemPage[] {
+  return state.layout ? pageIds(state.layout) : [...BASE_PAGE_IDS];
+}
+
+/** Localized/edited display name for a page id. */
+function pageDisplayName(page: ItemPage): string {
+  if (page === "countdown") return t("le.countdown");
+  if (page === "schedule") return t("le.schedule");
+  return state.layout?.pages?.find((p) => p.id === page)?.name || page;
 }
 
 function selected(): LayoutItem | null {
@@ -85,11 +102,6 @@ const TYPE_LABEL_KEYS: Record<ItemType, TranslationKey> = {
 /** Localized item-type name (falls back to the shared English constant). */
 function typeLabel(type: ItemType): string {
   return t(TYPE_LABEL_KEYS[type]) || ITEM_TYPE_LABELS[type];
-}
-
-/** Localized page name. */
-function pageLabel(page: ItemPage): string {
-  return page === "countdown" ? t("le.countdown") : t("le.schedule");
 }
 
 /** A short, human label for the palette's item list (previews text/heading). */
@@ -144,17 +156,49 @@ function renderPalette(container: HTMLElement, ctx: LayoutEditorCtx): HTMLElemen
 
   panel.append(el("h3", {}, [t("le.page")]));
   const pageRow = el("div", { class: "le-screen-tabs" });
-  (["countdown", "schedule"] as const).forEach((page) => {
-    const b = el("button", { class: `btn btn-small ${previewPage === page ? "btn-primary" : "btn-secondary"}` }, [
-      pageLabel(page),
+  for (const page of allPageIds()) {
+    const tab = el("button", { class: `btn btn-small ${previewPage === page ? "btn-primary" : "btn-secondary"}` }, [
+      pageDisplayName(page),
     ]);
-    b.addEventListener("click", () => {
+    tab.addEventListener("click", () => {
       previewPage = page;
       renderLayoutEditor(container, ctx);
     });
-    pageRow.append(b);
-  });
+    pageRow.append(tab);
+  }
   panel.append(pageRow);
+
+  const addPageBtn = el("button", { class: "btn btn-secondary btn-small" }, [t("le.addPage")]);
+  addPageBtn.addEventListener("click", () => {
+    addPage();
+    ctx.onChange();
+    renderLayoutEditor(container, ctx);
+  });
+  panel.append(addPageBtn);
+
+  // The base pages (countdown / schedule) are fixed; added pages can be
+  // renamed and deleted from here while previewed.
+  if (!isBasePage(previewPage)) {
+    const def = state.layout?.pages?.find((p) => p.id === previewPage);
+    if (def) {
+      const nameInput = el("input", { type: "text", class: "row-input", value: def.name }) as HTMLInputElement;
+      nameInput.addEventListener("input", () => {
+        def.name = nameInput.value;
+        ctx.onChange();
+      });
+      nameInput.addEventListener("change", () => renderLayoutEditor(container, ctx));
+      panel.append(el("div", { class: "le-field" }, [el("label", {}, [t("le.pageName")]), nameInput]));
+
+      const delPageBtn = el("button", { class: "btn btn-danger btn-small" }, [t("le.deletePage")]);
+      delPageBtn.addEventListener("click", () => {
+        if (!window.confirm(t("le.deletePageConfirm", { name: def.name }))) return;
+        deletePage(previewPage);
+        ctx.onChange();
+        renderLayoutEditor(container, ctx);
+      });
+      panel.append(delPageBtn);
+    }
+  }
   panel.append(el("p", { class: "muted le-hint" }, [t("le.pageHint")]));
 
   panel.append(el("h3", {}, [t("le.addItem")]));
@@ -244,7 +288,6 @@ function addItem(type: ItemType): void {
     id,
     type,
     z: 20,
-    [previewPage]: geom,
     props:
       type === "text"
         ? { source: "literal", textI18n: { ja: "テキスト", en: "Text" }, align: "center", fontScale: 1 }
@@ -252,8 +295,37 @@ function addItem(type: ItemType): void {
           ? { fontScale: 1, heading: { ja: "スケジュール", en: "Schedule" }, entries: [] }
           : { assetPath: "media/images/ロゴ.png", fit: "contain", opacity: 1 },
   };
+  setPlacement(item, previewPage, geom);
   state.layout.items.push(item);
   selectedId = id;
+}
+
+function uniquePageId(): string {
+  const existing = new Set((state.layout?.pages ?? []).map((p) => p.id));
+  let n = 1;
+  while (existing.has(`page-${n}`)) n++;
+  return `page-${n}`;
+}
+
+/** Add a new (empty) page after the base two and switch the preview to it. */
+function addPage(): void {
+  if (!state.layout) return;
+  const pages = (state.layout.pages ??= []);
+  const id = uniquePageId();
+  pages.push({ id, name: `${t("le.pageDefaultName")} ${BASE_PAGE_IDS.length + pages.length + 1}` });
+  previewPage = id;
+}
+
+/** Delete an added page: drop it from the layout, strip its placement from
+ * every item, and steer the preview + the display off it. Base pages can't be
+ * deleted. */
+function deletePage(page: ItemPage): void {
+  if (!state.layout || isBasePage(page)) return;
+  state.layout.pages = (state.layout.pages ?? []).filter((p) => p.id !== page);
+  for (const item of state.layout.items) clearPlacement(item, page);
+  if (previewPage === page) previewPage = "countdown";
+  // If the display was showing this page, send it back to countdown.
+  if (state.currentPage === page) state.currentPage = "countdown";
 }
 
 /** Add/remove a singleton section's placement on the previewed page. */
@@ -267,15 +339,15 @@ function toggleSingletonOnPage(type: ItemType): void {
     state.layout.items.push(item);
   }
   if (onPage(item, previewPage)) {
-    delete item[previewPage];
+    clearPlacement(item, previewPage);
   } else {
-    // Seed from the other page's placement, the base layout, or a default.
+    // Seed from the other base page's placement, the base layout, or a default.
     const other: ItemPage = previewPage === "countdown" ? "schedule" : "countdown";
     const seed =
       placementFor(item, other) ??
       placementFor(defaultLayout().items.find((i) => i.type === type) as LayoutItem, previewPage) ??
       { x: 30, y: 30, w: 40, h: 20 };
-    item[previewPage] = { ...seed };
+    setPlacement(item, previewPage, { ...seed });
     selectedId = item.id;
   }
 }
@@ -306,7 +378,7 @@ function renderCanvas(container: HTMLElement, ctx: LayoutEditorCtx): HTMLElement
 
   panel.append(stage);
   panel.append(
-    el("p", { class: "muted le-hint" }, [t("le.canvasHint", { page: pageLabel(previewPage) })]),
+    el("p", { class: "muted le-hint" }, [t("le.canvasHint", { page: pageDisplayName(previewPage) })]),
   );
   return panel;
 }
@@ -462,28 +534,30 @@ function renderProperties(container: HTMLElement, ctx: LayoutEditorCtx): HTMLEle
   // Mirror-only (no editor rebuild) -- for live slider drags.
   const live = (): void => ctx.onChange();
 
-  // Which pages this item is on.
+  // Which pages this item is on (one toggle per page).
   panel.append(el("h4", {}, [t("le.pages")]));
-  panel.append(pageToggle(item, "countdown", t("le.countdown"), rerender));
-  panel.append(pageToggle(item, "schedule", t("le.schedule"), rerender));
+  for (const pg of allPageIds()) {
+    panel.append(pageToggle(item, pg, pageDisplayName(pg), rerender));
+  }
 
   const geom = geomOf(item);
   if (geom) {
-    const copyBtn = el("button", { class: "btn btn-secondary btn-small" }, [t("le.copyPos")]);
+    const copyBtn = el("button", { class: "btn btn-secondary btn-small" }, [t("le.copyPosAll")]);
     copyBtn.addEventListener("click", () => {
-      const other: ItemPage = previewPage === "countdown" ? "schedule" : "countdown";
-      item[other] = { ...geom };
+      for (const pg of allPageIds()) {
+        if (pg !== previewPage) setPlacement(item, pg, { ...geom });
+      }
       rerender();
     });
     panel.append(copyBtn);
 
-    panel.append(el("h4", {}, [t("le.position", { page: pageLabel(previewPage) })]));
+    panel.append(el("h4", {}, [t("le.position", { page: pageDisplayName(previewPage) })]));
     panel.append(numberField(t("le.x"), geom.x, (v) => (geom.x = clamp(v)), rerender));
     panel.append(numberField(t("le.y"), geom.y, (v) => (geom.y = clamp(v)), rerender));
     panel.append(numberField(t("le.width"), geom.w, (v) => (geom.w = clamp(v, 1)), rerender));
     panel.append(numberField(t("le.height"), geom.h, (v) => (geom.h = clamp(v, 1)), rerender));
   } else {
-    panel.append(el("p", { class: "muted le-hint" }, [t("le.notOnPage", { page: pageLabel(previewPage) })]));
+    panel.append(el("p", { class: "muted le-hint" }, [t("le.notOnPage", { page: pageDisplayName(previewPage) })]));
   }
   panel.append(numberField(t("le.layer"), item.z, (v) => (item.z = Math.round(v)), rerender, 0, 999));
 
@@ -504,18 +578,24 @@ function renderProperties(container: HTMLElement, ctx: LayoutEditorCtx): HTMLEle
   return panel;
 }
 
+/** Seed geometry for placing an item on a new page: reuse any page it's
+ * already on, else a sensible default. */
+function seedGeom(item: LayoutItem): Placement {
+  for (const pg of allPageIds()) {
+    const g = placementFor(item, pg);
+    if (g) return { ...g };
+  }
+  return { x: 30, y: 30, w: 40, h: 20 };
+}
+
 /** A checkbox toggling whether the item is placed on a given page. */
 function pageToggle(item: LayoutItem, page: ItemPage, label: string, after: () => void): HTMLElement {
   const field = el("div", { class: "le-field le-field-inline" });
   const input = el("input", { type: "checkbox" }) as HTMLInputElement;
   input.checked = onPage(item, page);
   input.addEventListener("change", () => {
-    if (input.checked) {
-      const other: ItemPage = page === "countdown" ? "schedule" : "countdown";
-      item[page] = { ...(placementFor(item, other) ?? { x: 30, y: 30, w: 40, h: 20 }) };
-    } else {
-      delete item[page];
-    }
+    if (input.checked) setPlacement(item, page, seedGeom(item));
+    else clearPlacement(item, page);
     after();
   });
   field.append(el("label", {}, [label]), input);

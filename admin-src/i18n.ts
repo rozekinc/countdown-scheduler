@@ -80,6 +80,7 @@ const EN = {
   "header.display": "Display: ",
   "header.displayLangHint": "Language shown on the display (independent of the admin language)",
   "header.textSize": "Display text size",
+  "header.showingPage": "Page shown on the display (切替)",
 
   "version.label": "Version: ",
 
@@ -190,6 +191,12 @@ const EN = {
   "le.selectToEdit": "Select an item to edit it.",
   "le.pages": "Pages",
   "le.copyPos": "Copy position to other page",
+  "le.copyPosAll": "Copy position to all pages",
+  "le.addPage": "+ Add page",
+  "le.pageName": "Page name",
+  "le.pageDefaultName": "Page",
+  "le.deletePage": "Delete this page",
+  "le.deletePageConfirm": "Delete the page \"{name}\" and remove every item's placement on it?",
   "le.position": "Position ({page})",
   "le.notOnPage": "Not on the {page} page. Toggle it on above to place it here.",
   "le.canvasHint": "Editing the {page} page. Drag to move, drag a corner/edge to resize.",
@@ -353,6 +360,7 @@ const JA: Record<TranslationKey, string> = {
   "header.display": "表示: ",
   "header.displayLangHint": "ディスプレイに表示される言語（管理画面の言語とは別）",
   "header.textSize": "表示の文字サイズ",
+  "header.showingPage": "ディスプレイに表示するページ（切替）",
 
   "version.label": "バージョン: ",
 
@@ -463,6 +471,12 @@ const JA: Record<TranslationKey, string> = {
   "le.selectToEdit": "編集する項目を選択してください。",
   "le.pages": "ページ",
   "le.copyPos": "位置をもう一方のページにコピー",
+  "le.copyPosAll": "位置をすべてのページにコピー",
+  "le.addPage": "＋ ページを追加",
+  "le.pageName": "ページ名",
+  "le.pageDefaultName": "ページ",
+  "le.deletePage": "このページを削除",
+  "le.deletePageConfirm": "ページ「{name}」を削除し、このページ上のすべての項目の配置を削除しますか？",
   "le.position": "位置（{page}）",
   "le.notOnPage": "{page}ページにはありません。上のトグルでこのページに配置できます。",
   "le.canvasHint": "{page}ページを編集中。ドラッグで移動、角/辺のドラッグでサイズ変更。",
