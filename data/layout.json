@@ -107,11 +107,12 @@
       "z": 10,
       "props": {
         "fontScale": 0.8,
-        "showHeading": false
+        "showHeading": false,
+        "color": "#000000"
       },
       "countdown": {
-        "x": 75,
-        "y": 12,
+        "x": 74.9,
+        "y": 13.1,
         "w": 24.1,
         "h": 74
       }
