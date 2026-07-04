@@ -1,6 +1,6 @@
 {
   "activeEventId": "race-weekend",
-  "displayModeId": "daylight-contrast",
+  "displayModeId": "standard",
   "aspectRatioId": "widescreen-16-9",
   "displayLanguage": "ja",
   "textScale": 1.05,
@@ -42,14 +42,21 @@
       "en": "Day After"
     }
   },
+  "redFlag": {
+    "active": false,
+    "since": null
+  },
+  "currentPage": "countdown",
+  "scrollPaused": false,
+  "showOutline": false,
   "editorState": {
     "expandedEventIds": [
-      "2026-motegi",
-      "race-weekend"
+      "race-weekend",
+      "2026-motegi"
     ],
     "selectedEventId": "race-weekend",
-    "selectedDayIndex": 0
+    "selectedDayIndex": 2
   },
-  "contentVersion": 10,
+  "contentVersion": 13,
   "contentUpdatedAt": "2026-07-04"
 }

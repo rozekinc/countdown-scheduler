@@ -2,23 +2,51 @@
   "id": "race-weekend",
   "name": "Race Weekend",
   "status": "active",
-  "announcement": "安全に作業しよう！！ / Drive safely!",
+  "announcement": "安全に作業しよう！！ / Ride safely!",
   "countdownRows": [
     {
-      "title": "Night Pitwalk start",
-      "time": "2026-07-04T18:30:00+09:00"
-    },
-    {
-      "title": "Night Pitwalk finish",
+      "title": "Night Pitwalk\nfinish",
       "time": "2026-07-04T20:15:00+09:00"
     },
     {
-      "title": "Day 1\nclose",
-      "time": "2026-07-03T23:01:00+09:00"
+      "title": "W-UP \nwork complete",
+      "time": "2026-07-05T08:00:00+09:00"
     },
     {
-      "title": "",
-      "time": ""
+      "title": "W-UP \nstart",
+      "time": "2026-07-05T08:30:00+09:00"
+    },
+    {
+      "title": "W-UP \nfinish",
+      "time": "2026-07-05T09:15:00+09:00"
+    },
+    {
+      "title": "Pitwalk\nstart",
+      "time": "2026-07-05T09:30:00+09:00"
+    },
+    {
+      "title": "Pitwalk\nfinish",
+      "time": "2026-07-05T10:10:00+09:00"
+    },
+    {
+      "title": "All Team Appearance\nstart",
+      "time": "2026-07-05T10:25:00+09:00"
+    },
+    {
+      "title": "Sighting Lap\nstart",
+      "time": "2026-07-05T10:40:00+09:00"
+    },
+    {
+      "title": "Warm Up Lap\nstart",
+      "time": "2026-07-05T11:24:00+09:00"
+    },
+    {
+      "title": "Race start",
+      "time": "2026-07-05T11:30:00+09:00"
+    },
+    {
+      "title": "Race finish",
+      "time": "2026-07-05T19:30:00+09:00"
     }
   ],
   "scheduleDays": [
