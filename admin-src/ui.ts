@@ -46,6 +46,9 @@ let saveBtnEl: HTMLButtonElement;
 // skeletons instead of looking blank/broken.
 let treeLoading = true;
 
+// Whether the "Archive" (previous events) section in the tree is expanded.
+let archiveExpanded = false;
+
 export function init(root: HTMLElement): void {
   rootEl = root;
   rootEl.innerHTML = "";
@@ -283,6 +286,24 @@ function openRedFlagDialog(): void {
     value: isoToTimePart(state.redFlag.finishTime ?? ""),
   }) as HTMLInputElement;
 
+  // Editable banner text in both languages (same labels used on the display and
+  // in the settings panel). Typing mirrors live so a same-browser display shows
+  // it at once; the values ride the next Sync via buildConfig().
+  const labelInput = (key: "redFlag" | "stoppage", lang: "ja" | "en"): HTMLInputElement => {
+    const input = el("input", { type: "text", class: "row-input", value: state.labels[key][lang] }) as HTMLInputElement;
+    input.addEventListener("input", () => {
+      state.labels[key][lang] = input.value;
+      state.hasLocalChanges = true;
+      mirrorToLive();
+      updateSaveButtonState();
+    });
+    return input;
+  };
+  const flagJa = labelInput("redFlag", "ja");
+  const flagEn = labelInput("redFlag", "en");
+  const stopJa = labelInput("stoppage", "ja");
+  const stopEn = labelInput("stoppage", "en");
+
   const apply = (): void => {
     state.redFlag = {
       active: true,
@@ -318,6 +339,10 @@ function openRedFlagDialog(): void {
     el("h3", {}, [t("redflag.title")]),
     el("p", { class: "muted" }, [t("redflag.prompt")]),
     el("label", { class: "field" }, [t("redflag.finishTime"), timeInput]),
+    el("label", { class: "field" }, [t("redflag.flagText") + " (日本語)", flagJa]),
+    el("label", { class: "field" }, [t("redflag.flagText") + " (English)", flagEn]),
+    el("label", { class: "field" }, [t("redflag.stoppageText") + " (日本語)", stopJa]),
+    el("label", { class: "field" }, [t("redflag.stoppageText") + " (English)", stopEn]),
     actions,
   ]);
   backdrop.append(el("div", { class: "modal" }, [body]));
@@ -851,11 +876,37 @@ function renderLeftPanel(): void {
     return;
   }
 
+  // Active events, then a separate collapsible "Archive" (previous events)
+  // section so archived events are clearly categorized, not mixed in.
+  const activeEvents = state.allEvents.filter((e) => !e.archived);
+  const archivedEvents = state.allEvents.filter((e) => e.archived);
+
   const tree = el("div", { class: "event-tree" });
-  for (const ev of state.allEvents) {
+  for (const ev of activeEvents) {
     tree.append(renderEventGroup(ev));
   }
   leftPanelEl.append(tree);
+
+  if (archivedEvents.length > 0) {
+    const chevron = icon("chevron");
+    chevron.classList.toggle("open", archiveExpanded);
+    const archHeader = el("div", { class: "archive-header" }, [
+      chevron,
+      el("span", {}, [t("events.archiveSection", { count: String(archivedEvents.length) })]),
+    ]);
+    archHeader.addEventListener("click", () => {
+      archiveExpanded = !archiveExpanded;
+      renderLeftPanel();
+    });
+    leftPanelEl.append(archHeader);
+    if (archiveExpanded) {
+      const archTree = el("div", { class: "event-tree archived-tree" });
+      for (const ev of archivedEvents) {
+        archTree.append(renderEventGroup(ev));
+      }
+      leftPanelEl.append(archTree);
+    }
+  }
 }
 
 function renderEventGroup(ev: EventSummary): HTMLElement {
