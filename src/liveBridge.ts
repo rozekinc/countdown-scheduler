@@ -19,6 +19,9 @@ export interface LiveSnapshot {
   config: DisplayConfig;
   /** eventId -> event, for the events the admin has touched this session. */
   events: Record<string, EventData>;
+  /** Which event the display should preview in Local mode (the one being
+   * edited), falling back to config.activeEventId. */
+  previewEventId?: string | null;
   /** The single layout, so a drag/resize in the editor moves the item on a
    * same-browser display instantly. */
   layout?: LayoutDoc;

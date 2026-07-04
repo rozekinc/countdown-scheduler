@@ -197,6 +197,11 @@ function updateSaveButtonState(): void {
 function markEventDirty(): void {
   state.eventDirty = true;
   updateSaveButtonState();
+  // Push the edit to a same-browser display in Local mode so schedule /
+  // countdown changes show live, exactly like layout edits do. This only
+  // writes localStorage + posts a message (no admin re-render), so it never
+  // steals focus from the field being typed in.
+  mirrorToLive();
 }
 
 function confirmDiscardEventIfDirty(action: string): boolean {
@@ -448,7 +453,15 @@ function mirrorToLive(): void {
   if (prev?.config?.redFlag) config.redFlag = prev.config.redFlag;
   const events: Record<string, EventData> = {};
   if (state.currentEvent) events[state.currentEvent.id] = state.currentEvent;
-  writeLiveSnapshot({ config, events, layout: state.layout ?? undefined, ts: Date.now() });
+  writeLiveSnapshot({
+    config,
+    events,
+    // In Local mode the display previews the event being edited, not only the
+    // active one, so schedule/countdown edits are visible before Set active.
+    previewEventId: state.currentEventId,
+    layout: state.layout ?? undefined,
+    ts: Date.now(),
+  });
 }
 
 /** Loads every event into the tree (state.allEvents), then restores the last

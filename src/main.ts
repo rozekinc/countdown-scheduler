@@ -252,7 +252,9 @@ async function main(): Promise<void> {
     applyTheme(cfg.displayModeId ?? null);
     currentLayout = snap.layout?.items ?? defaultLayout().items;
     renderCurrentLayout();
-    const eventId = cfg.activeEventId ?? null;
+    // Prefer the event being edited (previewEventId) so schedule/countdown
+    // edits show live; fall back to the active event.
+    const eventId = snap.previewEventId ?? cfg.activeEventId ?? null;
     const event = eventId ? snap.events[eventId] : undefined;
     if (event) applyEvent(event);
     countdownController.refresh();
