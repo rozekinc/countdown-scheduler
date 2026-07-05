@@ -10,16 +10,16 @@
         "opacity": 1
       },
       "countdown": {
-        "x": 1.5,
-        "y": 2.8,
-        "w": 24,
-        "h": 14
+        "x": 0.1,
+        "y": 0,
+        "w": 27.8,
+        "h": 18.6
       },
       "schedule": {
-        "x": 2,
-        "y": 3,
-        "w": 24,
-        "h": 14
+        "x": 0.1,
+        "y": 0,
+        "w": 27.8,
+        "h": 18.6
       }
     },
     {
@@ -32,16 +32,16 @@
         "opacity": 1
       },
       "countdown": {
-        "x": 2,
-        "y": 18,
-        "w": 14,
-        "h": 12
+        "x": 1.6,
+        "y": 14.7,
+        "w": 21.3,
+        "h": 15.9
       },
       "schedule": {
-        "x": 2,
-        "y": 18,
-        "w": 14,
-        "h": 12
+        "x": 1.6,
+        "y": 14.7,
+        "w": 21.3,
+        "h": 15.9
       }
     },
     {
@@ -54,10 +54,10 @@
         "fontScale": 1
       },
       "countdown": {
-        "x": 37.7,
-        "y": 7.6,
-        "w": 36,
-        "h": 12.6
+        "x": 36.4,
+        "y": 12.7,
+        "w": 37.2,
+        "h": 15.3
       },
       "schedule": {
         "x": 62,
@@ -71,14 +71,15 @@
       "type": "announcement",
       "z": 10,
       "props": {
-        "fontScale": 1,
-        "showPrefix": false
+        "fontScale": 1.55,
+        "showPrefix": false,
+        "color": "#492222"
       },
       "countdown": {
-        "x": 19.3,
-        "y": 88,
+        "x": 19.1,
+        "y": 89.4,
         "w": 78.7,
-        "h": 10
+        "h": 8.6
       },
       "schedule": {
         "x": 19.3,
@@ -96,9 +97,9 @@
       },
       "countdown": {
         "x": 2,
-        "y": 45.7,
+        "y": 65,
         "w": 72,
-        "h": 40.3
+        "h": 21.2
       }
     },
     {
@@ -106,13 +107,14 @@
       "type": "scheduleList",
       "z": 10,
       "props": {
-        "fontScale": 0.8,
-        "showHeading": false
+        "fontScale": 1.05,
+        "showHeading": false,
+        "color": "#000000"
       },
       "countdown": {
-        "x": 75,
-        "y": 12,
-        "w": 25,
+        "x": 74.9,
+        "y": 13.1,
+        "w": 24.1,
         "h": 74
       }
     },
@@ -121,9 +123,9 @@
       "type": "schedule",
       "z": 10,
       "schedule": {
-        "x": 2.3,
-        "y": 29.9,
-        "w": 29.7,
+        "x": 2,
+        "y": 28,
+        "w": 46.1,
         "h": 58
       },
       "props": {
@@ -189,13 +191,14 @@
       "type": "countdownTitle",
       "z": 10,
       "props": {
-        "fontScale": 1
+        "fontScale": 1.6,
+        "color": "#000000"
       },
       "countdown": {
-        "x": 2.1,
-        "y": 29.1,
+        "x": 2,
+        "y": 30.6,
         "w": 72,
-        "h": 15.7
+        "h": 33.9
       }
     },
     {
@@ -212,10 +215,10 @@
         "fontScale": 1
       },
       "countdown": {
-        "x": 37.7,
-        "y": 2.2,
-        "w": 36,
-        "h": 5.4
+        "x": 36.3,
+        "y": 7.3,
+        "w": 27.5,
+        "h": 6.6
       },
       "schedule": {
         "x": 62,
@@ -235,13 +238,14 @@
           "en": "Next Schedule"
         },
         "align": "center",
-        "fontScale": 0.8,
-        "labelKey": "today"
+        "fontScale": 0.85,
+        "color": "#000000",
+        "scrollH": false
       },
       "countdown": {
         "x": 75,
         "y": 1.9,
-        "w": 25,
+        "w": 24.5,
         "h": 10.1
       }
     },
@@ -256,14 +260,13 @@
           "en": "Notice: "
         },
         "align": "left",
-        "fontScale": 0.8,
-        "color": "#380009"
+        "fontScale": 1
       },
       "countdown": {
-        "x": 2,
-        "y": 88,
+        "x": 1.8,
+        "y": 89.4,
         "w": 17.3,
-        "h": 10
+        "h": 8.6
       },
       "schedule": {
         "x": 2,
@@ -273,43 +276,27 @@
       }
     },
     {
-      "id": "schedule-3",
+      "id": "schedule-2",
       "type": "schedule",
       "z": 20,
-      "schedule": {
-        "x": 68.1,
-        "y": 30.5,
-        "w": 30,
-        "h": 58.1
-      },
       "props": {
         "fontScale": 1,
         "heading": {
           "ja": "スケジュール",
           "en": "Schedule"
         },
+        "scheduleSource": "day",
+        "dayOffset": 1,
         "entries": []
-      }
-    },
-    {
-      "id": "schedule-4",
-      "type": "schedule",
-      "z": 20,
-      "schedule": {
-        "x": 33.6,
-        "y": 30,
-        "w": 32.4,
-        "h": 58.7
       },
-      "props": {
-        "fontScale": 1,
-        "heading": {
-          "ja": "スケジュール",
-          "en": "Schedule"
-        },
-        "entries": []
+      "schedule": {
+        "x": 49.6,
+        "y": 28.2,
+        "w": 47,
+        "h": 58
       }
     }
   ],
-  "version": 2
+  "version": 2,
+  "pages": []
 }
