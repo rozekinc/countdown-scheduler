@@ -91,7 +91,7 @@ async function loadActiveScheduleEntries(): Promise<ScheduleEntry[] | undefined>
  *  - onModeChange: which display-mode preset is active (colors).
  *  - onAspectRatioChange: which aspect-ratio preset the stage uses.
  *  - onContentVersionChange: the content version/date (also re-pulls layout).
- *  - onDisplaySettingsChange: language / textScale / labels / redFlag.
+ *  - onDisplaySettingsChange: language / textScale / labels / redFlag / safetyCar.
  * Countdown vs. schedule is NOT here -- it's a local, client-side-only toggle
  * on the display itself (see main.ts's setupScreenToggle).
  */
@@ -112,6 +112,7 @@ export function watchDisplaySettings(
   let currentTextScale = initial.textScale ?? null;
   let currentLabelsJson = JSON.stringify(initial.labels ?? null);
   let currentRedFlagJson = JSON.stringify(initial.redFlag ?? null);
+  let currentSafetyCarJson = JSON.stringify(initial.safetyCar ?? null);
 
   window.setInterval(() => {
     void (async () => {
@@ -145,16 +146,19 @@ export function watchDisplaySettings(
       const freshTextScale = fresh.textScale ?? null;
       const freshLabelsJson = JSON.stringify(fresh.labels ?? null);
       const freshRedFlagJson = JSON.stringify(fresh.redFlag ?? null);
+      const freshSafetyCarJson = JSON.stringify(fresh.safetyCar ?? null);
       if (
         freshDisplayLanguage !== currentDisplayLanguage ||
         freshTextScale !== currentTextScale ||
         freshLabelsJson !== currentLabelsJson ||
-        freshRedFlagJson !== currentRedFlagJson
+        freshRedFlagJson !== currentRedFlagJson ||
+        freshSafetyCarJson !== currentSafetyCarJson
       ) {
         currentDisplayLanguage = freshDisplayLanguage;
         currentTextScale = freshTextScale;
         currentLabelsJson = freshLabelsJson;
         currentRedFlagJson = freshRedFlagJson;
+        currentSafetyCarJson = freshSafetyCarJson;
         onDisplaySettingsChange(fresh);
       }
 

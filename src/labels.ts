@@ -15,6 +15,7 @@ export const DEFAULT_LABELS: Record<LabelKey, Label> = {
   dayAfter: { ja: "明後日", en: "Day After" },
   redFlag: { ja: "赤旗", en: "RED FLAG" },
   stoppage: { ja: "中断時間", en: "STOPPAGE" },
+  safetyCar: { ja: "セーフティカー", en: "SAFETY CAR" },
 };
 
 export function displayLanguage(apps: DisplayConfig): DisplayLanguage {

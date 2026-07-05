@@ -40,6 +40,9 @@ export interface DisplayConfig {
   labels?: Partial<Record<LabelKey, Label>> | null;
   /** Red-flag / stoppage state, toggled from the admin. */
   redFlag?: RedFlagState | null;
+  /** Safety-car state -- same shape + mechanic as redFlag, shown yellow/orange.
+   * Red flag takes precedence when both are active. */
+  safetyCar?: RedFlagState | null;
   /** Which page the display shows (切替), driven from the admin. A page id;
    * base pages are "countdown"/"schedule", plus any operator-added pages. */
   currentPage?: string | null;

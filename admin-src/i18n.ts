@@ -161,6 +161,15 @@ const EN = {
   "redflag.update": "Update",
   "redflag.clear": "Clear red flag",
 
+  "safetycar.title": "Safety car",
+  "safetycar.prompt": "Deploy a safety car. Leave the finish time blank to count UP in yellow; set it to count DOWN in orange to the restart. It clears itself once the finish time passes. (A red flag takes precedence while both are out.)",
+  "safetycar.finishTime": "Finish time (optional): ",
+  "safetycar.flagText": "Banner text",
+  "safetycar.stoppageText": "Stoppage label",
+  "safetycar.add": "Deploy safety car",
+  "safetycar.update": "Update",
+  "safetycar.clear": "Clear safety car",
+
   "countdown.title": "Countdown rows",
   "countdown.addRow": "+ Add countdown row",
   "countdown.remove": "Remove",
@@ -453,6 +462,15 @@ const JA: Record<TranslationKey, string> = {
   "redflag.add": "赤旗を掲示",
   "redflag.update": "更新",
   "redflag.clear": "赤旗を解除",
+
+  "safetycar.title": "セーフティカー",
+  "safetycar.prompt": "セーフティカーを導入します。終了時刻を空欄にすると黄で経過時間をカウントアップ、設定すると橙で再開までカウントダウンします。終了時刻を過ぎると自動的に解除されます。（両方掲示中は赤旗が優先されます。）",
+  "safetycar.finishTime": "終了時刻（任意）: ",
+  "safetycar.flagText": "バナー文言",
+  "safetycar.stoppageText": "中断ラベル",
+  "safetycar.add": "セーフティカーを導入",
+  "safetycar.update": "更新",
+  "safetycar.clear": "セーフティカーを解除",
 
   "countdown.title": "カウントダウン行",
   "countdown.addRow": "+ カウントダウン行を追加",

@@ -157,6 +157,7 @@ async function main(): Promise<void> {
     document.body.classList.toggle("marquee-paused", !!cfg.scrollPaused);
     document.body.classList.toggle("show-outline", !!cfg.showOutline);
     countdownController.setRedFlag(cfg.redFlag);
+    countdownController.setSafetyCar(cfg.safetyCar);
 
     const page = cfg.currentPage ?? "countdown";
     const pageChanged = page !== lastAppliedPage;

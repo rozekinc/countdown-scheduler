@@ -41,6 +41,8 @@ const PATHS: Record<string, string> = {
   swap: '<path d="M4 8h11l-3-3M20 16H9l3 3"/>',
   // red flag (safety stoppage)
   flag: '<path d="M5 21V4"/><path d="M5 4h13l-2.5 4L18 12H5"/>',
+  // safety car (car silhouette with two wheels)
+  car: '<path d="M3 13l2-5.5A2 2 0 0 1 6.9 6h10.2a2 2 0 0 1 1.9 1.5L21 13v4H3z"/><path d="M3 13h18"/><circle cx="7.5" cy="17" r="1.6"/><circle cx="16.5" cy="17" r="1.6"/>',
   // pause scrolling
   pause: '<rect x="7" y="5" width="3.5" height="14"/><rect x="13.5" y="5" width="3.5" height="14"/>',
   // resume scrolling (play)
