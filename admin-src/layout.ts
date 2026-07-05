@@ -95,8 +95,13 @@ export interface ItemProps {
   showHeading?: boolean;
   /** Show the announcement bar's built-in "お知らせ：" prefix (default true). */
   showPrefix?: boolean;
-  /** A `schedule` item's own heading, in both languages. */
+  /** A `schedule` item's own heading, in both languages (custom mode only). */
   heading?: I18nText;
+  /** For a date-bound `schedule` item, the title is the bound day's date; these
+   * pick the date FORMAT per language (keys from scheduleDate.ts, e.g. "md",
+   * "mdw", "rel", "none"). Default "md". */
+  headingFormatJa?: string;
+  headingFormatEn?: string;
   /** A `schedule` item's own content rows, used in "custom" mode (below). */
   entries?: ScheduleEntry[];
   /** Where a `schedule` item's rows come from. "day" = the bound day-set's

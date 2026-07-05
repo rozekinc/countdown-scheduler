@@ -19,6 +19,7 @@ import { listDir, commitFiles } from "./githubApi";
 import { LABEL_EDITOR_FIELDS, DEFAULT_LABELS, type LabelKey } from "./labels";
 import { icon } from "./icons";
 import { t, type TranslationKey } from "./i18n";
+import { formatScheduleDate, JA_DATE_FORMATS, EN_DATE_FORMATS } from "./scheduleDate";
 import {
   ADDABLE_TYPES,
   ITEM_TYPE_LABELS,
@@ -33,6 +34,7 @@ import {
   clearPlacement,
   pageIds,
   type ItemPage,
+  type ItemProps,
   type ItemType,
   type LayoutItem,
   type Placement,
@@ -292,7 +294,7 @@ function addItem(type: ItemType): void {
       type === "text"
         ? { source: "literal", textI18n: { ja: "テキスト", en: "Text" }, align: "center", fontScale: 1 }
         : type === "schedule"
-          ? { fontScale: 1, heading: { ja: "スケジュール", en: "Schedule" }, scheduleSource: "day", dayOffset: 0, entries: [] }
+          ? { fontScale: 1, scheduleSource: "day", dayOffset: 0, headingFormatJa: "md", headingFormatEn: "md", entries: [] }
           : { assetPath: "media/images/ロゴ.png", fit: "contain", opacity: 1 },
   };
   setPlacement(item, previewPage, geom);
@@ -631,11 +633,6 @@ function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => v
       break;
     }
     case "schedule": {
-      panel.append(el("h4", {}, [t("le.heading")]));
-      if (!p.heading) p.heading = { ja: "", en: "" };
-      panel.append(textField(t("le.headingJa"), p.heading.ja, (v) => (p.heading!.ja = v), rerender));
-      panel.append(textField(t("le.headingEn"), p.heading.en, (v) => (p.heading!.en = v), rerender));
-
       // Content source: bound to a day-set (by relative offset or fixed date),
       // or the item's own custom rows.
       const src = p.scheduleSource ?? "custom";
@@ -656,7 +653,16 @@ function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => v
           ], (v) => (p.dayOffset = Number(v)), rerender),
         );
         panel.append(textField(t("le.dayDate"), p.dayDate ?? "", (v) => (p.dayDate = v || undefined), live));
+        // Title = the bound day's date; pick a format per language.
+        panel.append(el("h4", {}, [t("le.dateTitle")]));
+        panel.append(dateFormatField("ja", p, rerender));
+        panel.append(dateFormatField("en", p, rerender));
       } else {
+        // Custom rows keep a free-text heading (no bound date to format).
+        panel.append(el("h4", {}, [t("le.heading")]));
+        if (!p.heading) p.heading = { ja: "", en: "" };
+        panel.append(textField(t("le.headingJa"), p.heading.ja, (v) => (p.heading!.ja = v), rerender));
+        panel.append(textField(t("le.headingEn"), p.heading.en, (v) => (p.heading!.en = v), rerender));
         renderScheduleEntries(panel, item, rerender, live);
       }
       panel.append(fontSlider());
@@ -1079,6 +1085,23 @@ function labelField(labelText: string, key: LabelKey, onLive: () => void): HTMLE
   };
   field.append(makeInput("ja", "日本語"), makeInput("en", "English"));
   return field;
+}
+
+/** A date-format dropdown for a date-bound schedule item's title, per language.
+ * Option labels show today's date rendered in each style (rel/none are static). */
+function dateFormatField(lang: "ja" | "en", p: ItemProps, after: () => void): HTMLElement {
+  const formats = lang === "ja" ? JA_DATE_FORMATS : EN_DATE_FORMATS;
+  const now = new Date();
+  const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const options = formats.map((f) => ({
+    value: f,
+    label: f === "none" ? t("le.dateFmtNone") : f === "rel" ? t("le.dateFmtRel") : formatScheduleDate(iso, f, lang),
+  }));
+  const current = (lang === "ja" ? p.headingFormatJa : p.headingFormatEn) ?? "md";
+  return selectField(lang === "ja" ? t("le.dateTitleJa") : t("le.dateTitleEn"), current, options, (v) => {
+    if (lang === "ja") p.headingFormatJa = v;
+    else p.headingFormatEn = v;
+  }, after);
 }
 
 function checkboxField(label: string, value: boolean, set: (v: boolean) => void, after: () => void): HTMLElement {

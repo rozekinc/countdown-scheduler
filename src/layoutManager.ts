@@ -25,6 +25,7 @@ import { resolveLabel, displayLanguage, relativeDayLabel, dateKeyPlus } from "./
 import { setScrollingContent } from "./verticalScroll";
 import { setAnnouncementText } from "./marquee";
 import { colorizeKeywords } from "./keywords";
+import { formatScheduleDate } from "./scheduleDate";
 import type { DaySet, DisplayConfig, EventData, LabelKey } from "./types";
 
 function escapeHtml(s: string): string {
@@ -158,10 +159,19 @@ function renderScheduleItem(
     )
     .join("");
 
-  // Heading: the operator's explicit heading, else (in day mode) auto-derive
-  // from the bound day's relative-day label / date so "which day" is clear.
-  let heading = p.heading ? p.heading[displayLanguage(config)] : "";
-  if (!heading && bound) heading = relativeDayLabel(config, bound.date, now) ?? bound.date;
+  // Heading. Date-bound items title from the bound day's date, formatted per
+  // language (a per-language format pick); custom items use the free heading.
+  const lang = displayLanguage(config);
+  let heading = "";
+  if (p.scheduleSource === "day") {
+    const date = bound?.date || item.props.dayDate || dateKeyPlus(now, item.props.dayOffset ?? 0);
+    const fmt = (lang === "ja" ? p.headingFormatJa : p.headingFormatEn) ?? "md";
+    if (fmt === "none") heading = "";
+    else if (fmt === "rel") heading = relativeDayLabel(config, date, now) ?? formatScheduleDate(date, "md", lang);
+    else heading = formatScheduleDate(date, fmt, lang);
+  } else {
+    heading = p.heading ? p.heading[lang] : "";
+  }
 
   // Rebuild the fixed shell once, then (re)fill the scrolling items area, so a
   // re-render doesn't tear down the scroller when nothing structural changed.
