@@ -1,4 +1,4 @@
-import type { DisplayConfig, DaySet, EventData } from "./types";
+import type { DisplayConfig, DaySet, EventData, ScheduleItem } from "./types";
 import { colorizeKeywords } from "./keywords";
 import { relativeDayLabel } from "./labels";
 import { setScrollingContent } from "./verticalScroll";
@@ -31,11 +31,17 @@ function formatDateLabel(dateStr: string): string {
 
 const MAX_COLUMNS = 3;
 
+// A day's schedule minus its "provisioned" (hidden) items -- what the display
+// actually shows. Hidden items stay in the data + admin but never render.
+function visibleSchedule(day: DaySet): ScheduleItem[] {
+  return day.schedule.filter((item) => !item.hidden);
+}
+
 function pickDays(days: DaySet[], now: Date): DaySet[] {
-  // Only days that actually have an overview schedule become columns -- a
-  // countdown-only day-set (e.g. one migration created for an off-schedule
-  // countdown target) must not render as a blank column.
-  const withSchedule = days.filter((day) => day.date && day.schedule.length > 0);
+  // Only days that actually have a VISIBLE overview schedule become columns --
+  // a countdown-only day-set (or one whose items are all hidden) must not
+  // render as a blank column.
+  const withSchedule = days.filter((day) => day.date && visibleSchedule(day).length > 0);
   if (withSchedule.length === 0) return [];
   const todayKey = dateKey(now);
 
@@ -58,7 +64,7 @@ function renderColumn(
   const rel = relativeDayLabel(apps, day.date, now);
   const relHtml = rel ? `<div class="schedule-col-rel">${rel}</div>` : "";
 
-  const itemsHtml = day.schedule
+  const itemsHtml = visibleSchedule(day)
     .map(
       (item) =>
         `<div class="schedule-col-item">` +

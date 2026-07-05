@@ -378,6 +378,40 @@ html, body {
   border-color: var(--border-strong);
 }
 
+/* Remove button + "don't display" checkbox stacked in the row's last column. */
+.row-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: stretch;
+}
+.hidden-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #6b7280;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.hidden-toggle input {
+  margin: 0;
+  cursor: pointer;
+}
+
+/* "Provisioned" (hidden) rows: dashed frame + dimmed content so it reads as
+   staged-but-not-shown. The actions column stays fully legible so the operator
+   can un-hide it. */
+.row-editor.row-hidden {
+  border-style: dashed;
+  background: #fafbfc;
+}
+.row-editor.row-hidden .row-input,
+.row-editor.row-hidden .datetime-cell {
+  opacity: 0.5;
+}
+
 /* Import-preview rows aren't reorderable (no grip) -> 2 columns. */
 .row-editor.readonly {
   grid-template-columns: 1fr 1fr;

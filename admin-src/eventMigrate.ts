@@ -16,15 +16,20 @@ function asStr(v: unknown): string {
   return typeof v === "string" ? v : "";
 }
 
+// Only carry `hidden` when true, so unset/false items stay clean in the JSON.
+function asHidden(v: unknown): true | undefined {
+  return v === true ? true : undefined;
+}
+
 function normSchedule(items: unknown): ScheduleItem[] {
   return Array.isArray(items)
-    ? items.map((i): ScheduleItem => ({ title: asStr((i as ScheduleItem)?.title), detail: asStr((i as ScheduleItem)?.detail) }))
+    ? items.map((i): ScheduleItem => ({ title: asStr((i as ScheduleItem)?.title), detail: asStr((i as ScheduleItem)?.detail), hidden: asHidden((i as ScheduleItem)?.hidden) }))
     : [];
 }
 
 function normRows(rows: unknown): CountdownRow[] {
   return Array.isArray(rows)
-    ? rows.map((r): CountdownRow => ({ title: asStr((r as CountdownRow)?.title), time: asStr((r as CountdownRow)?.time) }))
+    ? rows.map((r): CountdownRow => ({ title: asStr((r as CountdownRow)?.title), time: asStr((r as CountdownRow)?.time), hidden: asHidden((r as CountdownRow)?.hidden) }))
     : [];
 }
 

@@ -84,6 +84,9 @@ export interface RedFlagState {
 export interface CountdownRow {
   title: string;
   time: string;
+  /** "Provisioned" row: kept in the data + admin, but hidden from the display
+   * (skipped by the countdown). Absent/false = shown like any other row. */
+  hidden?: boolean;
 }
 
 /** One entry in a day's schedule column. */
@@ -91,6 +94,9 @@ export interface ScheduleItem {
   title: string;
   /** Free-text detail line, e.g. a time range like "10:30~" or a location. */
   detail: string;
+  /** "Provisioned" item: kept in the data + admin, but hidden from the schedule
+   * screen. Absent/false = shown like any other item. */
+  hidden?: boolean;
 }
 
 /** One day of a multi-day event: its own timed countdown targets AND its

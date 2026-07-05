@@ -164,6 +164,7 @@ const EN = {
   "countdown.title": "Countdown rows",
   "countdown.addRow": "+ Add countdown row",
   "countdown.remove": "Remove",
+  "row.dontDisplay": "Don't display",
 
   "day.scheduleFor": "Schedule for {date}",
   "day.scheduleHeading": "Schedule (overview)",
@@ -456,6 +457,7 @@ const JA: Record<TranslationKey, string> = {
   "countdown.title": "カウントダウン行",
   "countdown.addRow": "+ カウントダウン行を追加",
   "countdown.remove": "削除",
+  "row.dontDisplay": "非表示",
 
   "day.scheduleFor": "{date} のスケジュール",
   "day.scheduleHeading": "スケジュール（概要）",

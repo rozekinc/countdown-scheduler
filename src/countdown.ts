@@ -394,6 +394,9 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
       // days (today's next target, then tomorrow's, …).
       const newSchedule = data.days
         .flatMap((d) => d.countdownRows)
+        // "Provisioned" rows (hidden) stay in the data + admin but never drive
+        // the countdown -- skip them so they're not a target or a list entry.
+        .filter((row) => !row.hidden)
         .map((row) => ({ title: row.title, time: new Date(row.time) }))
         .filter((item) => !Number.isNaN(item.time.getTime()))
         .sort((a, b) => a.time.getTime() - b.time.getTime());
