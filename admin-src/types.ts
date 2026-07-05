@@ -70,11 +70,15 @@ export interface ScheduleItem {
   detail: string;
 }
 
-export interface ScheduleDay {
-  date: string; // YYYY-MM-DD
+/** One day of a multi-day event: its own timed countdown targets AND its
+ * overview schedule, plus an optional per-day announcement. */
+export interface DaySet {
+  date: string; // YYYY-MM-DD ("" only for an undated countdown bucket)
   /** Optional per-day announcement shown under that day's column. */
   announcement?: string;
-  items: ScheduleItem[];
+  countdownRows: CountdownRow[];
+  /** This day's schedule entries (was ScheduleDay.items). */
+  schedule: ScheduleItem[];
 }
 
 export interface EventData {
@@ -84,9 +88,12 @@ export interface EventData {
   /** Vestigial: kept so old event files still parse. New events omit it. */
   appId?: string;
   status: EventStatus;
+  /** Event-level announcement (the marquee). Per-day announcements live on
+   * DaySet.announcement. */
   announcement: string;
-  countdownRows: CountdownRow[];
-  scheduleDays: ScheduleDay[];
+  /** All day-sets (countdown + schedule per date), sorted by date. Replaces
+   * the old top-level countdownRows + scheduleDays. */
+  days: DaySet[];
   /** Terms highlighted (keyword-a / keyword-b color slots) wherever they
    * appear in countdown/schedule text. Omitted/empty = built-in defaults. */
   highlightKeywords?: string[];

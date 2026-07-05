@@ -21,11 +21,11 @@ import {
   type LayoutItem,
   type Placement,
 } from "./layout";
-import { resolveLabel, displayLanguage } from "./labels";
+import { resolveLabel, displayLanguage, relativeDayLabel, dateKeyPlus } from "./labels";
 import { setScrollingContent } from "./verticalScroll";
 import { setAnnouncementText } from "./marquee";
 import { colorizeKeywords } from "./keywords";
-import type { DisplayConfig, LabelKey } from "./types";
+import type { DaySet, DisplayConfig, EventData, LabelKey } from "./types";
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string);
@@ -121,20 +121,47 @@ function renderTextItem(host: HTMLElement, item: LayoutItem, config: DisplayConf
 /** A multi-instance schedule item: its own heading + rows (p.entries),
  * decoupled from the event's scheduleDays. The rows vertically auto-scroll when
  * they overflow (unless scrollV === false), reusing the schedule-column look. */
-function renderScheduleItem(host: HTMLElement, item: LayoutItem, config: DisplayConfig): void {
+/** Resolve the day-set a date-bound schedule item points at (fixed dayDate, or
+ * dayOffset relative to today's real local date), or undefined. */
+function resolveBoundDaySet(event: EventData | null, item: LayoutItem, now: Date): DaySet | undefined {
+  if (!event || item.props.scheduleSource !== "day") return undefined;
+  const key = item.props.dayDate || dateKeyPlus(now, item.props.dayOffset ?? 0);
+  return event.days.find((d) => d.date === key);
+}
+
+function renderScheduleItem(
+  host: HTMLElement,
+  item: LayoutItem,
+  config: DisplayConfig,
+  event: EventData | null,
+  now: Date,
+): void {
   host.classList.add("item-schedule");
   const p = item.props;
-  const heading = p.heading ? p.heading[displayLanguage(config)] : "";
-  const entries = p.entries ?? [];
-  const itemsHtml = entries
+  const bound = resolveBoundDaySet(event, item, now);
+
+  // Rows come from the bound day-set's schedule ("day" mode) or the item's own
+  // entries (custom mode). A "day"-mode item with no matching day-set renders
+  // empty (the binding is explicit -- don't fall back to entries).
+  const rows =
+    p.scheduleSource === "day"
+      ? bound?.schedule ?? []
+      : (p.entries ?? []).map((e) => ({ title: e.title, detail: e.detail }));
+  const keywords = event?.highlightKeywords;
+  const itemsHtml = rows
     .map(
       (e) =>
         `<div class="schedule-col-item">` +
-        `<div class="schedule-item-title">${colorizeKeywords(e.title ?? "", undefined).replace(/\n/g, "<br>")}</div>` +
+        `<div class="schedule-item-title">${colorizeKeywords(e.title ?? "", keywords).replace(/\n/g, "<br>")}</div>` +
         `<div class="schedule-item-detail">${e.detail ?? ""}</div>` +
         `</div>`,
     )
     .join("");
+
+  // Heading: the operator's explicit heading, else (in day mode) auto-derive
+  // from the bound day's relative-day label / date so "which day" is clear.
+  let heading = p.heading ? p.heading[displayLanguage(config)] : "";
+  if (!heading && bound) heading = relativeDayLabel(config, bound.date, now) ?? bound.date;
 
   // Rebuild the fixed shell once, then (re)fill the scrolling items area, so a
   // re-render doesn't tear down the scroller when nothing structural changed.
@@ -188,8 +215,14 @@ function snap(run: () => void): void {
 }
 
 /** Full apply: reconcile hosts, content, per-item static styling, then place
- * everything for the current page WITHOUT animating (snap). */
-export function applyLayout(items: LayoutItem[], config: DisplayConfig): void {
+ * everything for the current page WITHOUT animating (snap). `event` + `now`
+ * let date-bound `schedule` items resolve the right day-set. */
+export function applyLayout(
+  items: LayoutItem[],
+  config: DisplayConfig,
+  event: EventData | null = null,
+  now: Date = new Date(),
+): void {
   lastItems = items;
 
   for (const type of SINGLETON_TYPES) {
@@ -227,7 +260,7 @@ export function applyLayout(items: LayoutItem[], config: DisplayConfig): void {
 
       if (item.type === "text") renderTextItem(host, item, config);
       else if (item.type === "image") renderImageItem(host, item);
-      else if (item.type === "schedule") renderScheduleItem(host, item, config);
+      else if (item.type === "schedule") renderScheduleItem(host, item, config, event, now);
 
       // An item is in the DOM (display:"") if it appears on ANY page (base or
       // added); its per-page visibility is handled by opacity so it can animate.

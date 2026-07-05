@@ -292,7 +292,7 @@ function addItem(type: ItemType): void {
       type === "text"
         ? { source: "literal", textI18n: { ja: "テキスト", en: "Text" }, align: "center", fontScale: 1 }
         : type === "schedule"
-          ? { fontScale: 1, heading: { ja: "スケジュール", en: "Schedule" }, entries: [] }
+          ? { fontScale: 1, heading: { ja: "スケジュール", en: "Schedule" }, scheduleSource: "day", dayOffset: 0, entries: [] }
           : { assetPath: "media/images/ロゴ.png", fit: "contain", opacity: 1 },
   };
   setPlacement(item, previewPage, geom);
@@ -635,7 +635,30 @@ function renderItemProps(panel: HTMLElement, item: LayoutItem, rerender: () => v
       if (!p.heading) p.heading = { ja: "", en: "" };
       panel.append(textField(t("le.headingJa"), p.heading.ja, (v) => (p.heading!.ja = v), rerender));
       panel.append(textField(t("le.headingEn"), p.heading.en, (v) => (p.heading!.en = v), rerender));
-      renderScheduleEntries(panel, item, rerender, live);
+
+      // Content source: bound to a day-set (by relative offset or fixed date),
+      // or the item's own custom rows.
+      const src = p.scheduleSource ?? "custom";
+      panel.append(
+        selectField(t("le.scheduleSource"), src, [
+          { value: "day", label: t("le.scheduleSourceDay") },
+          { value: "custom", label: t("le.scheduleSourceCustom") },
+        ], (v) => (p.scheduleSource = v as "day" | "custom"), rerender),
+      );
+      if (src === "day") {
+        panel.append(
+          selectField(t("le.dayOffset"), String(p.dayOffset ?? 0), [
+            { value: "0", label: t("days.today") },
+            { value: "1", label: t("days.tomorrow") },
+            { value: "2", label: t("days.dayAfter") },
+            { value: "3", label: t("le.dayOffsetPlus", { n: 3 }) },
+            { value: "4", label: t("le.dayOffsetPlus", { n: 4 }) },
+          ], (v) => (p.dayOffset = Number(v)), rerender),
+        );
+        panel.append(textField(t("le.dayDate"), p.dayDate ?? "", (v) => (p.dayDate = v || undefined), live));
+      } else {
+        renderScheduleEntries(panel, item, rerender, live);
+      }
       panel.append(fontSlider());
       break;
     }

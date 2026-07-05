@@ -21,6 +21,16 @@ export function displayLanguage(apps: DisplayConfig): DisplayLanguage {
   return apps.displayLanguage === "en" ? "en" : "ja";
 }
 
+/** The YYYY-MM-DD key for `now` shifted by `offset` days (local time). Used to
+ * resolve a date-bound schedule item's day-set; shares the same local-date
+ * arithmetic as relativeDayLabel so they never disagree at midnight. */
+export function dateKeyPlus(now: Date, offset: number): string {
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
 /** The text for a label in the active display language, preferring the
  * apps.json override and falling back to the built-in default. */
 export function resolveLabel(apps: DisplayConfig, key: LabelKey): string {

@@ -1,5 +1,6 @@
 import type { DisplayConfig, EventData } from "./types";
 import { defaultLayout, migrateLayout, LAYOUT_VERSION, type LayoutDoc, type ScheduleEntry } from "./layout";
+import { migrateEvent } from "./eventMigrate";
 import { dataBaseUrl } from "./config";
 
 // Prefix for every data fetch. On a github.io deployment this points at
@@ -25,7 +26,8 @@ function readCache(eventId: string): EventData | null {
   try {
     const raw = window.localStorage.getItem(cacheKey(eventId));
     if (!raw) return null;
-    return JSON.parse(raw) as EventData;
+    // The cache may hold a pre-refactor (legacy) event -- normalize it.
+    return migrateEvent(JSON.parse(raw));
   } catch (err) {
     console.warn("キャッシュの読み込みに失敗しました:", err);
     return null;
@@ -77,8 +79,8 @@ async function loadActiveScheduleEntries(): Promise<ScheduleEntry[] | undefined>
   if (!eventId) return undefined;
   const event = await fetchEvent(eventId);
   if (!event) return undefined;
-  return event.scheduleDays.flatMap((day) =>
-    day.items.map((i) => ({ title: i.title, detail: i.detail })),
+  return event.days.flatMap((day) =>
+    day.schedule.map((i) => ({ title: i.title, detail: i.detail })),
   );
 }
 
@@ -184,9 +186,12 @@ async function fetchEventFromArchive(eventId: string): Promise<EventData | null>
 }
 
 async function fetchEvent(eventId: string): Promise<EventData | null> {
+  // Every fetched event (events/ or archive/) is normalized to the day-set
+  // shape, so legacy on-disk files keep working without a rewrite.
   const active = await fetchEventFromEvents(eventId);
-  if (active) return active;
-  return fetchEventFromArchive(eventId);
+  if (active) return migrateEvent(active);
+  const arch = await fetchEventFromArchive(eventId);
+  return arch ? migrateEvent(arch) : null;
 }
 
 export interface EventDataSource {
@@ -201,12 +206,18 @@ export interface EventDataSource {
 /** Polls one event's JSON (by id) and feeds updates to listeners. */
 export function createEventDataSource(eventId: string): EventDataSource {
   let current: EventData | null = readCache(eventId);
+  let lastJson = current ? JSON.stringify(current) : "";
   let intervalId: number | undefined;
   const listeners: Array<(data: EventData) => void> = [];
 
   async function refresh(): Promise<void> {
     const fresh = await fetchEvent(eventId);
     if (fresh) {
+      // Skip identical polls: firing on byte-identical data every 30s would
+      // pointlessly re-render the layout and reset the schedule scrollers.
+      const json = JSON.stringify(fresh);
+      if (json === lastJson) return;
+      lastJson = json;
       current = fresh;
       writeCache(eventId, fresh);
       listeners.forEach((listener) => listener(fresh));

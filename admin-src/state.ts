@@ -147,7 +147,7 @@ export const state: AppState = {
 
 export function currentDay() {
   if (!state.currentEvent) return null;
-  return state.currentEvent.scheduleDays[state.selectedDayIndex] ?? null;
+  return state.currentEvent.days[state.selectedDayIndex] ?? null;
 }
 
 /** Whether saveAll() has anything to commit. */

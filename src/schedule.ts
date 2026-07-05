@@ -1,4 +1,4 @@
-import type { DisplayConfig, EventData, ScheduleDay } from "./types";
+import type { DisplayConfig, DaySet, EventData } from "./types";
 import { colorizeKeywords } from "./keywords";
 import { relativeDayLabel } from "./labels";
 import { setScrollingContent } from "./verticalScroll";
@@ -31,22 +31,26 @@ function formatDateLabel(dateStr: string): string {
 
 const MAX_COLUMNS = 3;
 
-function pickDays(days: ScheduleDay[], now: Date): ScheduleDay[] {
-  if (days.length === 0) return [];
+function pickDays(days: DaySet[], now: Date): DaySet[] {
+  // Only days that actually have an overview schedule become columns -- a
+  // countdown-only day-set (e.g. one migration created for an off-schedule
+  // countdown target) must not render as a blank column.
+  const withSchedule = days.filter((day) => day.date && day.schedule.length > 0);
+  if (withSchedule.length === 0) return [];
   const todayKey = dateKey(now);
 
-  const upcoming = days
+  const upcoming = withSchedule
     .filter((day) => day.date >= todayKey)
     .sort((a, b) => a.date.localeCompare(b.date));
   if (upcoming.length > 0) return upcoming.slice(0, MAX_COLUMNS);
 
   // Nothing upcoming -- show the most recent day(s) instead of a blank screen.
-  const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = [...withSchedule].sort((a, b) => a.date.localeCompare(b.date));
   return sorted.slice(-MAX_COLUMNS);
 }
 
 function renderColumn(
-  day: ScheduleDay,
+  day: DaySet,
   now: Date,
   apps: DisplayConfig,
   keywords: string[] | undefined,
@@ -54,7 +58,7 @@ function renderColumn(
   const rel = relativeDayLabel(apps, day.date, now);
   const relHtml = rel ? `<div class="schedule-col-rel">${rel}</div>` : "";
 
-  const itemsHtml = day.items
+  const itemsHtml = day.schedule
     .map(
       (item) =>
         `<div class="schedule-col-item">` +
@@ -98,7 +102,7 @@ export function initSchedule(getNow: () => Date, getApps: () => DisplayConfig): 
       return;
     }
 
-    const days = pickDays(data.scheduleDays, now);
+    const days = pickDays(data.days, now);
     columnsElem.innerHTML = days
       .map((day) => renderColumn(day, now, apps, data.highlightKeywords))
       .join("");
