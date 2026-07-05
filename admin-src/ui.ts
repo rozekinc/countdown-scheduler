@@ -230,7 +230,15 @@ function renderDisplayControls(): void {
     rfOn ? "Red flag is UP — edit or clear it" : "Raise red flag (stoppage)",
     `btn btn-small icon-btn ${rfOn ? "btn-danger" : "btn-secondary"}`,
   );
-  rfBtn.addEventListener("click", () => openRedFlagDialog());
+  rfBtn.addEventListener("click", () => openStoppageDialog(RED_FLAG_DIALOG));
+
+  const scOn = !!state.safetyCar.active;
+  const scBtn = iconButton(
+    "car",
+    scOn ? "Safety car is OUT — edit or clear it" : "Deploy safety car (stoppage)",
+    `btn btn-small icon-btn ${scOn ? "btn-warning" : "btn-secondary"}`,
+  );
+  scBtn.addEventListener("click", () => openStoppageDialog(SAFETY_CAR_DIALOG));
 
   const paused = state.scrollPaused;
   const scrollBtn = iconButton(
@@ -266,7 +274,7 @@ function renderDisplayControls(): void {
     setStatus("Asked the display to refresh.");
   });
 
-  displayControlsEl.append(rfBtn, scrollBtn, outlineBtn, refreshBtn);
+  displayControlsEl.append(rfBtn, scBtn, scrollBtn, outlineBtn, refreshBtn);
 }
 
 /** Shared post-toggle wiring for the display-control buttons. */
@@ -336,21 +344,45 @@ function redFlagFinishToIso(hhmm: string): string | null {
   return d.toISOString();
 }
 
-/** The red-flag dialog: raise / update the stoppage with an optional finish
- * time (blank = count up in blue; set = count down in red), or clear it. */
-function openRedFlagDialog(): void {
-  const active = !!state.redFlag.active;
+/** Config for the shared stoppage dialog -- red flag vs safety car differ only
+ * in the target state, banner label, wording, and button colour. */
+interface StoppageDialogCfg {
+  stateKey: "redFlag" | "safetyCar";
+  nameLabelKey: "redFlag" | "safetyCar";
+  i18nPrefix: "redflag" | "safetycar";
+  applyBtnClass: string;
+}
+const RED_FLAG_DIALOG: StoppageDialogCfg = {
+  stateKey: "redFlag",
+  nameLabelKey: "redFlag",
+  i18nPrefix: "redflag",
+  applyBtnClass: "btn btn-danger",
+};
+const SAFETY_CAR_DIALOG: StoppageDialogCfg = {
+  stateKey: "safetyCar",
+  nameLabelKey: "safetyCar",
+  i18nPrefix: "safetycar",
+  applyBtnClass: "btn btn-warning",
+};
+
+/** The red-flag / safety-car dialog: raise / update the stoppage with an
+ * optional finish time (blank = count up; set = count down), or clear it. Both
+ * kinds share this dialog via StoppageDialogCfg. */
+function openStoppageDialog(cfg: StoppageDialogCfg): void {
+  // The added safetycar.* / redflag.* keys are dynamic here; cast to the t() key.
+  const tk = (k: string): string => t(k as Parameters<typeof t>[0]);
+  const active = !!state[cfg.stateKey].active;
   const backdrop = el("div", { class: "modal-backdrop" });
   const timeInput = el("input", {
     type: "time",
     class: "row-input",
-    value: isoToTimePart(state.redFlag.finishTime ?? ""),
+    value: isoToTimePart(state[cfg.stateKey].finishTime ?? ""),
   }) as HTMLInputElement;
 
   // Editable banner text in both languages (same labels used on the display and
   // in the settings panel). Typing mirrors live so a same-browser display shows
   // it at once; the values ride the next Sync via buildConfig().
-  const labelInput = (key: "redFlag" | "stoppage", lang: "ja" | "en"): HTMLInputElement => {
+  const labelInput = (key: "redFlag" | "safetyCar" | "stoppage", lang: "ja" | "en"): HTMLInputElement => {
     const input = el("input", { type: "text", class: "row-input", value: state.labels[key][lang] }) as HTMLInputElement;
     input.addEventListener("input", () => {
       state.labels[key][lang] = input.value;
@@ -360,27 +392,27 @@ function openRedFlagDialog(): void {
     });
     return input;
   };
-  const flagJa = labelInput("redFlag", "ja");
-  const flagEn = labelInput("redFlag", "en");
+  const flagJa = labelInput(cfg.nameLabelKey, "ja");
+  const flagEn = labelInput(cfg.nameLabelKey, "en");
   const stopJa = labelInput("stoppage", "ja");
   const stopEn = labelInput("stoppage", "en");
 
   const apply = (): void => {
-    state.redFlag = {
+    state[cfg.stateKey] = {
       active: true,
-      since: state.redFlag.since ?? new Date().toISOString(),
+      since: state[cfg.stateKey].since ?? new Date().toISOString(),
       finishTime: redFlagFinishToIso(timeInput.value),
     };
     backdrop.remove();
     onDisplayControlChanged();
   };
-  const clearRf = (): void => {
-    state.redFlag = { active: false, since: null, finishTime: null };
+  const clearStoppage = (): void => {
+    state[cfg.stateKey] = { active: false, since: null, finishTime: null };
     backdrop.remove();
     onDisplayControlChanged();
   };
 
-  const applyBtn = el("button", { class: "btn btn-danger" }, [active ? t("redflag.update") : t("redflag.add")]);
+  const applyBtn = el("button", { class: cfg.applyBtnClass }, [active ? tk(`${cfg.i18nPrefix}.update`) : tk(`${cfg.i18nPrefix}.add`)]);
   applyBtn.addEventListener("click", apply);
   const cancelBtn = el("button", { class: "btn btn-secondary" }, [t("auth.cancel")]);
   cancelBtn.addEventListener("click", () => backdrop.remove());
@@ -390,20 +422,20 @@ function openRedFlagDialog(): void {
 
   const actions = el("div", { class: "actions-row" }, [applyBtn]);
   if (active) {
-    const clearBtn = el("button", { class: "btn btn-secondary" }, [t("redflag.clear")]);
-    clearBtn.addEventListener("click", clearRf);
+    const clearBtn = el("button", { class: "btn btn-secondary" }, [tk(`${cfg.i18nPrefix}.clear`)]);
+    clearBtn.addEventListener("click", clearStoppage);
     actions.append(clearBtn);
   }
   actions.append(cancelBtn);
 
   const body = el("div", { class: "modal-body" }, [
-    el("h3", {}, [t("redflag.title")]),
-    el("p", { class: "muted" }, [t("redflag.prompt")]),
-    el("label", { class: "field" }, [t("redflag.finishTime"), timeInput]),
-    el("label", { class: "field" }, [t("redflag.flagText") + " (日本語)", flagJa]),
-    el("label", { class: "field" }, [t("redflag.flagText") + " (English)", flagEn]),
-    el("label", { class: "field" }, [t("redflag.stoppageText") + " (日本語)", stopJa]),
-    el("label", { class: "field" }, [t("redflag.stoppageText") + " (English)", stopEn]),
+    el("h3", {}, [tk(`${cfg.i18nPrefix}.title`)]),
+    el("p", { class: "muted" }, [tk(`${cfg.i18nPrefix}.prompt`)]),
+    el("label", { class: "field" }, [tk(`${cfg.i18nPrefix}.finishTime`), timeInput]),
+    el("label", { class: "field" }, [tk(`${cfg.i18nPrefix}.flagText`) + " (日本語)", flagJa]),
+    el("label", { class: "field" }, [tk(`${cfg.i18nPrefix}.flagText`) + " (English)", flagEn]),
+    el("label", { class: "field" }, [tk(`${cfg.i18nPrefix}.stoppageText`) + " (日本語)", stopJa]),
+    el("label", { class: "field" }, [tk(`${cfg.i18nPrefix}.stoppageText`) + " (English)", stopEn]),
     actions,
   ]);
   backdrop.append(el("div", { class: "modal" }, [body]));
@@ -659,6 +691,9 @@ function seedConfigState(data: DisplayConfig): void {
   state.redFlag = data.redFlag?.active
     ? { active: true, since: data.redFlag.since ?? null }
     : { active: false, since: null };
+  state.safetyCar = data.safetyCar?.active
+    ? { active: true, since: data.safetyCar.since ?? null }
+    : { active: false, since: null };
   state.currentPage = data.currentPage === "schedule" ? "schedule" : "countdown";
   state.scrollPaused = !!data.scrollPaused;
   state.showOutline = !!data.showOutline;
@@ -817,6 +852,7 @@ function buildConfig(): DisplayConfig {
     labels: state.labels,
     // Display controls, driven from the admin header (see renderDisplayControls).
     redFlag: state.redFlag,
+    safetyCar: state.safetyCar,
     currentPage: state.currentPage,
     scrollPaused: state.scrollPaused,
     showOutline: state.showOutline,

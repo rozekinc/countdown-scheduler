@@ -21,7 +21,8 @@ export type LabelKey =
   | "tomorrow" // 明日 / Tomorrow
   | "dayAfter" // 明後日 / Day After
   | "redFlag" // 赤旗 / RED FLAG  (red-flag banner)
-  | "stoppage"; // 中断時間 / STOPPAGE  (stoppage timer label)
+  | "stoppage" // 中断時間 / STOPPAGE  (stoppage timer label)
+  | "safetyCar"; // セーフティカー / SAFETY CAR  (safety-car banner)
 
 /** Persisted admin-editor UI state (which events are expanded, what was last
  * open), so reopening the editor lands in the same place. Lives in the config
@@ -56,6 +57,9 @@ export interface DisplayConfig {
   labels?: Partial<Record<LabelKey, Label>> | null;
   /** Red-flag / session-stoppage state, toggled from the admin. */
   redFlag?: RedFlagState | null;
+  /** Safety-car state -- same shape + mechanic as redFlag, but shown in
+   * yellow/orange. Red flag takes precedence when both are active. */
+  safetyCar?: RedFlagState | null;
   /** Which page the display shows (切替) -- a page id. The base pages are
    * "countdown" and "schedule"; operator-added pages have their own ids (see
    * the layout). Driven from the admin. Default "countdown". */

@@ -183,24 +183,37 @@ html, body {
    main countdown becomes the stoppage timer -- UP (blue) when open-ended, or
    DOWN (red) to a set finish time. Plus a thick pulsing red stage border. */
 
-/* Countdown as stoppage timer. Colours override the normal #countdown colour;
-   the sub-second digits are dropped for a cleaner HH:MM:SS stoppage read. */
-#countdown.rf-stoppage {
+/* Countdown as stoppage timer (red flag OR safety car). Colours override the
+   normal #countdown colour; the sub-second digits are dropped for a cleaner
+   HH:MM:SS stoppage read. */
+#countdown.stoppage {
   font-weight: 900;
 }
-#countdown.rf-stoppage .ms {
+#countdown.stoppage .ms {
   display: none;
 }
 #countdown.rf-countup {
-  color: #1565ff; /* blue: open-ended, counting up */
+  color: #1565ff; /* red flag, blue: open-ended, counting up */
 }
 #countdown.rf-countdown {
-  color: #d40000; /* red: counting down to the finish time */
+  color: #d40000; /* red flag, red: counting down to the finish time */
+}
+#countdown.sc-countup {
+  color: #ffd21e; /* safety car, yellow: open-ended, counting up */
+}
+#countdown.sc-countdown {
+  color: #ff7a00; /* safety car, orange: counting down to the finish time */
 }
 
 /* Title = RED FLAG banner. */
 .rf-flag-badge {
   color: #d40000;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+/* Title = SAFETY CAR banner. */
+.sc-flag-badge {
+  color: #ff7a00;
   font-weight: 900;
   letter-spacing: 0.08em;
 }
@@ -216,17 +229,33 @@ html, body {
 #schedule-list .row-redflag .bullet {
   color: #d40000;
 }
+/* The special safety-car line in the next-schedule side list. */
+#schedule-list .row-safetycar {
+  background: color-mix(in srgb, #ff7a00 16%, transparent);
+  box-shadow: inset 0 0 0 2px #ff7a00;
+  border-radius: 6px;
+}
+#schedule-list .row-safetycar .title,
+#schedule-list .row-safetycar .time,
+#schedule-list .row-safetycar .bullet {
+  color: #ff7a00;
+}
 
-/* Ring the whole stage with a thick, static, translucent red border that sits
-   ON TOP of every layout item (highest z) without blocking anything -- a strong
-   at-a-glance safety cue that still lets the content show through. */
-body.red-flag-on .aspect-inner::after {
+/* Ring the whole stage with a thick, static, translucent border that sits ON
+   TOP of every layout item (highest z) without blocking anything -- a strong
+   at-a-glance safety cue that still lets the content show through. Red for the
+   red flag, orange for the safety car. */
+body.red-flag-on .aspect-inner::after,
+body.safety-car-on .aspect-inner::after {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 9999;
   pointer-events: none;
   box-shadow: inset 0 0 0 14px rgba(211, 0, 0, 0.55);
+}
+body.safety-car-on .aspect-inner::after {
+  box-shadow: inset 0 0 0 14px rgba(255, 122, 0, 0.55);
 }
 
 /* See .announcement-bar further down for #announcement's actual layout --

@@ -44,6 +44,8 @@ export interface AppState {
 
   /** Current red-flag / stoppage state from display.json. */
   redFlag: RedFlagState;
+  /** Current safety-car state from display.json (same shape as redFlag). */
+  safetyCar: RedFlagState;
 
   /** Display controls, driven from the admin header and mirrored to the
    * display live (they ride Sync into display.json too). A page id -- base
@@ -125,6 +127,7 @@ export const state: AppState = {
   textScale: 1,
   labels: defaultLabels(),
   redFlag: { active: false, since: null },
+  safetyCar: { active: false, since: null },
   currentPage: "countdown",
   scrollPaused: false,
   showOutline: false,

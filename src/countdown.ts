@@ -1,4 +1,4 @@
-import type { DisplayConfig, EventData, RedFlagState } from "./types";
+import type { DisplayConfig, EventData, LabelKey, RedFlagState } from "./types";
 import { setAnnouncementText } from "./marquee";
 import { setScrollingList } from "./verticalScroll";
 import { colorizeKeywords } from "./keywords";
@@ -14,6 +14,9 @@ export interface CountdownController {
   /** Apply red-flag state: freeze the main countdown + show the count-up
    * stoppage timer + red-flag indicator when active; resume when cleared. */
   setRedFlag(state: RedFlagState | null | undefined): void;
+  /** Apply safety-car state: same freeze + stoppage timer as the red flag but
+   * shown yellow/orange. Red flag takes precedence when both are active. */
+  setSafetyCar(state: RedFlagState | null | undefined): void;
 }
 
 interface ParsedRow {
@@ -97,13 +100,45 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
   let played10 = false;
   let played20 = false;
 
-  // Red-flag stoppage state. When active, the main countdown shows the stoppage
-  // instead of the normal timer: it counts UP (blue) with no finish time, or
-  // DOWN (red) to redFlagFinishMs when one is set; once the finish time passes
-  // the display resumes normal operation.
-  let redFlagActive = false;
-  let redFlagSinceMs = 0;
-  let redFlagFinishMs: number | null = null;
+  // Stoppage state (red flag OR safety car). When one is active, the main
+  // countdown FREEZES and #countdown becomes the stoppage timer: it counts UP
+  // (open-ended) with no finish time, or DOWN to the finish time when one is
+  // set; once that time passes the display resumes normal operation. The two
+  // kinds behave identically; red flag takes precedence when both are up.
+  interface StoppageKind {
+    bodyClass: string; // stage-ring body class
+    badgeClass: string; // title-banner colour class
+    countupClass: string; // #countdown colour while counting up
+    countdownClass: string; // #countdown colour while counting down
+    rowClass: string; // the pinned side-list line's class
+    emoji: string; // banner + list-line emoji
+    nameLabel: LabelKey; // editable banner text
+  }
+  const RED_FLAG: StoppageKind = {
+    bodyClass: "red-flag-on",
+    badgeClass: "rf-flag-badge",
+    countupClass: "rf-countup",
+    countdownClass: "rf-countdown",
+    rowClass: "row-redflag",
+    emoji: "🚩",
+    nameLabel: "redFlag",
+  };
+  const SAFETY_CAR: StoppageKind = {
+    bodyClass: "safety-car-on",
+    badgeClass: "sc-flag-badge",
+    countupClass: "sc-countup",
+    countdownClass: "sc-countdown",
+    rowClass: "row-safetycar",
+    emoji: "🏎️",
+    nameLabel: "safetyCar",
+  };
+  // Raw states as last set from the admin config; applyStoppages() derives
+  // which (if any) kind is shown, honouring red-flag precedence.
+  let lastRedFlag: RedFlagState | null | undefined;
+  let lastSafetyCar: RedFlagState | null | undefined;
+  let activeKind: StoppageKind | null = null;
+  let stoppageSinceMs = 0;
+  let stoppageFinishMs: number | null = null;
   let stoppageInterval: number | undefined;
 
   // Re-fit the title and the countdown/timer block, each to its OWN bounded
@@ -117,28 +152,39 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
     });
   }
 
-  // --- red-flag stoppage --------------------------------------------------
+  // --- stoppage engine (red flag / safety car) ----------------------------
 
-  function redFlagName(): string {
-    return resolveLabel(getApps(), "redFlag");
+  function stoppageName(kind: StoppageKind): string {
+    return resolveLabel(getApps(), kind.nameLabel);
   }
 
-  // Drive the MAIN countdown as the stoppage timer: DOWN (red) to the finish
-  // time, or UP (blue) when none is set. When a set finish time passes, the red
-  // flag ends and normal operation resumes ("moves to the next thing").
-  function updateRedFlag(): void {
+  // Every #countdown class either kind can set -- removed together on teardown
+  // / when switching kinds so a stale colour never lingers.
+  const ALL_STOPPAGE_CLASSES = [
+    "stoppage",
+    RED_FLAG.countupClass,
+    RED_FLAG.countdownClass,
+    SAFETY_CAR.countupClass,
+    SAFETY_CAR.countdownClass,
+  ];
+
+  // Drive the MAIN countdown as the stoppage timer: DOWN to the finish time, or
+  // UP when none is set. When a set finish time passes, the stoppage ends and
+  // normal operation resumes ("moves to the next thing").
+  function updateStoppage(): void {
+    if (!activeKind) return;
     const now = getNow().getTime();
-    if (redFlagFinishMs !== null && now >= redFlagFinishMs) {
-      teardownRedFlag(true);
+    if (stoppageFinishMs !== null && now >= stoppageFinishMs) {
+      teardownStoppage(true);
       return;
     }
-    const countingDown = redFlagFinishMs !== null;
+    const countingDown = stoppageFinishMs !== null;
     const ms = countingDown
-      ? Math.max(0, (redFlagFinishMs as number) - now)
-      : Math.max(0, now - redFlagSinceMs);
-    countdownElem.classList.add("rf-stoppage");
-    countdownElem.classList.toggle("rf-countdown", countingDown);
-    countdownElem.classList.toggle("rf-countup", !countingDown);
+      ? Math.max(0, (stoppageFinishMs as number) - now)
+      : Math.max(0, now - stoppageSinceMs);
+    countdownElem.classList.add("stoppage");
+    countdownElem.classList.toggle(activeKind.countdownClass, countingDown);
+    countdownElem.classList.toggle(activeKind.countupClass, !countingDown);
     setCountdownText(
       pad2(Math.floor(ms / 3600000)),
       pad2(Math.floor((ms % 3600000) / 60000)),
@@ -147,21 +193,22 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
     );
   }
 
-  // The title becomes the RED FLAG banner while a flag is up (editable labels;
-  // the up/down colour lives on the countdown timer itself, not on arrows).
-  function renderRedFlagTitle(): void {
+  // The title becomes the RED FLAG / SAFETY CAR banner while a stoppage is up
+  // (editable labels; the up/down colour lives on the countdown timer itself).
+  function renderStoppageTitle(): void {
+    if (!activeKind) return;
     const apps = getApps();
     titleElem.innerHTML =
-      `<span class="rf-flag-badge">🚩 ${resolveLabel(apps, "redFlag")}</span><br>` +
+      `<span class="${activeKind.badgeClass}">${activeKind.emoji} ${resolveLabel(apps, activeKind.nameLabel)}</span><br>` +
       `<span class="countdown-time">${resolveLabel(apps, "stoppage")}</span>`;
     fitMain();
   }
 
-  function teardownRedFlag(resume: boolean): void {
-    redFlagActive = false;
-    redFlagFinishMs = null;
-    document.body.classList.remove("red-flag-on");
-    countdownElem.classList.remove("rf-stoppage", "rf-countup", "rf-countdown");
+  function teardownStoppage(resume: boolean): void {
+    if (activeKind) document.body.classList.remove(activeKind.bodyClass);
+    activeKind = null;
+    stoppageFinishMs = null;
+    countdownElem.classList.remove(...ALL_STOPPAGE_CLASSES);
     if (stoppageInterval !== undefined) {
       window.clearInterval(stoppageInterval);
       stoppageInterval = undefined;
@@ -175,29 +222,52 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
     }
   }
 
-  function applyRedFlag(state: RedFlagState | null | undefined): void {
-    const nowMs = getNow().getTime();
+  // Resolve a raw admin state to {sinceMs, finishMs} when active, else null.
+  // Auto-resume: a set finish time that has already passed reads as inactive,
+  // so a stale still-active config doesn't re-trigger the stoppage.
+  function evalStoppage(
+    state: RedFlagState | null | undefined,
+    nowMs: number,
+  ): { sinceMs: number; finishMs: number | null } | null {
     const finishMs = state?.finishTime ? new Date(state.finishTime).getTime() : NaN;
     const hasFinish = !Number.isNaN(finishMs);
-    // Auto-resume: a set finish time that has already passed reads as inactive,
-    // so a stale still-active config doesn't re-trigger the stoppage.
-    const active = !!state?.active && !(hasFinish && finishMs <= nowMs);
+    if (!state?.active || (hasFinish && finishMs <= nowMs)) return null;
+    const sinceMs = state?.since ? new Date(state.since).getTime() : NaN;
+    return {
+      sinceMs: Number.isNaN(sinceMs) ? nowMs : sinceMs,
+      finishMs: hasFinish ? finishMs : null,
+    };
+  }
 
-    if (!active) {
-      if (redFlagActive) teardownRedFlag(true);
+  // Decide which stoppage (if any) is shown from the two raw states, honouring
+  // red-flag precedence, and apply it. Called whenever either state changes.
+  function applyStoppages(): void {
+    const nowMs = getNow().getTime();
+    const rf = evalStoppage(lastRedFlag, nowMs);
+    const sc = evalStoppage(lastSafetyCar, nowMs);
+    const kind = rf ? RED_FLAG : sc ? SAFETY_CAR : null;
+    const resolved = rf ?? sc;
+
+    if (!kind || !resolved) {
+      if (activeKind) teardownStoppage(true);
       return;
     }
 
-    const sinceMs = state?.since ? new Date(state.since).getTime() : NaN;
-    redFlagActive = true;
-    redFlagSinceMs = Number.isNaN(sinceMs) ? nowMs : sinceMs;
-    redFlagFinishMs = hasFinish ? finishMs : null;
+    // Switching kinds (e.g. a red flag raised over a safety car): drop the old
+    // kind's visual classes but stay FROZEN -- don't resume the countdown.
+    if (activeKind && activeKind !== kind) {
+      document.body.classList.remove(activeKind.bodyClass);
+      countdownElem.classList.remove(...ALL_STOPPAGE_CLASSES);
+    }
 
-    document.body.classList.add("red-flag-on");
-    renderRedFlagTitle();
-    updateRedFlag();
+    activeKind = kind;
+    stoppageSinceMs = resolved.sinceMs;
+    stoppageFinishMs = resolved.finishMs;
+    document.body.classList.add(kind.bodyClass);
+    renderStoppageTitle();
+    updateStoppage();
     if (stoppageInterval === undefined) {
-      stoppageInterval = window.setInterval(updateRedFlag, 100);
+      stoppageInterval = window.setInterval(updateStoppage, 100);
     }
     updateScheduleList();
     fitMain();
@@ -215,9 +285,10 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
   // The title is rewritten ONLY when the target item changes (or on a live
   // label change) -- never inside the 50ms tick.
   function renderTitle(): void {
-    // While a red flag is up the title is the RED FLAG banner, not the item.
-    if (redFlagActive) {
-      renderRedFlagTitle();
+    // While a stoppage is up the title is the RED FLAG / SAFETY CAR banner,
+    // not the item.
+    if (activeKind) {
+      renderStoppageTitle();
       return;
     }
     const apps = getApps();
@@ -265,19 +336,19 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
 
     // The immediately-next item stays PINNED static at the top of the side
     // list; only the items after it scroll. (The item currently counting down
-    // is shown separately in #main.) While a red flag is up, a special
-    // red-flag line sits at the very top -- the stoppage, standing in line.
+    // is shown separately in #main.) While a stoppage is up, a special
+    // red-flag / safety-car line sits at the very top -- standing in line.
     const pinned = upcoming[0];
     if (pinnedElem) {
       let rfLine = "";
-      if (redFlagActive) {
+      if (activeKind) {
         const suffix =
-          redFlagFinishMs !== null
-            ? `<div class="time">${hhmmss(new Date(redFlagFinishMs))}</div>`
+          stoppageFinishMs !== null
+            ? `<div class="time">${hhmmss(new Date(stoppageFinishMs))}</div>`
             : "";
         rfLine =
-          `<li class="row-redflag">` +
-          `<div class="title"><span class="bullet">🚩</span>${redFlagName()}</div>` +
+          `<li class="${activeKind.rowClass}">` +
+          `<div class="title"><span class="bullet">${activeKind.emoji}</span>${stoppageName(activeKind)}</div>` +
           suffix +
           `</li>`;
       }
@@ -338,18 +409,19 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
     renderTitle();
 
     if (currentIndex >= parsedSchedule.length) {
-      // The stoppage owns #countdown while a red flag is up -- don't clobber it.
-      if (!redFlagActive) setCountdownText("--", "--", "--", "---");
+      // The stoppage owns #countdown while a red flag / safety car is up --
+      // don't clobber it.
+      if (!activeKind) setCountdownText("--", "--", "--", "---");
       return;
     }
 
     const { time } = parsedSchedule[currentIndex];
 
     countdownInterval = window.setInterval(() => {
-      // While a red flag is up, the main countdown FREEZES: no display update,
+      // While a stoppage is up, the main countdown FREEZES: no display update,
       // no cue sounds, and no advancing to the next target. The stoppage timer
-      // (updated on its own interval) counts up instead.
-      if (redFlagActive) return;
+      // (updated on its own interval) counts up/down instead.
+      if (activeKind) return;
 
       const diff = time.getTime() - getNow().getTime();
 
@@ -415,11 +487,16 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
       renderAnnouncement();
       renderTitle();
       updateScheduleList();
-      // renderTitle already re-renders the RED FLAG banner in the current
-      // language when a flag is up (see its redFlagActive guard).
+      // renderTitle already re-renders the RED FLAG / SAFETY CAR banner in the
+      // current language when a stoppage is up (see its activeKind guard).
     },
     setRedFlag(state: RedFlagState | null | undefined): void {
-      applyRedFlag(state);
+      lastRedFlag = state;
+      applyStoppages();
+    },
+    setSafetyCar(state: RedFlagState | null | undefined): void {
+      lastSafetyCar = state;
+      applyStoppages();
     },
   };
 }
