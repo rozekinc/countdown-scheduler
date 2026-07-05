@@ -97,8 +97,18 @@ export interface ItemProps {
   showPrefix?: boolean;
   /** A `schedule` item's own heading, in both languages. */
   heading?: I18nText;
-  /** A `schedule` item's own content rows (decoupled from event data). */
+  /** A `schedule` item's own content rows, used in "custom" mode (below). */
   entries?: ScheduleEntry[];
+  /** Where a `schedule` item's rows come from. "day" = the bound day-set's
+   * schedule (see dayOffset/dayDate); "custom"/undefined = the `entries` above.
+   * Undefined MUST mean custom, so existing/migrated items keep their rows. */
+  scheduleSource?: "day" | "custom";
+  /** For scheduleSource "day": relative day offset (0=today, 1=tomorrow, …),
+   * resolved against the real local date and auto-rolling at midnight. Default
+   * 0. Resolution keys on scheduleSource, not on this being truthy (0 valid). */
+  dayOffset?: number;
+  /** For scheduleSource "day": a fixed YYYY-MM-DD that OVERRIDES dayOffset. */
+  dayDate?: string;
   /** Auto-scroll the item's text horizontally (marquee) when it overflows.
    * Applies to announcement + text items. Undefined = per-type default. */
   scrollH?: boolean;

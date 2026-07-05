@@ -93,13 +93,20 @@ export interface ScheduleItem {
   detail: string;
 }
 
-export interface ScheduleDay {
-  /** ISO date (YYYY-MM-DD). The display shows this date plus an automatic
-   * today / tomorrow / day-after label computed from the current date. */
+/** One day of a multi-day event: its own timed countdown targets AND its
+ * overview schedule entries, plus an optional per-day announcement. The `date`
+ * ties the whole set together (countdown + schedule for that day). */
+export interface DaySet {
+  /** ISO date (YYYY-MM-DD). The display shows this plus an automatic today /
+   * tomorrow / day-after label computed from the current local date. May be ""
+   * only for a synthetic bucket holding countdown rows with no valid date. */
   date: string;
-  /** Optional per-day announcement shown under that day's column. */
+  /** Optional per-day announcement shown under that day's schedule column. */
   announcement?: string;
-  items: ScheduleItem[];
+  /** This day's countdown targets (time-sorted). */
+  countdownRows: CountdownRow[];
+  /** This day's schedule entries (the overview). */
+  schedule: ScheduleItem[];
 }
 
 export type EventStatus = "draft" | "active" | "ended";
@@ -114,9 +121,12 @@ export interface EventData {
   appId?: string;
   /** Editorial/admin-only bookkeeping label; never enforced on the display. */
   status: EventStatus;
+  /** Event-level announcement (the running marquee). Per-day announcements
+   * live on DaySet.announcement. */
   announcement: string;
-  countdownRows: CountdownRow[];
-  scheduleDays: ScheduleDay[];
+  /** All day-sets, sorted ascending by date. Each is a countdown + schedule
+   * for that date. Replaces the old top-level countdownRows + scheduleDays. */
+  days: DaySet[];
   /** Terms highlighted (keyword-a / keyword-b color slots) wherever they
    * appear in countdown/schedule text. Omitted/empty = built-in defaults. */
   highlightKeywords?: string[];

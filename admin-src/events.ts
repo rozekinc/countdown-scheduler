@@ -3,7 +3,8 @@
 // "All events" overview page.
 
 import { listDir, getJsonFile } from "./githubApi";
-import type { EventData, EventStatus, ScheduleDay } from "./types";
+import { migrateEvent } from "./eventMigrate";
+import type { DaySet, EventData, EventStatus } from "./types";
 
 export interface EventSummary {
   id: string;
@@ -16,14 +17,16 @@ export interface EventSummary {
   earliestDate: string | null;
 }
 
-function daySummaries(days: ScheduleDay[]): Array<{ date: string; itemCount: number }> {
-  return days.map((d) => ({ date: d.date, itemCount: d.items.length }));
+function daySummaries(days: DaySet[]): Array<{ date: string; itemCount: number }> {
+  return days.map((d) => ({ date: d.date, itemCount: d.schedule.length }));
 }
 
 function earliestOf(data: EventData): string | null {
   const dates: string[] = [];
-  for (const row of data.countdownRows) if (row.time) dates.push(row.time.slice(0, 10));
-  for (const day of data.scheduleDays) if (day.date) dates.push(day.date);
+  for (const day of data.days) {
+    if (day.date) dates.push(day.date);
+    for (const row of day.countdownRows) if (row.time) dates.push(row.time.slice(0, 10));
+  }
   if (dates.length === 0) return null;
   dates.sort();
   return dates[0];
@@ -42,15 +45,17 @@ async function loadFromDir(dirPath: string, archived: boolean): Promise<EventSum
       if (!entry.name.endsWith(".json")) return [];
       const file = await getJsonFile<EventData>(entry.path);
       if (!file) return [];
+      // Normalize legacy events to the day-set shape before summarizing.
+      const data = migrateEvent(file.data);
       return [
         {
-          id: file.data.id,
-          name: file.data.name || file.data.id,
-          status: file.data.status,
+          id: data.id,
+          name: data.name || data.id,
+          status: data.status,
           archived,
           path: entry.path,
-          days: daySummaries(file.data.scheduleDays),
-          earliestDate: earliestOf(file.data),
+          days: daySummaries(data.days),
+          earliestDate: earliestOf(data),
         },
       ];
     }),

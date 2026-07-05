@@ -6,6 +6,7 @@ import { initSchedule } from "./schedule";
 import { initVersionBadge } from "./versionBadge";
 import { resolveLabel, displayLanguage } from "./labels";
 import { defaultLayout, migrateLayout, LAYOUT_VERSION, type LayoutItem, type LayoutDoc } from "./layout";
+import { migrateEvent } from "./eventMigrate";
 import { applyLayout, setPage } from "./layoutManager";
 import {
   readLiveSnapshot,
@@ -128,18 +129,24 @@ async function main(): Promise<void> {
 
   let activeDataSource: ReturnType<typeof createEventDataSource> | null = null;
   let currentLayout: LayoutItem[] = [];
+  // The event currently driving the display, so date-bound `schedule` layout
+  // items can resolve the right day-set when the layout re-renders.
+  let currentEvent: EventData | null = null;
 
   // Re-place every item from the current layout. Cheap enough to call on any
   // live change (no controller re-init -- singleton controllers stay bound to
   // the stable canonical DOM in index.html). Re-run when labels/language
   // change too, since text items may render an editable label.
   function renderCurrentLayout(): void {
-    applyLayout(currentLayout, getConfig());
+    applyLayout(currentLayout, getConfig(), currentEvent, getNow());
   }
 
   function applyEvent(data: EventData): void {
+    currentEvent = data;
     countdownController.setEventData(data);
     scheduleController.setEventData(data);
+    // Re-render so date-bound schedule items reflect the new event data.
+    renderCurrentLayout();
   }
 
   // Which page the display currently shows. The 切替 toggle, red flag, and
@@ -214,19 +221,21 @@ async function main(): Promise<void> {
     // Prefer the event being edited (previewEventId) so schedule/countdown
     // edits show live; fall back to the active event.
     const eventId = snap.previewEventId ?? cfg.activeEventId ?? null;
-    const event = eventId ? snap.events[eventId] : undefined;
+    // Normalize the snapshot event (a stale snapshot may be legacy-shaped).
+    const event = eventId && snap.events[eventId] ? migrateEvent(snap.events[eventId]) : undefined;
     // Migrate a pre-v2 snapshot layout defensively (e.g. one written by an
     // older admin before this browser refreshed it), seeding the converted
     // schedule item from the snapshot's own event so no content is lost.
     let layoutDoc: LayoutDoc =
       snap.layout && Array.isArray(snap.layout.items) ? snap.layout : defaultLayout();
     if ((layoutDoc.version ?? 0) < LAYOUT_VERSION) {
-      const entries = event?.scheduleDays.flatMap((d) =>
-        d.items.map((i) => ({ title: i.title, detail: i.detail })),
+      const entries = event?.days.flatMap((d) =>
+        d.schedule.map((i) => ({ title: i.title, detail: i.detail })),
       );
       layoutDoc = migrateLayout(layoutDoc, entries);
     }
     currentLayout = layoutDoc.items;
+    currentEvent = event ?? null;
     renderCurrentLayout();
     if (event) applyEvent(event);
     countdownController.refresh();
@@ -319,8 +328,22 @@ async function main(): Promise<void> {
   const fullscreenBtn = document.getElementById("fullscreen-btn");
   fullscreenBtn?.addEventListener("click", enterFullscreen);
 
+  // At local midnight, a date-bound schedule item's relative day (dayOffset)
+  // shifts. The big countdown rolls on its own tick; this re-renders the layout
+  // + schedule columns so the schedule side re-resolves for the new day.
+  let lastDayKey = getNow().toDateString();
   function tick(): void {
-    currentTimeElem.textContent = getNow().toTimeString().slice(0, 8);
+    const now = getNow();
+    currentTimeElem.textContent = now.toTimeString().slice(0, 8);
+    const dayKey = now.toDateString();
+    if (dayKey !== lastDayKey) {
+      lastDayKey = dayKey;
+      renderCurrentLayout();
+      // Re-resolve relative-day labels (今日/明日/明後日) on BOTH the schedule
+      // columns and the countdown side list for the new day.
+      scheduleController.refresh();
+      countdownController.refresh();
+    }
     window.setTimeout(tick, 1000 - (Date.now() % 1000));
   }
   tick();

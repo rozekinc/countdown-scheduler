@@ -373,7 +373,11 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
 
       renderAnnouncement();
 
-      const newSchedule = data.countdownRows
+      // The big countdown + side list flatten every day-set's countdown rows
+      // into one time-sorted list, so the countdown rolls continuously across
+      // days (today's next target, then tomorrow's, …).
+      const newSchedule = data.days
+        .flatMap((d) => d.countdownRows)
         .map((row) => ({ title: row.title, time: new Date(row.time) }))
         .filter((item) => !Number.isNaN(item.time.getTime()))
         .sort((a, b) => a.time.getTime() - b.time.getTime());

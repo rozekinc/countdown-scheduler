@@ -4,6 +4,7 @@ import { renderSettingsControls } from "./settingsPanel";
 import { getJsonFile, commitFiles, type FileChange } from "./githubApi";
 import { isSignedIn } from "./auth";
 import { loadAllEvents, type EventSummary } from "./events";
+import { migrateEvent } from "./eventMigrate";
 import {
   state,
   currentDay,
@@ -11,7 +12,7 @@ import {
   clearPendingChanges,
   seedLabels,
 } from "./state";
-import type { DisplayConfig, DisplayLanguage, EventData, EditorState } from "./types";
+import type { DaySet, DisplayConfig, DisplayLanguage, EventData, EditorState } from "./types";
 import { DISPLAY_MODES, DEFAULT_DISPLAY_MODE_ID, getDisplayMode } from "./displayModes";
 import { ASPECT_RATIOS, DEFAULT_ASPECT_RATIO_ID, getAspectRatio } from "./aspectRatios";
 import { readLiveSnapshot, writeLiveSnapshot, requestDisplayReload } from "./liveBridge";
@@ -587,9 +588,9 @@ async function loadActiveScheduleEntries(): Promise<ScheduleEntry[] | undefined>
   try {
     const res = await fetch(`../data/events/${id}.json`, { cache: "no-store" });
     if (!res.ok) return undefined;
-    const ev = (await res.json()) as EventData;
-    return (ev.scheduleDays ?? []).flatMap((d) =>
-      d.items.map((i) => ({ title: i.title, detail: i.detail })),
+    const ev = migrateEvent(await res.json());
+    return ev.days.flatMap((d) =>
+      d.schedule.map((i) => ({ title: i.title, detail: i.detail })),
     );
   } catch {
     return undefined;
@@ -683,7 +684,7 @@ async function loadConfig(): Promise<void> {
       // Resume the event being edited (with its unsaved changes).
       const pid = snap.previewEventId ?? state.currentEventId;
       if (pid && snap.events[pid]) {
-        state.currentEvent = snap.events[pid];
+        state.currentEvent = migrateEvent(snap.events[pid]);
         state.currentEventId = pid;
       }
       // A snapshot may hold changes not yet on GitHub -> keep Sync available.
@@ -861,7 +862,14 @@ async function loadEventsTree(): Promise<void> {
     if (state.currentEventId && !state.currentEvent) {
       const summary = state.allEvents.find((e) => e.id === state.currentEventId);
       if (summary) {
+        // selectEvent resets selectedDayIndex to 0; preserve the restored
+        // (persisted) day so a fresh GitHub bootstrap reopens the same day.
+        const wantDay = state.selectedDayIndex;
         await selectEvent(state.currentEventId, false);
+        const loaded = state.currentEvent as EventData | null;
+        if (loaded) {
+          state.selectedDayIndex = Math.min(Math.max(0, wantDay), Math.max(0, loaded.days.length - 1));
+        }
       } else {
         state.currentEventId = null;
       }
@@ -984,7 +992,7 @@ function renderEventGroup(ev: EventSummary): HTMLElement {
   // Sub-items: the event's days, plus an "add day" affordance. Selecting a day
   // loads the event (if not already loaded) and opens that day.
   const days = isCurrent && state.currentEvent
-    ? state.currentEvent.scheduleDays.map((d) => ({ date: d.date, itemCount: d.items.length }))
+    ? state.currentEvent.days.map((d) => ({ date: d.date, itemCount: d.schedule.length }))
     : ev.days;
   const dayList = el("ul", { class: "day-list" });
   days.forEach((day, index) => {
@@ -1026,8 +1034,8 @@ async function addDayToEvent(ev: EventSummary): Promise<void> {
     if (!ok) return;
   }
   if (!state.currentEvent) return;
-  state.currentEvent.scheduleDays.push({ date: "", announcement: "", items: [] });
-  state.selectedDayIndex = state.currentEvent.scheduleDays.length - 1;
+  state.currentEvent.days.push({ date: "", announcement: "", countdownRows: [], schedule: [] });
+  state.selectedDayIndex = state.currentEvent.days.length - 1;
   markEventDirty();
   renderLeftPanel();
   renderMainPanel();
@@ -1045,7 +1053,8 @@ async function selectEvent(id: string, rerender = true): Promise<boolean> {
       return false;
     }
     state.currentEventId = id;
-    state.currentEvent = file.data;
+    // Normalize a legacy on-disk event into the day-set shape for editing.
+    state.currentEvent = migrateEvent(file.data);
     state.selectedDayIndex = 0;
     state.eventDirty = false;
     state.pendingClose = false;
@@ -1139,8 +1148,7 @@ function stageNewEvent(id: string, name: string): void {
     name,
     status: "draft",
     announcement: "",
-    countdownRows: [],
-    scheduleDays: [],
+    days: [],
   };
   state.currentEventId = id;
   state.currentEvent = newEvent;
@@ -1352,18 +1360,20 @@ function renderMainPanel(): void {
     })(),
   ]);
 
-  const countdownSection = renderCountdownRows(event);
+  // Countdown rows now live PER DAY (inside the day editor), not at the event
+  // level -- each day-set is a countdown + schedule for its date.
   const daySection = renderDayEditor();
 
-  mainPanelEl.append(eventHeader, actions, announcementField, countdownSection, daySection);
+  mainPanelEl.append(eventHeader, actions, announcementField, daySection);
 }
 
-function renderCountdownRows(event: EventData): HTMLElement {
+/** The timed countdown rows for ONE day-set (was the event-level countdown). */
+function renderDayCountdownRows(day: DaySet): HTMLElement {
   const section = el("div", { class: "countdown-rows-section" });
   section.append(el("h3", {}, [t("countdown.title")]));
 
   const table = el("div", { class: "rows-table" });
-  event.countdownRows.forEach((row, index) => {
+  day.countdownRows.forEach((row, index) => {
     const past = isPast(row.time);
     const rowEl = el("div", { class: `row-editor${past ? " past" : ""}` });
 
@@ -1380,14 +1390,14 @@ function renderCountdownRows(event: EventData): HTMLElement {
 
     const removeBtn = el("button", { class: "btn btn-secondary btn-small" }, [t("countdown.remove")]);
     removeBtn.addEventListener("click", () => {
-      event.countdownRows.splice(index, 1);
+      day.countdownRows.splice(index, 1);
       markEventDirty();
       renderMainPanel();
     });
 
     const handle = icon("grip");
     rowEl.append(handle, titleInput, dateTimeInputs, removeBtn);
-    makeReorderable(rowEl, handle, index, event.countdownRows, () => {
+    makeReorderable(rowEl, handle, index, day.countdownRows, () => {
       markEventDirty();
       renderMainPanel();
     });
@@ -1397,7 +1407,7 @@ function renderCountdownRows(event: EventData): HTMLElement {
 
   const addBtn = el("button", { class: "btn btn-secondary" }, [t("countdown.addRow")]);
   addBtn.addEventListener("click", () => {
-    event.countdownRows.push({ title: "", time: "" });
+    day.countdownRows.push({ title: "", time: "" });
     markEventDirty();
     renderMainPanel();
   });
@@ -1448,12 +1458,12 @@ function dateOffsetFromToday(days: number): string {
 function deleteCurrentDay(): void {
   const event = state.currentEvent;
   if (!event) return;
-  const day = event.scheduleDays[state.selectedDayIndex];
+  const day = event.days[state.selectedDayIndex];
   if (!day) return;
   if (!window.confirm(t("day.deleteConfirm", { date: day.date || t("days.noDate") }))) return;
-  event.scheduleDays.splice(state.selectedDayIndex, 1);
-  if (state.selectedDayIndex >= event.scheduleDays.length) {
-    state.selectedDayIndex = Math.max(0, event.scheduleDays.length - 1);
+  event.days.splice(state.selectedDayIndex, 1);
+  if (state.selectedDayIndex >= event.days.length) {
+    state.selectedDayIndex = Math.max(0, event.days.length - 1);
   }
   markEventDirty();
   renderLeftPanel();
@@ -1530,8 +1540,14 @@ function renderDayEditor(): HTMLElement {
   });
   section.append(el("label", { class: "field" }, [t("day.announcement"), dayAnnouncementInput]));
 
+  // This day's TIMED countdown targets (drive the countdown screen).
+  section.append(renderDayCountdownRows(day));
+
+  // This day's SCHEDULE overview (shown on the schedule screen for this date).
+  const scheduleSection = el("div", { class: "day-editor-section" });
+  scheduleSection.append(el("h3", {}, [t("day.scheduleHeading")]));
   const table = el("div", { class: "rows-table scrollable" });
-  day.items.forEach((item, index) => {
+  day.schedule.forEach((item, index) => {
     const rowEl = el("div", { class: "row-editor schedule-item-editor" });
 
     const titleInput = el("textarea", {
@@ -1556,28 +1572,29 @@ function renderDayEditor(): HTMLElement {
 
     const removeBtn = el("button", { class: "btn btn-secondary btn-small" }, [t("day.remove")]);
     removeBtn.addEventListener("click", () => {
-      day.items.splice(index, 1);
+      day.schedule.splice(index, 1);
       markEventDirty();
       renderMainPanel();
     });
 
     const handle = icon("grip");
     rowEl.append(handle, titleInput, detailInput, removeBtn);
-    makeReorderable(rowEl, handle, index, day.items, () => {
+    makeReorderable(rowEl, handle, index, day.schedule, () => {
       markEventDirty();
       renderMainPanel();
     });
     table.append(rowEl);
   });
-  section.append(table);
+  scheduleSection.append(table);
 
   const addRowBtn = el("button", { class: "btn btn-secondary" }, [t("day.addRow")]);
   addRowBtn.addEventListener("click", () => {
-    day.items.push({ title: "", detail: "" });
+    day.schedule.push({ title: "", detail: "" });
     markEventDirty();
     renderMainPanel();
   });
-  section.append(addRowBtn);
+  scheduleSection.append(addRowBtn);
+  section.append(scheduleSection);
 
   return section;
 }
