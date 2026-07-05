@@ -1412,8 +1412,9 @@ function renderDayCountdownRows(day: DaySet): HTMLElement {
       renderMainPanel();
     });
 
+    const actions = el("div", { class: "row-actions" }, [removeBtn, hiddenToggle(row, rowEl)]);
     const handle = icon("grip");
-    rowEl.append(handle, titleInput, dateTimeCell, removeBtn);
+    rowEl.append(handle, titleInput, dateTimeCell, actions);
     makeReorderable(rowEl, handle, index, day.countdownRows, () => {
       markEventDirty();
       renderMainPanel();
@@ -1467,6 +1468,23 @@ function dateShortcutBtn(labelKey: Parameters<typeof t>[0], onClick: () => void)
   const btn = el("button", { class: "btn btn-secondary btn-small" }, [t(labelKey)]);
   btn.addEventListener("click", onClick);
   return btn;
+}
+
+/** A "don't display" checkbox for a provisioned countdown row / schedule item.
+ * Checked = the item stays in the data + admin but is hidden from the display
+ * (item.hidden). Unchecked clears the flag so it behaves like any other item;
+ * we store `undefined` rather than `false` so it stays out of the saved JSON.
+ * Toggling just dims the row -- no full re-render, so it keeps its place. */
+function hiddenToggle(item: { hidden?: boolean }, rowEl: HTMLElement): HTMLElement {
+  const cb = el("input", { type: "checkbox", class: "row-hidden-check" }) as HTMLInputElement;
+  cb.checked = item.hidden === true;
+  rowEl.classList.toggle("row-hidden", cb.checked);
+  cb.addEventListener("change", () => {
+    item.hidden = cb.checked ? true : undefined;
+    rowEl.classList.toggle("row-hidden", cb.checked);
+    markEventDirty();
+  });
+  return el("label", { class: "hidden-toggle" }, [cb, t("row.dontDisplay")]);
 }
 
 function dateOffsetFromToday(days: number): string {
@@ -1602,8 +1620,9 @@ function renderDayEditor(): HTMLElement {
       renderMainPanel();
     });
 
+    const actions = el("div", { class: "row-actions" }, [removeBtn, hiddenToggle(item, rowEl)]);
     const handle = icon("grip");
-    rowEl.append(handle, titleInput, detailInput, removeBtn);
+    rowEl.append(handle, titleInput, detailInput, actions);
     makeReorderable(rowEl, handle, index, day.schedule, () => {
       markEventDirty();
       renderMainPanel();
