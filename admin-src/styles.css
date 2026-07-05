@@ -314,6 +314,17 @@ html, body {
   margin: 4px 0 8px 0;
 }
 
+/* Countdown-row datetime cell: stacks the date+time pair over the per-row
+   date shortcuts within a single .row-editor grid column. The shortcuts wrap
+   since the column is narrower than the day editor. */
+.datetime-cell {
+  min-width: 0;
+}
+.datetime-cell .date-shortcuts {
+  flex-wrap: wrap;
+  margin: 4px 0 0 0;
+}
+
 .countdown-rows-section, .day-editor-section, .import-section {
   margin-bottom: 14px;
 }

@@ -1388,6 +1388,23 @@ function renderDayCountdownRows(day: DaySet): HTMLElement {
       markEventDirty();
     });
 
+    // Per-row date shortcuts: set this row's DATE (preserving its time), like
+    // the day editor's date shortcuts but scoped to the individual row. A row's
+    // time is a full datetime independent of its day-set's date, so this is
+    // allowed even when it moves the row off the day it sits under.
+    const setRowDate = (offset: number) => {
+      const timePart = isoToTimePart(row.time) || "12:00";
+      row.time = datePartsToIso(dateOffsetFromToday(offset), timePart, row.time);
+      markEventDirty();
+      renderMainPanel();
+    };
+    const shortcuts = el("div", { class: "date-shortcuts" }, [
+      dateShortcutBtn("days.today", () => setRowDate(0)),
+      dateShortcutBtn("days.tomorrow", () => setRowDate(1)),
+      dateShortcutBtn("days.dayAfter", () => setRowDate(2)),
+    ]);
+    const dateTimeCell = el("div", { class: "datetime-cell" }, [dateTimeInputs, shortcuts]);
+
     const removeBtn = el("button", { class: "btn btn-secondary btn-small" }, [t("countdown.remove")]);
     removeBtn.addEventListener("click", () => {
       day.countdownRows.splice(index, 1);
@@ -1396,7 +1413,7 @@ function renderDayCountdownRows(day: DaySet): HTMLElement {
     });
 
     const handle = icon("grip");
-    rowEl.append(handle, titleInput, dateTimeInputs, removeBtn);
+    rowEl.append(handle, titleInput, dateTimeCell, removeBtn);
     makeReorderable(rowEl, handle, index, day.countdownRows, () => {
       markEventDirty();
       renderMainPanel();
@@ -1435,6 +1452,7 @@ function createDateTimeInputs(
   const timeInput = el("input", {
     class: "row-input datetime-pair-time",
     type: "time",
+    step: "1", // show a seconds field (HH:MM:SS)
     value: isoToTimePart(initialIso),
     ...timeAttrs,
   }) as HTMLInputElement;
@@ -1442,6 +1460,13 @@ function createDateTimeInputs(
   dateInput.addEventListener("input", update);
   timeInput.addEventListener("input", update);
   return el("div", { class: "datetime-pair" }, [dateInput, timeInput]);
+}
+
+/** A small labelled date-shortcut button (Today / Tomorrow / Day-after). */
+function dateShortcutBtn(labelKey: Parameters<typeof t>[0], onClick: () => void): HTMLElement {
+  const btn = el("button", { class: "btn btn-secondary btn-small" }, [t(labelKey)]);
+  btn.addEventListener("click", onClick);
+  return btn;
 }
 
 function dateOffsetFromToday(days: number): string {
