@@ -254,6 +254,10 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
     );
   }
 
+  function dayHeaderLi(label: string): string {
+    return `<li><div class="list-day-header">---------------------<br>${label}</div></li>`;
+  }
+
   function updateScheduleList(): void {
     const now = getNow();
     const apps = getApps();
@@ -291,19 +295,31 @@ export function initCountdown(getNow: () => Date, getApps: () => DisplayConfig):
         ? dayKeyOf(parsedSchedule[currentIndex].time)
         : null;
 
+    const first = upcoming[1]; // first scrolling item (upcoming[0] is pinned)
     let html = "";
+    let insertedHeader = false;
     upcoming.slice(1).forEach((item) => {
       const dk = dayKeyOf(item.time);
       if (dk !== lastDayKey) {
         lastDayKey = dk;
+        insertedHeader = true;
         // Relative-day header (today/tomorrow/day-after); beyond that fall
         // back to the date itself.
         const label = relativeDayLabel(apps, isoOf(item.time), now) ?? shortDateLabel(item.time);
-        html +=
-          `<li><div class="list-day-header">---------------------<br>${label}</div></li>`;
+        html += dayHeaderLi(label);
       }
       html += rowHtml(item, "");
     });
+
+    // Loop-seam divider: the scrolling list is two stacked copies looping
+    // seamlessly, so the wrap point (last item -> first item) crosses back into
+    // the first item's day with no divider. When the list spans >1 day, lead
+    // with the first day's header so the copy-2 leading header shows that
+    // crossing like every other one. Single-day lists get no header at all.
+    if (insertedHeader && first) {
+      const label = relativeDayLabel(apps, isoOf(first.time), now) ?? shortDateLabel(first.time);
+      html = dayHeaderLi(label) + html;
+    }
 
     setScrollingList(listElem, html);
   }

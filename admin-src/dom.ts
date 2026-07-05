@@ -51,7 +51,7 @@ export function isoToDatePart(iso: string): string {
 }
 
 export function isoToTimePart(iso: string): string {
-  const match = iso.match(/^\d{4}-\d{2}-\d{2}T(\d{2}:\d{2})/);
+  const match = iso.match(/^\d{4}-\d{2}-\d{2}T(\d{2}:\d{2}(?::\d{2})?)/);
   return match ? match[1] : "";
 }
 
@@ -70,5 +70,6 @@ export function isoOffset(iso: string): string {
  * default). Returns "" unless both parts are filled in. */
 export function datePartsToIso(datePart: string, timePart: string, previousIso: string): string {
   if (!datePart || !timePart) return "";
-  return `${datePart}T${timePart}:00${isoOffset(previousIso)}`;
+  const time = timePart.length === 5 ? `${timePart}:00` : timePart; // HH:MM vs HH:MM:SS
+  return `${datePart}T${time}${isoOffset(previousIso)}`;
 }
