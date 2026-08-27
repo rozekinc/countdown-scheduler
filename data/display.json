@@ -70,9 +70,9 @@
       "2026-motegi",
       "motegi"
     ],
-    "selectedEventId": "race-weekend",
+    "selectedEventId": "motegi",
     "selectedDayIndex": 0
   },
-  "contentVersion": 22,
+  "contentVersion": 23,
   "contentUpdatedAt": "2026-08-27"
 }
