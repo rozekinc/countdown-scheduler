@@ -73,7 +73,7 @@
       "props": {
         "fontScale": 1.55,
         "showPrefix": false,
-        "color": "#492222"
+        "color": "#000000"
       },
       "countdown": {
         "x": 19.1,
@@ -109,7 +109,8 @@
       "props": {
         "fontScale": 1.05,
         "showHeading": false,
-        "color": "#000000"
+        "color": "#000000",
+        "scrollV": true
       },
       "countdown": {
         "x": 74.9,
@@ -123,9 +124,9 @@
       "type": "schedule",
       "z": 10,
       "schedule": {
-        "x": 2,
+        "x": 1.7,
         "y": 28,
-        "w": 46.1,
+        "w": 47.6,
         "h": 58
       },
       "props": {
@@ -183,7 +184,9 @@
             "title": "撤収",
             "detail": "15:00~17:00"
           }
-        ]
+        ],
+        "scheduleSource": "day",
+        "headingFormatJa": "mdw"
       }
     },
     {
@@ -216,7 +219,7 @@
       },
       "countdown": {
         "x": 36.3,
-        "y": 7.3,
+        "y": 7.1,
         "w": 27.5,
         "h": 6.6
       },
@@ -286,11 +289,12 @@
           "en": "Schedule"
         },
         "scheduleSource": "day",
-        "dayOffset": 1,
-        "entries": []
+        "dayOffset": 0,
+        "entries": [],
+        "headingFormatJa": "mdw"
       },
       "schedule": {
-        "x": 49.6,
+        "x": 50.7,
         "y": 28.2,
         "w": 47,
         "h": 58
