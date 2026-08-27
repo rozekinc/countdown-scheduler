@@ -1,7 +1,7 @@
 {
   "id": "motegi",
   "name": "もてぎ",
-  "status": "draft",
+  "status": "active",
   "announcement": "",
   "days": [
     {
@@ -37,7 +37,7 @@
     },
     {
       "date": "2026-08-28",
-      "announcement": "",
+      "announcement": "ライダーズブリーフィング12:10~",
       "countdownRows": [
         {
           "title": "特スポ１回目\n準備完了",
