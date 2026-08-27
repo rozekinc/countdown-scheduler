@@ -63,16 +63,16 @@
     "since": null
   },
   "currentPage": "countdown",
-  "scrollPaused": false,
+  "scrollPaused": true,
   "showOutline": false,
   "editorState": {
     "expandedEventIds": [
       "2026-motegi",
       "motegi"
     ],
-    "selectedEventId": "motegi",
-    "selectedDayIndex": 1
+    "selectedEventId": "race-weekend",
+    "selectedDayIndex": 0
   },
-  "contentVersion": 21,
+  "contentVersion": 22,
   "contentUpdatedAt": "2026-08-27"
 }
