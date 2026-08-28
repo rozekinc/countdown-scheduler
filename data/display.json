@@ -63,7 +63,7 @@
     "since": null
   },
   "currentPage": "countdown",
-  "scrollPaused": true,
+  "scrollPaused": false,
   "showOutline": false,
   "editorState": {
     "expandedEventIds": [
@@ -73,6 +73,6 @@
     "selectedEventId": "motegi",
     "selectedDayIndex": 1
   },
-  "contentVersion": 24,
-  "contentUpdatedAt": "2026-08-27"
+  "contentVersion": 25,
+  "contentUpdatedAt": "2026-08-28"
 }
