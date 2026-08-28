@@ -2,7 +2,7 @@
   "id": "motegi",
   "name": "もてぎ",
   "status": "active",
-  "announcement": "星野さんメディカルチェック",
+  "announcement": "",
   "days": [
     {
       "date": "2026-08-27",
@@ -61,7 +61,7 @@
         },
         {
           "title": "ART２回目\n走行終了",
-          "time": "2026-08-28T15:30:00+09:00"
+          "time": "2026-08-28T15:40:00+09:00"
         }
       ],
       "schedule": []
