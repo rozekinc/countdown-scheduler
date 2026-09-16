@@ -3,7 +3,7 @@
   "displayModeId": "standard",
   "aspectRatioId": "widescreen-16-9",
   "displayLanguage": "ja",
-  "textScale": 1.05,
+  "textScale": 1,
   "labels": {
     "currentTime": {
       "ja": "現在時刻",
@@ -69,11 +69,12 @@
     "expandedEventIds": [
       "2026-motegi",
       "okayama-test",
-      "motegi"
+      "motegi",
+      "okayama-race"
     ],
     "selectedEventId": "okayama-test",
     "selectedDayIndex": 1
   },
-  "contentVersion": 42,
+  "contentVersion": 43,
   "contentUpdatedAt": "2026-09-16"
 }
