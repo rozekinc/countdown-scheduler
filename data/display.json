@@ -71,9 +71,9 @@
       "okayama-test",
       "motegi"
     ],
-    "selectedEventId": "motegi",
-    "selectedDayIndex": 3
+    "selectedEventId": "okayama-test",
+    "selectedDayIndex": 1
   },
-  "contentVersion": 41,
+  "contentVersion": 42,
   "contentUpdatedAt": "2026-09-16"
 }
