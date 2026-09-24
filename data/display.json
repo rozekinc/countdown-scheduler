@@ -62,7 +62,7 @@
     "active": false,
     "since": null
   },
-  "currentPage": "schedule",
+  "currentPage": "countdown",
   "scrollPaused": false,
   "showOutline": false,
   "editorState": {
@@ -76,6 +76,6 @@
     "selectedEventId": "okaama-race",
     "selectedDayIndex": 0
   },
-  "contentVersion": 58,
+  "contentVersion": 59,
   "contentUpdatedAt": "2026-09-24"
 }
