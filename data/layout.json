@@ -130,7 +130,7 @@
         "h": 58
       },
       "props": {
-        "fontScale": 1,
+        "fontScale": 1.3,
         "heading": {
           "ja": "スケジュール",
           "en": "Schedule"
@@ -283,7 +283,7 @@
       "type": "schedule",
       "z": 20,
       "props": {
-        "fontScale": 1,
+        "fontScale": 1.3,
         "heading": {
           "ja": "スケジュール",
           "en": "Schedule"
@@ -291,7 +291,8 @@
         "scheduleSource": "day",
         "dayOffset": 1,
         "entries": [],
-        "headingFormatJa": "mdw"
+        "headingFormatJa": "mdw",
+        "scrollV": true
       },
       "schedule": {
         "x": 50.7,
