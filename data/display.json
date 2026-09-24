@@ -68,14 +68,14 @@
   "editorState": {
     "expandedEventIds": [
       "2026-motegi",
-      "okayama-test",
       "motegi",
       "okayama-race",
-      "okaama-race"
+      "okaama-race",
+      "okayama-test"
     ],
     "selectedEventId": "okaama-race",
     "selectedDayIndex": 1
   },
-  "contentVersion": 47,
+  "contentVersion": 48,
   "contentUpdatedAt": "2026-09-24"
 }
