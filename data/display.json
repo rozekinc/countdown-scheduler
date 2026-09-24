@@ -74,8 +74,8 @@
       "okayama-test"
     ],
     "selectedEventId": "okaama-race",
-    "selectedDayIndex": 1
+    "selectedDayIndex": 0
   },
-  "contentVersion": 48,
+  "contentVersion": 49,
   "contentUpdatedAt": "2026-09-24"
 }
