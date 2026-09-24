@@ -2,15 +2,15 @@
   "id": "okaama-race",
   "name": "岡山レースウィーク",
   "status": "active",
-  "announcement": "",
+  "announcement": "計測器配布 8:50~ (2F)",
   "days": [
     {
       "date": "2026-09-24",
       "announcement": "",
       "countdownRows": [
         {
-          "title": "",
-          "time": ""
+          "title": "完全撤収",
+          "time": "2026-09-24T18:00:00+09:00"
         }
       ],
       "schedule": [
