@@ -6,7 +6,6 @@
   "days": [
     {
       "date": "2026-09-24",
-      "announcement": "",
       "countdownRows": [
         {
           "title": "完全撤収",
@@ -53,7 +52,7 @@
           "time": "2026-09-25T14:55:00+09:00"
         },
         {
-          "title": "走行３回目\n終了",
+          "title": "走行２回目\n終了",
           "time": "2026-09-25T15:40:00+09:00"
         }
       ],
@@ -74,7 +73,6 @@
     },
     {
       "date": "2026-09-26",
-      "announcement": "",
       "countdownRows": [
         {
           "title": "ピットウォーク開始",
@@ -109,7 +107,6 @@
     },
     {
       "date": "2026-09-27",
-      "announcement": "",
       "countdownRows": [
         {
           "title": "W-UP走行\n作業完了",
