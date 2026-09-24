@@ -82,8 +82,8 @@
         "h": 8.6
       },
       "schedule": {
-        "x": 19.3,
-        "y": 88,
+        "x": 19.5,
+        "y": 90,
         "w": 78.7,
         "h": 10
       }
@@ -127,10 +127,10 @@
         "x": 1.7,
         "y": 30.7,
         "w": 47.6,
-        "h": 55.3
+        "h": 59.3
       },
       "props": {
-        "fontScale": 1.3,
+        "fontScale": 1.2,
         "heading": {
           "ja": "スケジュール",
           "en": "Schedule"
@@ -186,7 +186,9 @@
           }
         ],
         "scheduleSource": "day",
-        "headingFormatJa": "mdw"
+        "headingFormatJa": "mdw",
+        "bgColor": "#fff0f0",
+        "scrollV": false
       }
     },
     {
@@ -272,8 +274,8 @@
         "h": 8.6
       },
       "schedule": {
-        "x": 2,
-        "y": 88,
+        "x": 1.5,
+        "y": 90,
         "w": 17.3,
         "h": 10
       }
@@ -283,7 +285,7 @@
       "type": "schedule",
       "z": 20,
       "props": {
-        "fontScale": 1.3,
+        "fontScale": 1.2,
         "heading": {
           "ja": "スケジュール",
           "en": "Schedule"
@@ -292,13 +294,14 @@
         "dayOffset": 1,
         "entries": [],
         "headingFormatJa": "mdw",
-        "scrollV": true
+        "scrollV": false,
+        "bgColor": "#fff0f0"
       },
       "schedule": {
-        "x": 50.8,
+        "x": 50.9,
         "y": 30.3,
         "w": 47,
-        "h": 55.9
+        "h": 59.8
       }
     }
   ],
