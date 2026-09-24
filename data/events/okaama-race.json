@@ -1,0 +1,47 @@
+{
+  "id": "okaama-race",
+  "name": "岡山レースウィーク",
+  "status": "active",
+  "announcement": "",
+  "days": [
+    {
+      "date": "2026-09-24",
+      "announcement": "",
+      "countdownRows": [
+        {
+          "title": "",
+          "time": ""
+        }
+      ],
+      "schedule": [
+        {
+          "title": "CN燃料配布",
+          "detail": "14:00~15:00"
+        },
+        {
+          "title": "受付",
+          "detail": "15:00~17:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-25",
+      "announcement": "",
+      "countdownRows": [],
+      "schedule": [
+        {
+          "title": "計測器配布",
+          "detail": "8:50~"
+        },
+        {
+          "title": "走行１回目",
+          "detail": "10:40~11:10"
+        },
+        {
+          "title": "",
+          "detail": ""
+        }
+      ]
+    }
+  ]
+}

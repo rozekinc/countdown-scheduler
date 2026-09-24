@@ -1,5 +1,5 @@
 {
-  "activeEventId": "okayama-test",
+  "activeEventId": "okaama-race",
   "displayModeId": "standard",
   "aspectRatioId": "widescreen-16-9",
   "displayLanguage": "ja",
@@ -62,7 +62,7 @@
     "active": false,
     "since": null
   },
-  "currentPage": "countdown",
+  "currentPage": "schedule",
   "scrollPaused": false,
   "showOutline": false,
   "editorState": {
@@ -70,11 +70,12 @@
       "2026-motegi",
       "okayama-test",
       "motegi",
-      "okayama-race"
+      "okayama-race",
+      "okaama-race"
     ],
-    "selectedEventId": "okayama-test",
+    "selectedEventId": "okaama-race",
     "selectedDayIndex": 1
   },
-  "contentVersion": 45,
-  "contentUpdatedAt": "2026-09-17"
+  "contentVersion": 47,
+  "contentUpdatedAt": "2026-09-24"
 }

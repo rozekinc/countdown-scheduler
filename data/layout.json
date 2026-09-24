@@ -289,7 +289,7 @@
           "en": "Schedule"
         },
         "scheduleSource": "day",
-        "dayOffset": 0,
+        "dayOffset": 1,
         "entries": [],
         "headingFormatJa": "mdw"
       },
