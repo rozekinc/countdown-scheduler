@@ -2,7 +2,7 @@
   "id": "okaama-race",
   "name": "岡山レースウィーク",
   "status": "active",
-  "announcement": "10分遅れで進行です",
+  "announcement": "ライダー2名スピード違反です！\n愛乃助61.2アウト 星野60.5セーフ",
   "days": [
     {
       "date": "2026-09-24",
@@ -29,7 +29,7 @@
     },
     {
       "date": "2026-09-25",
-      "announcement": "ライダーズブリーフィング13:00~",
+      "announcement": "",
       "countdownRows": [
         {
           "title": "走行１回目\n作業完了",

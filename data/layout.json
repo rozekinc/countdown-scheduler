@@ -71,15 +71,15 @@
       "type": "announcement",
       "z": 10,
       "props": {
-        "fontScale": 1.55,
+        "fontScale": 1.8,
         "showPrefix": false,
-        "color": "#000000"
+        "color": "#ff0000"
       },
       "countdown": {
         "x": 19.1,
-        "y": 89.4,
+        "y": 87.1,
         "w": 80.9,
-        "h": 10.6
+        "h": 12.6
       },
       "schedule": {
         "x": 19.5,
@@ -269,9 +269,9 @@
       },
       "countdown": {
         "x": 1.8,
-        "y": 89.4,
+        "y": 87.1,
         "w": 17.3,
-        "h": 10.6
+        "h": 12.9
       },
       "schedule": {
         "x": 1.5,
