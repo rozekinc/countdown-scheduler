@@ -70,12 +70,12 @@
       "2026-motegi",
       "motegi",
       "okayama-race",
-      "okaama-race",
-      "okayama-test"
+      "okayama-test",
+      "okaama-race"
     ],
-    "selectedEventId": "okayama-test",
-    "selectedDayIndex": 0
+    "selectedEventId": "okaama-race",
+    "selectedDayIndex": 2
   },
-  "contentVersion": 66,
+  "contentVersion": 67,
   "contentUpdatedAt": "2026-09-25"
 }
