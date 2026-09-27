@@ -2,7 +2,7 @@
   "id": "okaama-race",
   "name": "岡山レースウィーク",
   "status": "active",
-  "announcement": "",
+  "announcement": "30分遅れで進行です",
   "days": [
     {
       "date": "2026-09-24",
