@@ -73,7 +73,7 @@
       "props": {
         "fontScale": 1.8,
         "showPrefix": false,
-        "color": "#ff0000"
+        "color": "#000000"
       },
       "countdown": {
         "x": 19.1,
