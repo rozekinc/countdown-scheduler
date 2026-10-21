@@ -74,9 +74,9 @@
       "suzuka",
       "okaama-race"
     ],
-    "selectedEventId": "suzuka",
-    "selectedDayIndex": 0
+    "selectedEventId": "okaama-race",
+    "selectedDayIndex": 3
   },
-  "contentVersion": 82,
+  "contentVersion": 83,
   "contentUpdatedAt": "2026-10-21"
 }
