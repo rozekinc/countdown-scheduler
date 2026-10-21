@@ -71,12 +71,12 @@
       "motegi",
       "okayama-race",
       "okayama-test",
-      "okaama-race",
-      "suzuka"
+      "suzuka",
+      "okaama-race"
     ],
     "selectedEventId": "suzuka",
     "selectedDayIndex": 0
   },
-  "contentVersion": 81,
+  "contentVersion": 82,
   "contentUpdatedAt": "2026-10-21"
 }
