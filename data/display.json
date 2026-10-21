@@ -1,5 +1,5 @@
 {
-  "activeEventId": "okaama-race",
+  "activeEventId": "suzuka",
   "displayModeId": "standard",
   "aspectRatioId": "widescreen-16-9",
   "displayLanguage": "ja",
@@ -71,11 +71,12 @@
       "motegi",
       "okayama-race",
       "okayama-test",
-      "okaama-race"
+      "okaama-race",
+      "suzuka"
     ],
-    "selectedEventId": "okaama-race",
-    "selectedDayIndex": 3
+    "selectedEventId": "suzuka",
+    "selectedDayIndex": 0
   },
-  "contentVersion": 80,
-  "contentUpdatedAt": "2026-09-27"
+  "contentVersion": 81,
+  "contentUpdatedAt": "2026-10-21"
 }
