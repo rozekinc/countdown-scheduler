@@ -2,7 +2,7 @@
   "id": "suzuka",
   "name": "鈴鹿",
   "status": "active",
-  "announcement": "",
+  "announcement": "受付13:00~",
   "days": [
     {
       "date": "2026-10-22",
@@ -17,8 +17,7 @@
         },
         {
           "title": "走行再開",
-          "time": "2026-10-22T12:00:00+09:00",
-          "hidden": true
+          "time": "2026-10-22T09:50:00+09:00"
         },
         {
           "title": "走行終了",
